@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10b981" />
+  <title>PT Report Tool (Mint)</title>
+
+  <style>
+    :root{
+      --bg:#f6fffb;
+      --card:#ffffff;
+      --line:#d7efe7;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --accent:#10b981;
+      --soft:#eafff6;
+      --soft2:#f0fffa;
+      --danger:#ef4444;
+      --warn:#f59e0b;
+      --shadow: 0 10px 28px rgba(2, 6, 23, .08);
+      --radius:18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
+      padding: 14px 14px calc(18px + env(safe-area-inset-bottom));
+    }
+    .wrap{ max-width: 980px; margin: 0 auto; display:grid; gap: 12px; }
+    header{
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap: 10px; padding: 6px 4px;
+    }
+    h1{ margin:0; font-size: 18px; font-weight: 950; letter-spacing:.2px; line-height:1.2; }
+    .sub{ margin-top: 4px; color: var(--muted); font-size: 12px; line-height:1.35; }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--line);
+      background: #fff;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 850;
+      user-select:none;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .label{ font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 900; }
+    .muted{ color: var(--muted2); font-size: 12px; line-height:1.35; }
+    .mini{ font-size: 12px; color: var(--muted2); margin-top: 6px; line-height:1.35; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 820px){ .grid3{ grid-template-columns: 1fr; } }
+    @media (max-width: 680px){ .grid2{ grid-template-columns: 1fr; } }
+
+    .row{ display:flex; gap: 10px; align-items:center; flex-wrap:wrap; }
+    .row.between{ justify-content:space-between; }
+
+    .field{
+      width:100%;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 12px;
+      font-size: 15px;
+      outline: none;
+    }
+    textarea.field{ min-height: 104px; resize: vertical; }
+    .field:focus{
+      border-color: rgba(16,185,129,.55);
+      box-shadow: 0 0 0 4px rgba(16,185,129,.16);
+    }
+
+    .btn{
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 950;
+      cursor:pointer;
+      min-height: 46px;
+      box-shadow: 0 8px 18px rgba(2,6,23,.06);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(16,185,129,.70));
+      border-color: rgba(16,185,129,.55);
+      color: #053b2a;
+    }
+    .btn.soft{
+      background: var(--soft);
+      border-color: rgba(16,185,129,.30);
+      color: #064e3b;
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.12);
+      border-color: rgba(239,68,68,.35);
+      color:#7f1d1d;
+    }
+    .btn.warn{
+      background: rgba(245,158,11,.10);
+      border-color: rgba(245,158,11,.35);
+      color:#7c2d12;
+    }
+    .btn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .switch{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border:1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      user-select:none;
+      min-height: 46px;
+    }
+    .switch input{ width: 20px; height: 20px; accent-color: var(--accent); }
+    .switch span{ font-size: 15px; font-weight: 900; color: var(--text); }
+
+    .hr{ height:1px; background: var(--line); margin: 10px 0; }
+
+    .stickyBar{
+      position: sticky;
+      bottom: 10px;
+      z-index: 10;
+      display:grid;
+      gap:10px;
+      padding: 10px;
+      background: rgba(246,255,251,.88);
+      backdrop-filter: blur(8px);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .previewBox{
+      border:1px solid rgba(2,6,23,.10);
+      background: #ffffff;
+      border-radius: 14px;
+      overflow:hidden;
+    }
+    .previewHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 10px 12px;
+      background: rgba(16,185,129,.06);
+      border-bottom: 1px solid rgba(2,6,23,.08);
+      gap: 10px;
+    }
+    .previewTitle{
+      font-weight: 950;
+      font-size: 13px;
+      color:#064e3b;
+    }
+    pre{
+      margin:0;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.35;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 320px;
+      overflow:auto;
+    }
+
+    .badge{
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 950;
+      border:1px solid var(--line);
+      background:#fff;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+    }
+    .badge.ok{ border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); color:#065f46; }
+    .badge.wait{ border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.10); color:#7c2d12; }
+    .badge.err{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10); color:#7f1d1d; }
+
+    .histTop{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+    }
+    .histList{ display:grid; gap:10px; margin-top:10px; }
+    .histItem{
+      border:1px solid rgba(2,6,23,.10);
+      background:#fff;
+      border-radius: 16px;
+      padding: 10px;
+      box-shadow: 0 8px 18px rgba(2,6,23,.05);
+    }
+    .histRow{
+      display:flex; align-items:flex-start; justify-content:space-between; gap: 10px;
+    }
+    .histLeft{ display:flex; gap: 10px; align-items:flex-start; }
+    .histMain{ display:grid; gap: 2px; }
+    .histTitle{
+      font-weight: 950;
+      font-size: 14px;
+      color: #0f172a;
+      line-height:1.25;
+    }
+    .histMeta{ font-size: 12px; color: var(--muted2); line-height:1.25; }
+    .histActions{ display:flex; gap: 8px; flex-wrap:wrap; justify-content:flex-end; }
+    .histActions .btn{ min-height: 40px; padding: 9px 10px; font-size: 13px; }
+    .check{
+      width: 22px; height: 22px; margin-top: 2px;
+      accent-color: var(--accent);
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      background: rgba(15, 23, 42, .92);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 850;
+      box-shadow: 0 14px 40px rgba(2,6,23,.30);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 999;
+      max-width: min(520px, calc(100vw - 24px));
+      text-align: center;
+      white-space: pre-wrap;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-6px);
+    }
+
+    /* Modal */
+    .modalBack{
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,.60);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+      z-index: 1000;
+    }
+    .modal{
+      width: min(520px, 100%);
+      background:#fff;
+      border-radius: 18px;
+      border:1px solid var(--line);
+      box-shadow: 0 18px 55px rgba(2,6,23,.28);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      background: var(--soft2);
+    }
+    .modalTitle{
+      font-weight: 950;
+      font-size: 14px;
+      color:#064e3b;
+    }
+    .modalBody{ padding: 12px; display:grid; gap: 10px; }
+    .modalText{ font-size: 14px; color: var(--text); line-height:1.35; }
+    .modalFoot{ padding: 12px; display:grid; gap: 10px; border-top: 1px solid var(--line); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>PT Report Script Tool (Mint)</h1>
+        <div class="sub">กดกรอก → COPY → เปิด LINE กลุ่มอัตโนมัติ • เก็บข้อมูลในเครื่อง • มีประวัติ + ติ๊กเพื่อสรุปยอดรายวัน</div>
+      </div>
+      <span class="pill">☀️ โหมดกลางแดด</span>
+    </header>
+
+    <div class="card">
+      <div class="label">1) ข้อมูลรายงาน</div>
+
+      <div class="grid2">
+        <div>
+          <div class="label">วันที่ (แก้ได้ แต่ทุกครั้งที่รีเฟรชจะกลับเป็น “วันนี้” อัตโนมัติ)</div>
+          <input id="reportDate" class="field" type="date" />
+          <div class="mini">บรรทัดวันที่ในสคริปจะเป็นรูปแบบ: dd/mm/YY (พ.ศ. 2 หลัก) เช่น 10/01/69</div>
+        </div>
+
+        <div>
+          <div class="label">แอคเคาท์</div>
+          <select id="account" class="field">
+            <option value="" selected>— เลือกแอคเคาท์ —</option>
+            <option value="CJ MORE">CJ MORE</option>
+            <option value="LAWSON">LAWSON</option>
+            <option value="BIG C">BIG C</option>
+            <option value="VILLA MARKET">VILLA MARKET</option>
+            <option value="LOTUS'S">LOTUS'S</option>
+            <option value="JIFFY">JIFFY</option>
+            <option value="TOPS DAILY">TOPS DAILY</option>
+          </select>
+
+          <div class="mini">กด COPY แล้วจะเปิดลิงก์ LINE ของกลุ่มตามแอคเคาท์ให้ทันที</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="label">เลขสาขา</div>
+          <input id="branchCode" class="field" placeholder="เช่น 21670" />
+        </div>
+        <div>
+          <div class="label">ชื่อสาขา</div>
+          <input id="branchName" class="field" placeholder="เช่น ถนนสุขาประชาสรรค์ 3" />
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="label">ตรงตาม POG</div>
+          <select id="pog" class="field">
+            <option value="ตรง" selected>ตรง</option>
+            <option value="ไม่ตรง">ไม่ตรง</option>
+          </select>
+        </div>
+        <div>
+          <div class="label">มีครบทุก SKU ไหม</div>
+          <select id="sku" class="field">
+            <option value="ครบ">ครบ</option>
+            <option value="ไม่ครบ" selected>ไม่ครบ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="label">สินค้า OOS</div>
+          <textarea id="oos" class="field" placeholder="พิมพ์รายการสินค้า OOS (หลายบรรทัดได้)"></textarea>
+        </div>
+        <div>
+          <div class="label">ปัญหาหน้างาน</div>
+          <textarea id="issue" class="field" placeholder="พิมพ์ปัญหาหน้างาน (หลายบรรทัดได้)"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="label">หมายเหตุ</div>
+        <textarea id="note" class="field" placeholder="พิมพ์หมายเหตุ (หลายบรรทัดได้)"></textarea>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid2">
+        <label class="switch">
+          <input id="autoOpenLine" type="checkbox" />
+          <span>เปิด LINE กลุ่มอัตโนมัติหลัง COPY</span>
+        </label>
+
+        <div class="row between">
+          <span class="badge wait" id="statusBadge">⏳ ยังไม่ COPY</span>
+          <button class="btn warn" id="btnResetForm">♻️ ล้างฟอร์ม</button>
+        </div>
+      </div>
+
+      <div class="mini" id="statusText">เคล็ดลับ: ถ้า “เปิดลิงก์” ไม่เด้ง ให้ตรวจว่า Chrome อนุญาต pop-up หรือเปิดผ่าน https (ถ้ารันบนเว็บ)</div>
+    </div>
+
+    <div class="card" id="previewSection">
+      <div class="label">2) พรีวิวสคริป (จะคัดลอกแบบนี้)</div>
+      <div class="previewBox">
+        <div class="previewHeader">
+          <div class="previewTitle">Output Preview</div>
+          <button class="btn soft" id="btnCopyOnly" style="min-height:40px; padding:9px 10px; font-size:13px;">📋 COPY (ไม่เปิด LINE)</button>
+        </div>
+        <pre id="preview"></pre>
+      </div>
+      <div class="mini">ปุ่มด้านบนนี้จะ COPY อย่างเดียว (กันกรณีไม่อยากเปิด LINE)</div>
+    </div>
+
+    <div class="card">
+      <div class="label">3) ประวัติ (30 รายการล่าสุด)</div>
+
+      <div class="histTop">
+        <div class="row" style="gap:8px">
+          <span class="badge ok" id="histCount">0 รายการ</span>
+          <span class="muted" id="histHint">ติ๊กช่องหน้ารายการ เพื่อใช้ “สรุปยอดรายวัน”</span>
+        </div>
+
+        <div class="row" style="gap:8px">
+          <button class="btn" id="btnToggleAll">ดูเพิ่มเติม (ทั้งหมด)</button>
+          <button class="btn danger" id="btnClearAll">ล้างประวัติทั้งหมด</button>
+        </div>
+      </div>
+
+      <div class="histList" id="histList"></div>
+      <div class="mini">เรียงจาก “ล่าสุด” อยู่บนสุด • แต่สรุปยอดจะเรียง “เก่าก่อน → ใหม่สุด” ตามที่คุณต้องการ</div>
+    </div>
+
+    <div class="stickyBar">
+      <div class="grid2">
+        <button class="btn primary" id="btnCopy">✅ COPY + เปิด LINE กลุ่ม</button>
+        <button class="btn soft" id="btnSummary">🧾 สรุปยอด (จากที่ติ๊ก) + เปิด LINE สรุป</button>
+      </div>
+      <div class="muted">
+        • รูปแบบสคริป: วันที่(พ.ศ.2หลัก) + GBKK4 + รายละเอียด<br>
+        • สรุปยอด: “สรุปงาน วันที่ dd/mm/yyyy” + “GBBK 4” + ลิสต์ 1..n
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Confirm Modal -->
+  <div class="modalBack" id="modalBack" aria-hidden="true">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="modalTitle" id="modalTitle">ยืนยัน</div>
+        <button class="btn danger" id="modalClose" style="min-height:40px; padding:9px 10px; font-size:13px;">ปิด</button>
+      </div>
+      <div class="modalBody">
+        <div class="modalText" id="modalText">-</div>
+      </div>
+      <div class="modalFoot">
+        <div class="grid2">
+          <button class="btn danger" id="modalYes">ยืนยัน</button>
+          <button class="btn" id="modalNo">ยกเลิก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =========================
+     Storage Keys
+  ========================== */
+  const STORE_FORM = "PT_REPORT_FORM_V1";
+  const STORE_HISTORY = "PT_REPORT_HISTORY_V1";
+  const STORE_UI = "PT_REPORT_UI_V1";
+
+  /* =========================
+     Constants / URLs
+  ========================== */
+  const TEAM_REPORT = "GBKK4";
+  const TEAM_SUMMARY = "GBBK 4";
+
+  const LINE_GROUPS = {
+    groupA: "https://line.me/R/ti/g/_udUgHC5kF",   // CJ MORE/LAWSON/BIG C/VILLA MARKET
+    groupB: "https://line.me/R/ti/g/XrNLFTykZG",   // JIFFY/TOPS DAILY
+    groupC: "https://line.me/R/ti/g/bVz2_mXbq8",   // LOTUS'S
+    summary: "https://line.me/R/ti/g/UEDp_YJDwn"   // สรุปยอดรายวัน
+  };
+
+  function getLineUrlByAccount(account){
+    const a = (account || "").trim().toUpperCase();
+    if (["CJ MORE","LAWSON","BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
+    if (["JIFFY","TOPS DAILY"].includes(a)) return LINE_GROUPS.groupB;
+    if (["LOTUS'S"].includes(a)) return LINE_GROUPS.groupC;
+    return LINE_GROUPS.groupA; // fallback
+  }
+
+  /* =========================
+     Elements
+  ========================== */
+  const $ = (id) => document.getElementById(id);
+
+  const reportDate = $("reportDate");
+  const account = $("account");
+  const branchCode = $("branchCode");
+  const branchName = $("branchName");
+  const pog = $("pog");
+  const sku = $("sku");
+  const oos = $("oos");
+  const issue = $("issue");
+  const note = $("note");
+  const autoOpenLine = $("autoOpenLine");
+
+  const statusBadge = $("statusBadge");
+  const statusText = $("statusText");
+
+  const preview = $("preview");
+  const btnCopy = $("btnCopy");
+  const btnCopyOnly = $("btnCopyOnly");
+  const btnSummary = $("btnSummary");
+  const btnResetForm = $("btnResetForm");
+
+  const histList = $("histList");
+  const histCount = $("histCount");
+  const histHint = $("histHint");
+  const btnToggleAll = $("btnToggleAll");
+  const btnClearAll = $("btnClearAll");
+
+  const toast = $("toast");
+
+  const modalBack = $("modalBack");
+  const modalTitle = $("modalTitle");
+  const modalText = $("modalText");
+  const modalClose = $("modalClose");
+  const modalYes = $("modalYes");
+  const modalNo = $("modalNo");
+
+  /* =========================
+     State
+  ========================== */
+  let history = [];                 // array of {id, createdAt, reportDateISO, reportText, account, branchCode, branchName}
+  let selectedIds = new Set();      // for summary
+  let showAllHistory = false;
+
+  let modalOnYes = null;
+
+  /* =========================
+     Helpers
+  ========================== */
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  function todayISO(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+
+  function parseISODate(iso){
+    // iso: YYYY-MM-DD
+    if (!iso) return null;
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const y = Number(m[1]), mo = Number(m[2])-1, da = Number(m[3]);
+    const d = new Date(y, mo, da);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d;
+  }
+
+  function formatReportDateBuddhist2(d){
+    // dd/mm/YY where YY is last 2 digits of Buddhist year
+    const dd = pad2(d.getDate());
+    const mm = pad2(d.getMonth()+1);
+    const be = d.getFullYear() + 543;     // Buddhist year
+    const yy = pad2(be % 100);
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  function formatSummaryDateGregorian4(d){
+    const dd = pad2(d.getDate());
+    const mm = pad2(d.getMonth()+1);
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
+  function formatDateTimeShort(ms){
+    const d = new Date(ms);
+    const dd = pad2(d.getDate());
+    const mm = pad2(d.getMonth()+1);
+    const yyyy = d.getFullYear();
+    const HH = pad2(d.getHours());
+    const Mi = pad2(d.getMinutes());
+    return `${dd}/${mm}/${yyyy} ${HH}:${Mi}`;
+  }
+
+  function safeText(v){
+    return String(v ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1600);
+  }
+
+  function setStatus(type, text){
+    if (type === "ok"){
+      statusBadge.className = "badge ok";
+      statusBadge.textContent = "✅ สำเร็จ";
+    } else if (type === "err"){
+      statusBadge.className = "badge err";
+      statusBadge.textContent = "❌ ผิดพลาด";
+    } else {
+      statusBadge.className = "badge wait";
+      statusBadge.textContent = "⏳ พร้อม";
+    }
+    statusText.textContent = text || "";
+  }
+
+  function openUrl(url){
+    try{
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e){
+      // ignore
+    }
+  }
+
+  /* =========================
+     Build Report Text
+  ========================== */
+  function buildReportText(){
+    const d = parseISODate(reportDate.value) || new Date();
+    const dateLine = formatReportDateBuddhist2(d);
+
+    const a = safeText(account.value).trim();
+    const bc = safeText(branchCode.value).trim();
+    const bn = safeText(branchName.value).trim();
+    const pogV = safeText(pog.value).trim() || "ตรง";
+    const skuV = safeText(sku.value).trim() || "ไม่ครบ";
+
+    const oosV = safeText(oos.value).trimEnd();
+    const issueV = safeText(issue.value).trimEnd();
+    const noteV = safeText(note.value).trimEnd();
+
+    // Maintain structure and blank lines like example
+    return [
+      `${dateLine}`,
+      `${TEAM_REPORT}`,
+      `แอคเคาท์ : ${a}`,
+      `เลขสาขา : ${bc}`,
+      `ชื่อสาขา : ${bn}`,
+      `ตรงตาม POG ตรง/ไม่ตรง : ${pogV}`,
+      `มีครบทุก SKUไหม ครบ/ไม่ครบ : ${skuV}`,
+      `สินค้าOOS : `,
+      `${oosV}`,
+      ``,
+      `ปัญหาหน้างาน :`,
+      `${issueV}`,
+      ``,
+      `หมายเหตุ :`,
+      `${noteV}`
+    ].join("\n");
+  }
+
+  function updatePreview(){
+    const text = buildReportText();
+    preview.textContent = text;
+  }
+
+  /* =========================
+     Clipboard (robust)
+  ========================== */
+  async function copyToClipboard(text){
+    const t = String(text ?? "");
+    // Try modern API first
+    try{
+      if (navigator.clipboard && window.isSecureContext){
+        await navigator.clipboard.writeText(t);
+        return true;
+      }
+    } catch (e){
+      // fallthrough to execCommand
+    }
+
+    // Fallback: execCommand
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = t;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch (e){
+      return false;
+    }
+  }
+
+  /* =========================
+     Local Storage
+  ========================== */
+  function loadJSON(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveJSON(key, value){
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function saveFormState(){
+    // Date must NOT persist (always reset to today on refresh)
+    const data = {
+      account: account.value || "",
+      branchCode: branchCode.value || "",
+      branchName: branchName.value || "",
+      pog: pog.value || "ตรง",
+      sku: sku.value || "ไม่ครบ",
+      oos: oos.value || "",
+      issue: issue.value || "",
+      note: note.value || "",
+      autoOpenLine: !!autoOpenLine.checked
+    };
+    saveJSON(STORE_FORM, data);
+  }
+
+  function loadFormState(){
+    const data = loadJSON(STORE_FORM, null);
+    if (!data) return;
+
+    account.value = data.account || "";
+    branchCode.value = data.branchCode || "";
+    branchName.value = data.branchName || "";
+    pog.value = data.pog || "ตรง";
+    sku.value = data.sku || "ไม่ครบ";
+    oos.value = data.oos || "";
+    issue.value = data.issue || "";
+    note.value = data.note || "";
+    autoOpenLine.checked = !!data.autoOpenLine;
+  }
+
+  function loadUIState(){
+    const ui = loadJSON(STORE_UI, {});
+    showAllHistory = !!ui.showAllHistory;
+    selectedIds = new Set(Array.isArray(ui.selectedIds) ? ui.selectedIds : []);
+  }
+
+  function saveUIState(){
+    saveJSON(STORE_UI, {
+      showAllHistory,
+      selectedIds: Array.from(selectedIds)
+    });
+  }
+
+  function loadHistory(){
+    const arr = loadJSON(STORE_HISTORY, []);
+    history = Array.isArray(arr) ? arr : [];
+  }
+
+  function saveHistory(){
+    saveJSON(STORE_HISTORY, history);
+  }
+
+  /* =========================
+     History CRUD
+  ========================== */
+  function makeId(){
+    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+
+  function addHistoryEntry(reportText){
+    const id = makeId();
+    const createdAt = Date.now();
+    const reportDateISO = reportDate.value || todayISO();
+
+    const entry = {
+      id,
+      createdAt,
+      reportDateISO,
+      reportText,
+      account: safeText(account.value).trim(),
+      branchCode: safeText(branchCode.value).trim(),
+      branchName: safeText(branchName.value).trim(),
+    };
+
+    history.unshift(entry); // latest on top
+    saveHistory();
+    renderHistory();
+    return entry;
+  }
+
+  function deleteHistoryEntry(id){
+    history = history.filter(x => x.id !== id);
+    selectedIds.delete(id);
+    saveHistory();
+    saveUIState();
+    renderHistory();
+  }
+
+  function clearAllHistory(){
+    history = [];
+    selectedIds.clear();
+    saveHistory();
+    saveUIState();
+    renderHistory();
+  }
+
+  /* =========================
+     Render History
+  ========================== */
+  function renderHistory(){
+    const total = history.length;
+    histCount.textContent = `${total} รายการ`;
+
+    // Show hint count selected
+    const selectedCount = Array.from(selectedIds).filter(id => history.some(h => h.id === id)).length;
+    histHint.textContent = selectedCount > 0
+      ? `เลือกไว้ ${selectedCount} รายการ (ใช้สรุปยอดได้เลย)`
+      : `ติ๊กช่องหน้ารายการ เพื่อใช้ “สรุปยอดรายวัน”`;
+
+    btnToggleAll.textContent = showAllHistory ? "ย่อ (30 รายการล่าสุด)" : "ดูเพิ่มเติม (ทั้งหมด)";
+
+    const list = showAllHistory ? history : history.slice(0, 30);
+
+    histList.innerHTML = "";
+    if (list.length === 0){
+      const empty = document.createElement("div");
+      empty.className = "muted";
+      empty.textContent = "ยังไม่มีประวัติ — กด COPY เพื่อบันทึกเข้าไป";
+      histList.appendChild(empty);
+      return;
+    }
+
+    for (const item of list){
+      const wrap = document.createElement("div");
+      wrap.className = "histItem";
+
+      const row = document.createElement("div");
+      row.className = "histRow";
+
+      const left = document.createElement("div");
+      left.className = "histLeft";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "check";
+      cb.checked = selectedIds.has(item.id);
+      cb.addEventListener("change", () => {
+        if (cb.checked) selectedIds.add(item.id);
+        else selectedIds.delete(item.id);
+        saveUIState();
+        renderHistory(); // update hint
+      });
+
+      const main = document.createElement("div");
+      main.className = "histMain";
+
+      const title = document.createElement("div");
+      title.className = "histTitle";
+      const tAcc = item.account || "(ไม่ระบุแอคเคาท์)";
+      const tBc = item.branchCode || "(ไม่ระบุเลขสาขา)";
+      const tBn = item.branchName || "(ไม่ระบุชื่อสาขา)";
+      title.textContent = `${tAcc} ${tBc} ${tBn}`.trim();
+
+      const meta = document.createElement("div");
+      meta.className = "histMeta";
+      meta.textContent = `บันทึก: ${formatDateTimeShort(item.createdAt)} • วันที่รายงาน: ${item.reportDateISO || "-"}`;
+
+      main.appendChild(title);
+      main.appendChild(meta);
+
+      left.appendChild(cb);
+      left.appendChild(main);
+
+      const actions = document.createElement("div");
+      actions.className = "histActions";
+
+      const btnCopyAgain = document.createElement("button");
+      btnCopyAgain.className = "btn soft";
+      btnCopyAgain.textContent = "📋 COPY";
+      btnCopyAgain.addEventListener("click", async () => {
+        const ok = await copyToClipboard(item.reportText || "");
+        if (ok){
+          setStatus("ok", "คัดลอกจากประวัติแล้ว");
+          showToast("คัดลอกแล้ว ✅");
+        } else {
+          setStatus("err", "คัดลอกไม่สำเร็จ (ลองอีกครั้ง)");
+          showToast("คัดลอกไม่สำเร็จ ❌");
+        }
+
+        // open group by item account if autoOpen enabled
+        if (autoOpenLine.checked){
+          const url = getLineUrlByAccount(item.account);
+          openUrl(url);
+          showToast("เปิด LINE กลุ่มแล้ว");
+        }
+      });
+
+      const btnDel = document.createElement("button");
+      btnDel.className = "btn danger";
+      btnDel.textContent = "🗑 ลบ";
+      btnDel.addEventListener("click", () => {
+        openConfirm(
+          "ยืนยันลบรายการ",
+          `ต้องการลบรายการนี้ใช่ไหม?\n\n${(item.account||"")} ${(item.branchCode||"")} ${(item.branchName||"")}`.trim(),
+          () => deleteHistoryEntry(item.id)
+        );
+      });
+
+      actions.appendChild(btnCopyAgain);
+      actions.appendChild(btnDel);
+
+      row.appendChild(left);
+      row.appendChild(actions);
+      wrap.appendChild(row);
+
+      histList.appendChild(wrap);
+    }
+  }
+
+  /* =========================
+     Confirm Modal
+  ========================== */
+  function openConfirm(title, text, onYes){
+    modalTitle.textContent = title || "ยืนยัน";
+    modalText.textContent = text || "-";
+    modalOnYes = typeof onYes === "function" ? onYes : null;
+    modalBack.style.display = "flex";
+    modalBack.setAttribute("aria-hidden", "false");
+  }
+  function closeConfirm(){
+    modalBack.style.display = "none";
+    modalBack.setAttribute("aria-hidden", "true");
+    modalOnYes = null;
+  }
+
+  modalClose.addEventListener("click", closeConfirm);
+  modalNo.addEventListener("click", closeConfirm);
+  modalYes.addEventListener("click", () => {
+    try{ modalOnYes && modalOnYes(); } finally { closeConfirm(); }
+  });
+  modalBack.addEventListener("click", (e) => {
+    if (e.target === modalBack) closeConfirm();
+  });
+
+  /* =========================
+     Copy Flow
+  ========================== */
+  function validateForCopy(){
+    const missing = [];
+    if (!account.value) missing.push("แอคเคาท์");
+    if (!branchCode.value.trim()) missing.push("เลขสาขา");
+    if (!branchName.value.trim()) missing.push("ชื่อสาขา");
+    return missing;
+  }
+
+  async function doCopy({openLine=true} = {}){
+    updatePreview();
+    const text = preview.textContent || buildReportText();
+
+    // If missing important fields, ask but still allow
+    const miss = validateForCopy();
+    if (miss.length){
+      // still copy, just warn
+      setStatus("wait", `เตือน: ยังไม่ได้กรอก ${miss.join(", ")} (แต่คัดลอกให้แล้ว)`);
+    }
+
+    const ok = await copyToClipboard(text);
+    if (ok){
+      setStatus("ok", "คัดลอกสคริปแล้ว");
+      showToast("คัดลอกแล้ว ✅");
+      addHistoryEntry(text);
+    } else {
+      setStatus("err", "คัดลอกไม่สำเร็จ (ลองอีกครั้ง)");
+      showToast("คัดลอกไม่สำเร็จ ❌");
+      return;
+    }
+
+    // Save form (except date)
+    saveFormState();
+
+    // Open LINE group
+    if (openLine && autoOpenLine.checked){
+      const url = getLineUrlByAccount(account.value);
+      openUrl(url);
+      showToast("เปิด LINE กลุ่มแล้ว");
+    }
+  }
+
+  /* =========================
+     Summary Flow
+  ========================== */
+  function buildSummaryText(){
+    const d = parseISODate(reportDate.value) || new Date();
+    const dateLine = formatSummaryDateGregorian4(d);
+
+    // take selected items that still exist
+    const selectedItems = history.filter(h => selectedIds.has(h.id));
+
+    // sort old -> new (มาก่อน -> ล่าสุด)
+    selectedItems.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+
+    const lines = [];
+    lines.push(`สรุปงาน วันที่ ${dateLine}`);
+    lines.push(`${TEAM_SUMMARY}`);
+    lines.push(""); // blank line
+
+    selectedItems.forEach((it, idx) => {
+      const a = (it.account || "").trim();
+      const bc = (it.branchCode || "").trim();
+      const bn = (it.branchName || "").trim();
+      lines.push(`${idx+1}. ${[a, bc, bn].filter(Boolean).join(" ").trim()}`);
+    });
+
+    return { text: lines.join("\n"), count: selectedItems.length };
+  }
+
+  async function doSummary(){
+    // must have selection
+    const { text, count } = buildSummaryText();
+    if (count <= 0){
+      setStatus("wait", "ยังไม่ได้ติ๊กเลือกรายการในประวัติ");
+      showToast("ยังไม่ได้เลือกประวัติ ❗");
+      return;
+    }
+
+    const ok = await copyToClipboard(text);
+    if (ok){
+      setStatus("ok", `คัดลอกสรุปยอดแล้ว (${count} รายการ)`);
+      showToast(`คัดลอกสรุปยอดแล้ว ✅ (${count})`);
+    } else {
+      setStatus("err", "คัดลอกสรุปยอดไม่สำเร็จ");
+      showToast("คัดลอกไม่สำเร็จ ❌");
+      return;
+    }
+
+    // Open summary group
+    openUrl(LINE_GROUPS.summary);
+    showToast("เปิด LINE กลุ่มสรุปแล้ว");
+    saveUIState();
+  }
+
+  /* =========================
+     Events (Form -> persist)
+  ========================== */
+  function bindSaveOnInput(el){
+    el.addEventListener("input", () => {
+      saveFormState();
+      updatePreview();
+    });
+    el.addEventListener("change", () => {
+      saveFormState();
+      updatePreview();
+    });
+  }
+
+  // Date: always reset to today on load, but allow user to change (NOT persisted)
+  reportDate.addEventListener("change", () => updatePreview());
+
+  bindSaveOnInput(account);
+  bindSaveOnInput(branchCode);
+  bindSaveOnInput(branchName);
+  bindSaveOnInput(pog);
+  bindSaveOnInput(sku);
+  bindSaveOnInput(oos);
+  bindSaveOnInput(issue);
+  bindSaveOnInput(note);
+  bindSaveOnInput(autoOpenLine);
+
+  btnCopy.addEventListener("click", () => doCopy({openLine:true}));
+  btnCopyOnly.addEventListener("click", () => doCopy({openLine:false}));
+  btnSummary.addEventListener("click", doSummary);
+
+  btnToggleAll.addEventListener("click", () => {
+    showAllHistory = !showAllHistory;
+    saveUIState();
+    renderHistory();
+  });
+
+  btnClearAll.addEventListener("click", () => {
+    if (!history.length){
+      showToast("ไม่มีประวัติให้ล้าง");
+      return;
+    }
+    openConfirm(
+      "ยืนยันล้างประวัติทั้งหมด",
+      `ต้องการล้างประวัติทั้งหมดใช่ไหม?\n(จะลบ ${history.length} รายการ)`,
+      () => clearAllHistory()
+    );
+  });
+
+  btnResetForm.addEventListener("click", () => {
+    openConfirm(
+      "ยืนยันล้างฟอร์ม",
+      "ต้องการล้างข้อมูลในฟอร์มทั้งหมดใช่ไหม?\n(ประวัติจะไม่ถูกลบ)",
+      () => {
+        account.value = "";
+        branchCode.value = "";
+        branchName.value = "";
+        pog.value = "ตรง";
+        sku.value = "ไม่ครบ";
+        oos.value = "";
+        issue.value = "";
+        note.value = "";
+        // keep autoOpenLine as is
+        saveFormState();
+        updatePreview();
+        setStatus("wait", "ล้างฟอร์มแล้ว");
+        showToast("ล้างฟอร์มแล้ว");
+      }
+    );
+  });
+
+  /* =========================
+     Boot
+  ========================== */
+  function boot(){
+    // load persisted
+    loadFormState();
+    loadHistory();
+    loadUIState();
+
+    // date resets to TODAY on each refresh
+    reportDate.value = todayISO();
+
+    // defaults
+    if (localStorage.getItem(STORE_FORM) === null){
+      autoOpenLine.checked = true; // default ON for first use
+      saveFormState();
+    }
+
+    updatePreview();
+    renderHistory();
+    setStatus("wait", "พร้อมใช้งาน");
+  }
+
+  // Ensure preview shows immediately
+  boot();
+
+})();
+</script>
+</body>
+</html>
