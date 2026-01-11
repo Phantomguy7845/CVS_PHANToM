@@ -813,7 +813,7 @@
       $('list').innerHTML =
         '<div class="center">' +
           '<div style="font-size:18px;font-weight:1000;color:#064e46">ครบแล้ว 🎉</div>' +
-          '<div style="margin-top:6px;font-weight:900">visited = 1 ครบทุกที่</div>' +
+          '<div style="margin-top:6px;font-weight:900">visited ครบทุกที่</div>' +
           '<div style="margin-top:12px">' +
             '<button id="btnResetInside" class="btn-solid" style="min-height:44px;border-radius:14px;padding:10px 14px;" type="button">เริ่มใหม่ (ล้าง visited)</button>' +
           '</div>' +
@@ -859,8 +859,8 @@
       el.querySelector('[data-act="done"]').onclick = async function(){
         var ok = await openModal({
           title:'ยืนยันว่าไปแล้ว',
-          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะตั้งค่า visited = 1 ในชีท และรายการจะหายไปทันที',
-          okText:'ยืนยัน (ไปแล้ว)',
+          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจนจำค่า visited และรายการจะหายไปทันที',
+          okText:'ยืนยัน',
           cancelText:'ยกเลิก',
           danger:false
         });
