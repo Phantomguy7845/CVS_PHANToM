@@ -582,9 +582,9 @@
     }
 
     // once: true ทำให้ทำครั้งเดียวพอ
-    document.addEventListener('click', handler, { once:true, passive:true });
-    document.addEventListener('touchend', handler, { once:true, passive:true });
-    document.addEventListener('keydown', handler, { once:true });
+    document.addEventListener('click', handler, { once:false, passive:true });
+    document.addEventListener('touchend', handler, { once:false, passive:true });
+    document.addEventListener('keydown', handler, { once:false });
   }
 
   function tryFullscreenOnOpen(){
