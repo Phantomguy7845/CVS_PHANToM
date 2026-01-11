@@ -24,22 +24,35 @@
       --tap:44px;
       --danger:#e23a3a;
 
-      /* ความสูงแถบแท็บล่าง (ค่า default เผื่อ JS ยังไม่คำนวณ) */
+      /* ความสูงแถบแท็บล่าง (เดิม) */
       --bottomTabsH:76px;
 
-      /* ✅ ค่าจริงที่ JS จะอัปเดตให้ (ใช้คำนวณแผนที่พอดีจอ / sidebar) */
-      --hdrH: 0px;
+      /* ✅ (Map View) ค่าจริงที่คำนวณจาก DOM */
+      --headerH: 0px;
       --tabsH: var(--bottomTabsH);
+
+      /* Sidebar */
+      --sbW: 290px;
+      --sbZ: 100001;
     }
 
     *{box-sizing:border-box}
-    html, body{ height:100%; }
+    html, body{height:100%}
 
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background:linear-gradient(180deg,#e9fbf7,var(--bg));
       color:var(--text);
+    }
+
+    /* =========================
+       ✅ MAP VIEW: ห้าม scroll หน้า (เฉพาะตอนอยู่แท็บแผนที่)
+       ========================= */
+    body.map-mode{
+      overflow:hidden;
+      overscroll-behavior:none;
+      touch-action: manipulation;
     }
 
     /* header */
@@ -53,6 +66,22 @@
     .hdr{
       display:flex; gap:10px; align-items:center;
     }
+
+    /* ✅ ปุ่มเมนู Sidebar */
+    .menu-btn{
+      min-height:40px;
+      min-width:44px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.14);
+      color:#fff;
+      font-weight:1000;
+      font-size:18px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-btn:active{ transform:scale(.99); }
+
     .title{
       font-weight:1000;
       font-size:18px;
@@ -60,6 +89,7 @@
       flex-wrap:wrap;
       line-height:1.15;
     }
+    /* ✅ สเตตัสในบรรทัดเดียวกับชื่อ */
     .tstats{
       display:inline-flex;
       align-items:center;
@@ -83,24 +113,6 @@
       font-size:13px;
       white-space:nowrap;
     }
-
-    /* ✅ ปุ่มไอคอน (เปิด sidebar / fullscreen) */
-    .iconbtn{
-      min-height:40px;
-      min-width:40px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.25);
-      background:rgba(255,255,255,.14);
-      color:#fff;
-      font-weight:1000;
-      font-size:16px;
-      cursor:pointer;
-      -webkit-tap-highlight-color: transparent;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .iconbtn:active{ transform:scale(.99); }
 
     /* controls mobile-first */
     .controls{
@@ -156,6 +168,21 @@
       margin:0 auto;
       padding:14px;
       padding-bottom: calc(14px + var(--bottomTabsH) + env(safe-area-inset-bottom));
+    }
+
+    /* =========================
+       ✅ MAP VIEW: main สูงเท่าหน้าจอ และไม่ทำให้เกิด scroll
+       ========================= */
+    body.map-mode main{
+      /* fallback */
+      height: calc(100vh - var(--headerH) - var(--tabsH) - env(safe-area-inset-bottom));
+      padding-bottom: 0;
+      overflow: hidden;
+    }
+    @supports (height: 100dvh){
+      body.map-mode main{
+        height: calc(100dvh - var(--headerH) - var(--tabsH) - env(safe-area-inset-bottom));
+      }
     }
 
     /* pages */
@@ -266,7 +293,26 @@
       cursor:pointer;
       user-select:none;
     }
-    #map{height:72vh; min-height:360px; width:100%}
+
+    /* =========================
+       ✅ MAP VIEW: ทำให้ "แผนที่" พอดีกับหน้าจอ (ไม่ใช้ 72vh แล้ว)
+       ========================= */
+    body.map-mode #pageMap{
+      height: 100%;
+    }
+    body.map-mode .map-wrap{
+      height: 100%;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    body.map-mode #map{
+      flex: 1 1 auto;
+      min-height: 0;  /* สำคัญมากใน flex เพื่อไม่ดันเกิด scroll */
+      width: 100%;
+      height: auto;   /* ให้ flex คุม */
+      touch-action: pan-x pan-y; /* ให้เลื่อนแผนที่ได้ แต่ไม่เลื่อนหน้า */
+    }
 
     /* modal */
     .backdrop{
@@ -364,6 +410,7 @@
       margin-top:8px;
     }
     .map-actions .map-link:active{ transform:scale(.99); }
+
     .map-done{
       border-color:rgba(226,58,58,.28);
       background:rgba(226,58,58,.10);
@@ -440,147 +487,141 @@
     .tabbtn:active{ transform:scale(.99); }
 
     /* =========================
-       ✅ Map = WebView Fit (ไม่ scroll)
+       ✅ SIDEBAR (ใหม่)
        ========================= */
-    body.mode-map{
-      overflow:hidden; /* ✅ กัน scroll ทั้งหน้า */
-      height:100vh;
-    }
-    body.mode-map main{
-      /* ✅ สูงเท่าพื้นที่เหลือระหว่าง header และ bottom tabs */
-      height: calc(100vh - var(--hdrH) - var(--tabsH));
-      padding: 0;           /* ให้เหมือน webview เต็มพื้นที่ */
-      overflow: hidden;     /* ✅ กัน scroll ใน main */
-    }
-    body.mode-map #pageMap{
-      height:100%;
-    }
-    body.mode-map .map-wrap{
-      height:100%;
-      display:flex;
-      flex-direction:column;
-      border-radius: 0;   /* ถ้าอยากให้เป็นการ์ดเดิม ให้ลบบรรทัดนี้ได้ */
-      border-left: none;
-      border-right: none;
-      border-bottom: none;
-    }
-    body.mode-map .map-h{
-      flex:0 0 auto;
-    }
-    body.mode-map #map{
-      flex:1 1 auto;
-      height:auto !important;     /* ✅ ไม่ใช้ 72vh แล้ว */
-      min-height:0 !important;
-      width:100%;
-    }
-
-    /* =========================
-       ✅ Sidebar (ไม่ใช้ z-index)
-       - กินพื้นที่ระหว่าง header กับ bottom tabs
-       ========================= */
-    .sb-backdrop{
+    .sb-overlay{
       position:fixed;
-      left:0; right:0;
-      top: var(--hdrH);
-      bottom: var(--tabsH);
-      background: rgba(0,0,0,.25);
+      inset:0;
+      z-index:var(--sbZ);
+      background:rgba(0,0,0,.38);
       display:none;
+      touch-action: manipulation;
     }
-    .sb-backdrop.show{ display:block; }
+    .sb-overlay.show{ display:block; }
 
     .sidebar{
-      position:fixed;
-      left:0;
-      top: var(--hdrH);
-      bottom: var(--tabsH);
-      width: min(300px, 86vw);
-      background:#ffffff;
+      position:absolute;
+      left:0; top:0; bottom:0;
+      width:min(var(--sbW), calc(100% - 64px));
+      background:linear-gradient(180deg,#ffffff,#f6fffd);
       border-right:1px solid rgba(7,25,21,.10);
-      box-shadow: 10px 0 24px rgba(0,0,0,.10);
-      transform: translateX(-104%);
-      transition: transform .18s ease;
-      display:flex;
-      flex-direction:column;
-      overflow:hidden;
+      box-shadow: 18px 0 40px rgba(0,0,0,.18);
+      transform:translateX(-104%);
+      transition:transform .22s ease;
+      padding:12px;
+      padding-top: calc(12px + env(safe-area-inset-top));
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
     }
-    .sidebar.open{
-      transform: translateX(0);
-    }
+    .sb-overlay.show .sidebar{ transform:translateX(0); }
+
     .sb-head{
-      padding:12px 12px;
-      border-bottom:1px solid rgba(7,25,21,.10);
       display:flex;
       align-items:center;
       gap:10px;
-      background: linear-gradient(180deg,#fff,#fbfffe);
+      padding:8px 6px 12px;
+      border-bottom:1px solid rgba(7,25,21,.10);
+      margin-bottom:12px;
     }
     .sb-title{
       font-weight:1000;
       color:#071915;
+      font-size:16px;
     }
     .sb-close{
       margin-left:auto;
       min-height:40px;
-      min-width:40px;
       border-radius:14px;
-      border:1px solid rgba(7,25,21,.12);
-      background:#f0f5f4;
-      color:#071915;
+      border:1px solid rgba(20,184,166,.25);
+      background:rgba(20,184,166,.10);
+      color:#064e46;
+      padding:8px 12px;
       font-weight:1000;
       cursor:pointer;
     }
-    .sb-body{
-      padding:10px;
-      overflow:auto;
-      -webkit-overflow-scrolling: touch;
+
+    .sb-section{
+      margin-top:12px;
+      font-weight:1000;
+      font-size:12px;
+      color:#3b6760;
+      letter-spacing:.2px;
+      text-transform:uppercase;
+      padding:0 6px;
     }
+
     .sb-link{
       display:flex;
       align-items:center;
       gap:10px;
+      width:100%;
+      margin-top:10px;
       padding:12px 12px;
-      border-radius:14px;
+      border-radius:16px;
       border:1px solid rgba(20,184,166,.22);
-      background: rgba(20,184,166,.10);
+      background:rgba(20,184,166,.10);
       color:#064e46;
       font-weight:1000;
       text-decoration:none;
-      margin-bottom:10px;
+      cursor:pointer;
     }
-    .sb-link:active{ transform: scale(.99); }
+    .sb-link:active{ transform:scale(.99); }
+    .sb-ico{
+      width:34px; height:34px;
+      border-radius:12px;
+      background:rgba(255,255,255,.75);
+      border:1px solid rgba(20,184,166,.22);
+      display:flex; align-items:center; justify-content:center;
+      font-size:18px;
+    }
+    .sb-text{
+      display:flex;
+      flex-direction:column;
+      line-height:1.15;
+    }
+    .sb-text small{
+      font-weight:900;
+      color:rgba(6,78,70,.75);
+      margin-top:4px;
+      font-size:12px;
+    }
   </style>
 </head>
 
 <body>
 
-<!-- ✅ Sidebar + Backdrop (วางก่อน header เพื่อไม่ชน z-index ของ header/tabs) -->
-<div id="sbBackdrop" class="sb-backdrop" aria-hidden="true"></div>
-<aside id="sidebar" class="sidebar" aria-hidden="true">
-  <div class="sb-head">
-    <div class="sb-title">🧰 Tools</div>
-    <button id="sbClose" class="sb-close" type="button">✕</button>
-  </div>
-  <div class="sb-body">
-    <!-- ✅ เปิดแท็บเดิม: ไม่มี target="_blank" -->
+<!-- ✅ Sidebar Overlay -->
+<div id="sbOverlay" class="sb-overlay" aria-hidden="true">
+  <aside class="sidebar" role="navigation" aria-label="Tools Sidebar">
+    <div class="sb-head">
+      <div class="sb-title">🧰 Tools</div>
+      <button id="sbClose" class="sb-close" type="button">ปิด</button>
+    </div>
+
+    <div class="sb-section">เครื่องมือ</div>
+
+    <!-- ✅ Tool #1: Report Script -->
     <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Report.html">
-      📝 Report Script
+      <div class="sb-ico">🧾</div>
+      <div class="sb-text">
+        Report Script
+        <small>เปิดหน้า Report.html</small>
+      </div>
     </a>
-  </div>
-</aside>
+
+    <!-- (เพิ่มเครื่องมืออื่นๆ ได้ โดยก็อปปี้ a.sb-link เพิ่ม) -->
+  </aside>
+</div>
 
 <header>
   <div class="hdr">
-    <!-- ✅ เปิด Sidebar -->
-    <button id="btnSidebar" class="iconbtn" type="button" aria-label="เปิดเมนูเครื่องมือ">☰</button>
+    <!-- ✅ ปุ่มเปิด Sidebar -->
+    <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
     <div class="title">
       📍 GBKK4 Tracker
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
-
-    <!-- ✅ Fullscreen ปุ่ม -->
-    <button id="btnFullscreen" class="iconbtn" type="button" aria-label="เต็มจอ">⛶</button>
-
     <div id="badge" class="badge">กำลังโหลด…</div>
   </div>
 
@@ -698,125 +739,62 @@
   }
 
   /** =========================
-   *  ✅ Layout Vars (Header/Tabs height)
-   *  - ใช้คุม map ให้พอดีจอ / sidebar ให้ไม่ทับ header,tabs
-   *  ========================= */
-  function updateLayoutVars(){
-    try{
-      var hdr = document.querySelector('header');
-      var tabs = document.querySelector('.bottom-tabs');
-      var hdrH = hdr ? hdr.offsetHeight : 0;
-      var tabsH = tabs ? tabs.offsetHeight : 0;
-      document.documentElement.style.setProperty('--hdrH', hdrH + 'px');
-      document.documentElement.style.setProperty('--tabsH', (tabsH || 76) + 'px');
-    }catch(e){}
-  }
-
-  window.addEventListener('resize', function(){
-    updateLayoutVars();
-    if(map){
-      setTimeout(function(){
-        try{ map.invalidateSize(); }catch(e){}
-      }, 80);
-    }
-  });
-
-  /** =========================
-   *  ✅ Sidebar
+   *  ✅ SIDEBAR LOGIC
    *  ========================= */
   function openSidebar(){
-    updateLayoutVars();
-    $('sidebar').classList.add('open');
-    $('sidebar').setAttribute('aria-hidden','false');
-    $('sbBackdrop').classList.add('show');
-    $('sbBackdrop').setAttribute('aria-hidden','false');
+    var o = $('sbOverlay');
+    o.classList.add('show');
+    o.setAttribute('aria-hidden','false');
   }
   function closeSidebar(){
-    $('sidebar').classList.remove('open');
-    $('sidebar').setAttribute('aria-hidden','true');
-    $('sbBackdrop').classList.remove('show');
-    $('sbBackdrop').setAttribute('aria-hidden','true');
+    var o = $('sbOverlay');
+    o.classList.remove('show');
+    o.setAttribute('aria-hidden','true');
+  }
+  function sidebarIsOpen(){
+    return $('sbOverlay').classList.contains('show');
   }
 
-  $('btnSidebar').onclick = openSidebar;
-  $('sbClose').onclick = closeSidebar;
-  $('sbBackdrop').onclick = closeSidebar;
+  $('btnMenu').addEventListener('click', function(e){
+    e.stopPropagation();
+    openSidebar();
+  });
+  $('sbClose').addEventListener('click', function(e){
+    e.stopPropagation();
+    closeSidebar();
+  });
 
-  /** =========================
-   *  ✅ FULLSCREEN
-   *  - กดปุ่ม ⛶ ได้ตลอด
-   *  - ถ้าออก fullscreen แล้ว กดอีกครั้งกลับเข้าได้
-   *  ========================= */
-  function isFullscreen(){
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-  }
-
-  function requestFullscreen(){
-    var el = document.documentElement;
-    var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if(!fn) return Promise.reject(new Error('Fullscreen API not supported'));
-    try{
-      var r = fn.call(el);
-      if(r && typeof r.then === 'function') return r;
-      return Promise.resolve(true);
-    }catch(e){
-      return Promise.reject(e);
-    }
-  }
-
-  function exitFullscreen(){
-    var fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-    if(!fn) return Promise.reject(new Error('Exit fullscreen not supported'));
-    try{
-      var r = fn.call(document);
-      if(r && typeof r.then === 'function') return r;
-      return Promise.resolve(true);
-    }catch(e){
-      return Promise.reject(e);
-    }
-  }
-
-  $('btnFullscreen').onclick = function(){
-    if(isFullscreen()){
-      exitFullscreen().catch(function(){
-        showToast('ออกเต็มจอไม่สำเร็จ');
-      });
-    }else{
-      requestFullscreen().catch(function(){
-        showToast('เบราว์เซอร์บล็อกเต็มจอ: ลองแตะหน้าจออีกครั้ง');
-      });
-    }
-  };
-
-  function attachFullscreenOnGesture(){
-    if(attachFullscreenOnGesture._done) return;
-    attachFullscreenOnGesture._done = true;
-
-    function handler(){
-      if(isFullscreen()) return;
-      requestFullscreen().catch(function(){});
-    }
-
-    document.addEventListener('click', handler, { passive:true });
-    document.addEventListener('touchend', handler, { passive:true });
-    document.addEventListener('keydown', handler);
-  }
-
-  function tryFullscreenOnOpen(){
-    if(isFullscreen()) return;
-    requestFullscreen().catch(function(){
-      showToast('แตะหน้าจอ 1 ครั้งเพื่อเข้าโหมดเต็มจอ');
-      attachFullscreenOnGesture();
-    });
-  }
-
-  document.addEventListener('visibilitychange', function(){
-    if(!document.hidden){
-      setTimeout(function(){
-        tryFullscreenOnOpen();
-      }, 200);
+  $('sbOverlay').addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'sbOverlay'){
+      closeSidebar();
     }
   });
+
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && sidebarIsOpen()){
+      closeSidebar();
+    }
+  });
+
+  /** =========================
+   *  ✅ MAP VIEW: Sync header/tabs height (ใหม่)
+   *  ========================= */
+  function syncMapViewportVars(){
+    try{
+      var header = document.querySelector('header');
+      var tabs = document.querySelector('.bottom-tabs');
+      var root = document.documentElement;
+
+      if(header){
+        root.style.setProperty('--headerH', Math.ceil(header.getBoundingClientRect().height) + 'px');
+      }
+      if(tabs){
+        root.style.setProperty('--tabsH', Math.ceil(tabs.getBoundingClientRect().height) + 'px');
+      }
+    }catch(e){}
+  }
+  window.addEventListener('resize', function(){ syncMapViewportVars(); });
+  window.addEventListener('orientationchange', function(){ setTimeout(syncMapViewportVars, 150); });
 
   /** =========================
    *  JSONP Helper
@@ -898,9 +876,6 @@
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
 
     $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
-
-    // ✅ header อาจสูงขึ้น/ลดลงตามข้อความ => อัปเดต vars
-    setTimeout(updateLayoutVars, 0);
   }
 
   // ===== Map =====
@@ -954,8 +929,7 @@
     function toRad(x){ return x*Math.PI/180; }
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
-    var la1 = toRad(a.lat), la2 = toRad(a.lat ? b.lat : b.lat);
-    la2 = toRad(b.lat);
+    var la1 = toRad(a.lat), la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -1017,7 +991,6 @@
       '</div>';
     $('badge').textContent = 'กำลังโหลด…';
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
-    setTimeout(updateLayoutVars, 0);
   }
 
   function renderList(){
@@ -1274,19 +1247,17 @@
     $('tabList').classList.toggle('active', !isMap);
     $('tabMap').classList.toggle('active', isMap);
 
-    // ✅ โหมดแผนที่: กัน scroll + fit จอ
-    document.body.classList.toggle('mode-map', isMap);
-
-    // อัปเดตความสูง header/tabs ทุกครั้งที่สลับหน้า
-    updateLayoutVars();
+    // ✅ MAP VIEW: เปิด/ปิดโหมดไม่ให้ scroll
+    document.body.classList.toggle('map-mode', isMap);
+    syncMapViewportVars();
 
     if(isMap){
       initMap();
       setTimeout(function(){
-        updateLayoutVars();
+        syncMapViewportVars();
         try{ map.invalidateSize(); }catch(e){}
         renderMap();
-      }, 80);
+      }, 60);
     }
   }
 
@@ -1313,10 +1284,13 @@
   window.addEventListener('hashchange', syncPageFromHash);
 
   // ===== Boot =====
-  updateLayoutVars();
+  syncMapViewportVars();
 
+  // กัน error ถ้าไฟล์ของคุณไม่มีฟังก์ชันนี้แล้ว
   setTimeout(function(){
-    tryFullscreenOnOpen();
+    if(typeof tryFullscreenOnOpen === 'function'){
+      tryFullscreenOnOpen();
+    }
   }, 120);
 
   loadPlaces();
