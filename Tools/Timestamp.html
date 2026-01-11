@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PT Timestamp + Location (Mint Light) v2.4</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --bg:#f6fffb;
+      --card:#ffffff;
+      --line:#d7efe7;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --accent:#10b981;
+      --soft:#eafff6;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --shadow: 0 10px 28px rgba(2, 6, 23, .08);
+      --radius:18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
+      padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+    }
+    .wrap{ max-width: 980px; margin: 0 auto; display:grid; gap: 12px; }
+    header{ display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; padding: 8px 4px; }
+    h1{ margin:0; font-size: 18px; font-weight: 900; letter-spacing:.2px; line-height:1.2; }
+    .sub{ margin-top: 4px; color: var(--muted); font-size: 12px; line-height:1.35; }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .label{ font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 750; }
+    .muted{ color: var(--muted2); font-size: 12px; line-height:1.35; }
+    .mini{ font-size: 12px; color: var(--muted2); margin-top: 4px; line-height:1.35; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 820px){ .grid3{ grid-template-columns: 1fr; } }
+    @media (max-width: 680px){ .grid2{ grid-template-columns: 1fr; } }
+
+    .row{ display:flex; gap: 10px; align-items:center; flex-wrap:wrap; }
+
+    .field{
+      width:100%;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 12px;
+      font-size: 15px;
+      outline: none;
+    }
+    .field:focus{
+      border-color: rgba(16,185,129,.55);
+      box-shadow: 0 0 0 4px rgba(16,185,129,.16);
+    }
+
+    .btn{
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 900;
+      cursor:pointer;
+      min-height: 46px;
+      box-shadow: 0 8px 18px rgba(2,6,23,.06);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(16,185,129,.70));
+      border-color: rgba(16,185,129,.55);
+      color: #053b2a;
+    }
+    .btn.soft{
+      background: var(--soft);
+      border-color: rgba(16,185,129,.30);
+      color: #064e3b;
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.12);
+      border-color: rgba(239,68,68,.35);
+      color:#7f1d1d;
+    }
+    .btn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .switch{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border:1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      user-select:none;
+      min-height: 46px;
+    }
+    .switch input{ width: 20px; height: 20px; accent-color: var(--accent); }
+    .switch span{ font-size: 15px; font-weight: 850; color: var(--text); }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--line);
+      background: #ffffff;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 750;
+    }
+
+    .status{
+      font-size: 12px;
+      color: var(--muted2);
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+    .hr{ height:1px; background: var(--line); margin: 10px 0; }
+
+    canvas{
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      background: #0b0b0f;
+    }
+
+    #map{
+      width:100%;
+      height: 320px;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      overflow:hidden;
+    }
+
+    .stickyBar{
+      position: sticky;
+      bottom: 10px;
+      z-index: 5;
+      display:grid;
+      gap:10px;
+      padding: 10px;
+      background: rgba(246,255,251,.85);
+      backdrop-filter: blur(8px);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .modalBackdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,.62);
+      display:none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(520px, 100%);
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 50px rgba(2,6,23,.25);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding: 12px;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      background: var(--soft);
+    }
+    .modalHeader .title{
+      font-weight: 950;
+      font-size: 14px;
+      color: #064e3b;
+    }
+    .modalBody{ padding: 12px; display:grid; gap: 10px; }
+    video{
+      width:100%;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      background: #000;
+    }
+
+    .loadBox{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      padding: 10px 12px;
+      border:1px dashed rgba(16,185,129,.45);
+      border-radius: 14px;
+      background: rgba(16,185,129,.06);
+    }
+    .spinner{
+      margin-top: 2px;
+      width:18px; height:18px;
+      border:3px solid rgba(16,185,129,.25);
+      border-top-color: rgba(16,185,129,.95);
+      border-radius: 50%;
+      animation: spin .85s linear infinite;
+      display:none;
+      flex: 0 0 auto;
+    }
+    @keyframes spin{ to { transform: rotate(360deg); } }
+
+    .badge{
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      border:1px solid var(--line);
+      background:#fff;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .badge.ok{ border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); color:#065f46; }
+    .badge.wait{ border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.10); color:#7c2d12; }
+    .badge.err{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10); color:#7f1d1d; }
+
+    .logBox{
+      border: 1px solid rgba(2,6,23,.10);
+      background: #ffffff;
+      border-radius: 14px;
+      overflow:hidden;
+    }
+    .logHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 10px 12px;
+      background: rgba(16,185,129,.06);
+      border-bottom: 1px solid rgba(2,6,23,.08);
+      gap: 10px;
+    }
+    .logTitle{
+      font-weight: 950;
+      font-size: 13px;
+      color:#064e3b;
+    }
+    pre{
+      margin:0;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 220px;
+      overflow:auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>PT Timestamp + Location (Mint Light) v2.4</h1>
+        <div class="sub">
+          ✅ เพิ่ม: กด “แสดงพรีวิว” แล้วเลื่อนไปส่วน 5) พรีวิว อัตโนมัติ • ✅ preset size • ✅ localStorage • ✅ EXIF ในตัว + fallback
+        </div>
+      </div>
+      <span class="pill">☀️ โหมดกลางแดด</span>
+    </header>
+
+    <div class="card">
+      <div class="label">1) รูปภาพ</div>
+      <div class="grid2">
+        <button class="btn primary" id="btnOpenCamera">📷 เปิดกล้อง (ถ่ายโดยตรง)</button>
+        <div>
+          <div class="label">เลือกจากแกลเลอรี่</div>
+          <input id="fileGallery" class="field" type="file" accept="image/*" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="pill">ไม่ยืดภาพ</span>
+        <span class="pill">แก้ EXIF orientation (ในตัว)</span>
+      </div>
+
+      <div class="hr"></div>
+      <div class="loadBox">
+        <div class="spinner" id="imgSpinner"></div>
+        <div style="display:grid; gap:6px; width:100%">
+          <div class="row" style="justify-content:space-between">
+            <span class="badge wait" id="imgBadge">⏳ ยังไม่เลือกรูป</span>
+            <span class="muted" id="imgHint">เลือก/ถ่ายภาพ แล้วรอให้สถานะเป็น “พร้อมใช้งาน”</span>
+          </div>
+          <div class="status" id="imgStatus">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">2) เวลา (เลือกใช้เวลาปัจจุบัน หรือแก้เอง)</div>
+      <div class="grid2">
+        <label class="switch">
+          <input id="useNow" type="checkbox" checked />
+          <span>ใช้เวลาปัจจุบัน</span>
+        </label>
+        <div>
+          <div class="label">แก้เวลาเอง (ถ้าไม่ติ๊กใช้เวลาปัจจุบัน)</div>
+          <input id="customTime" class="field" type="datetime-local" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn soft" id="btnSetNow">⏱ ตั้งเป็นเวลาปัจจุบัน</button>
+        <span class="status" id="timeStatus"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">3) Output & การจัดภาพ (Contain / Cover-crop) + ฟอนต์</div>
+
+      <div class="grid3">
+        <div>
+          <div class="label">โหมดขนาดส่งออก</div>
+          <select id="outputMode" class="field">
+            <option value="preset" selected>เลือกขนาด (Preset)</option>
+            <option value="original">ขนาดรูปเดิม (ตามภาพจริง)</option>
+          </select>
+          <div class="mini">Preset = เลือกขนาดเอง • Original = ตามรูปจริง</div>
+        </div>
+
+        <div>
+          <div class="label">Preset Size</div>
+          <select id="outputSize" class="field">
+            <option value="1920x1440" selected>1920 × 1440</option>
+            <option value="2340x1080">2340 × 1080</option>
+            <option value="2160x1080">2160 × 1080</option>
+            <option value="1920x1080">1920 × 1080</option>
+            <option value="1600x1200">1600 × 1200</option>
+            <option value="1440x1080">1440 × 1080</option>
+            <option value="1280x960">1280 × 960</option>
+            <option value="1560x720">1560 × 720</option>
+            <option value="1440x720">1440 × 720</option>
+            <option value="1280x720">1280 × 720</option>
+            <option value="800x600">800 × 600</option>
+            <option value="720x480">720 × 480</option>
+            <option value="640x480">640 × 480</option>
+            <option value="640x360">640 × 360</option>
+            <option value="352x288">352 × 288</option>
+            <option value="320x240">320 × 240</option>
+            <option value="176x144">176 × 144</option>
+          </select>
+          <div class="mini">ถ้าเลือก Original จะปิด preset</div>
+        </div>
+
+        <div>
+          <div class="label">Fit Mode</div>
+          <select id="fitMode" class="field">
+            <option value="contain" selected>Contain (มีขอบดำถ้าสัดส่วนไม่ตรง)</option>
+            <option value="cover">Cover (เต็มเฟรม + ครอป)</option>
+          </select>
+          <div class="mini">ทั้งสองแบบ “ไม่ยืดภาพ”</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid2">
+        <div>
+          <div class="label">ฟอนต์ timestamp</div>
+          <label class="switch" style="margin-bottom:10px">
+            <input id="fontAuto" type="checkbox" checked />
+            <span>Auto (สเกลตามขนาด Output)</span>
+          </label>
+
+          <div class="grid2" style="gap:10px">
+            <div>
+              <div class="label">Auto scale (%)</div>
+              <input id="fontScale" class="field" type="number" min="50" max="250" step="5" value="100">
+            </div>
+            <div>
+              <div class="label">Fixed px (เมื่อปิด Auto)</div>
+              <input id="fontPx" class="field" type="number" min="10" max="200" step="1" value="32" disabled>
+            </div>
+          </div>
+          <div class="mini">Auto จะคำนวณจาก output แล้วคูณด้วย %</div>
+        </div>
+
+        <div>
+          <div class="label">สถานะ Output</div>
+          <div class="status" id="outStatus">พร้อม</div>
+          <div class="mini">ชื่อไฟล์ดาวน์โหลด = PT_เวลาตอนกดดาวน์โหลด.jpg</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">4) ตำแหน่ง (เลือกใช้/ไม่ใช้ได้) — OpenStreetMap / Nominatim</div>
+
+      <div class="grid2">
+        <label class="switch">
+          <input id="enableLocation" type="checkbox" />
+          <span>เปิดใช้งานตำแหน่ง (Overlay)</span>
+        </label>
+
+        <div class="grid2" style="gap:10px">
+          <label class="switch">
+            <input id="showLatLng" type="checkbox" checked />
+            <span>แสดง Lat/Lng</span>
+          </label>
+          <label class="switch">
+            <input id="showAddress" type="checkbox" checked />
+            <span>แสดงที่อยู่</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <button class="btn soft" id="btnUseGPS">📍 ใช้พิกัดปัจจุบัน (GPS)</button>
+        <button class="btn" id="btnPickOnMap">🗺️ เลือกจุดบนแผนที่</button>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="label">Lat</div>
+          <input id="lat" class="field" type="number" step="any" placeholder="เช่น 13.7563" />
+        </div>
+        <div>
+          <div class="label">Lng</div>
+          <input id="lng" class="field" type="number" step="any" placeholder="เช่น 100.5018" />
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="label">ค้นหาสถานที่ (Forward geocode)</div>
+        <div class="row">
+          <input id="placeQuery" class="field" placeholder="เช่น CentralWorld Bangkok" />
+          <button class="btn" id="btnSearchPlace">🔎 ค้นหา</button>
+        </div>
+      </div>
+
+      <div id="mapWrap" style="display:none; margin-top:10px">
+        <div class="label">แตะบนแผนที่เพื่อเลือกจุด</div>
+        <div id="map"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="btnConfirmMap">✅ ยืนยันพิกัดนี้</button>
+          <button class="btn danger" id="btnCloseMap">✖ ปิดแผนที่</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="status" id="locStatus">ปิดใช้งานตำแหน่ง</div>
+    </div>
+
+    <!-- ✅ เพิ่ม id="previewSection" เพื่อเลื่อนมาหาส่วนนี้ -->
+    <div class="card" id="previewSection">
+      <div class="label">5) พรีวิว</div>
+      <canvas id="canvas" width="1920" height="1440"></canvas>
+      <div class="row" style="margin-top:10px">
+        <span class="status" id="renderStatus">ยังไม่ได้ render</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">6) Log (ช่วยดูแทน Console บนมือถือ)</div>
+      <label class="switch" style="margin-bottom:10px">
+        <input id="enableLogPanel" type="checkbox" />
+        <span>เปิดแสดง Log</span>
+      </label>
+
+      <div class="logBox" id="logBox" style="display:none">
+        <div class="logHeader">
+          <div class="logTitle">Runtime Log (ล่าสุดอยู่ล่างสุด)</div>
+          <button class="btn danger" id="btnClearLog" style="min-height:38px; padding:8px 10px;">ล้าง</button>
+        </div>
+        <pre id="logPre"></pre>
+      </div>
+
+      <div class="mini">ถ้ารูปไม่โหลด/ปุ่มไม่ทำงาน ให้เปิด Log แล้วส่งข้อความในนี้มาได้เลย</div>
+    </div>
+
+    <div class="stickyBar">
+      <div class="grid2">
+        <button class="btn primary" id="btnPreview" disabled>👁️ แสดงพรีวิว</button>
+        <button class="btn soft" id="btnDownload" disabled>⬇️ Download</button>
+      </div>
+      <div class="muted">
+        • ชื่อไฟล์: PT_YYYYMMDD_HHMMSS.jpg (เวลาตอนกดดาวน์โหลด)<br>
+        • Preset: ใช้ Contain (ขอบดำ) หรือ Cover (ครอปเต็มเฟรม) ได้
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="camBackdrop" aria-hidden="true">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="title">กล้อง (ถ่ายโดยตรง)</div>
+        <button class="btn danger" id="btnCloseCamera" style="min-width:auto">ปิด</button>
+      </div>
+      <div class="modalBody">
+        <video id="camVideo" playsinline autoplay></video>
+        <div class="grid2">
+          <button class="btn primary" id="btnSnap">📸 ถ่ายภาพ</button>
+          <button class="btn" id="btnSwitchCam">🔄 สลับกล้อง</button>
+        </div>
+        <div class="status" id="camStatus">กำลังเตรียมกล้อง...</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const SETTINGS_KEY = "PT_TS_SETTINGS_V2_4";
+  const DEFAULT_SETTINGS = {
+    useNow: true,
+    customTime: "",
+    outputMode: "preset",
+    outputSize: "1920x1440",
+    fitMode: "contain",
+    fontAuto: true,
+    fontScale: 100,
+    fontPx: 32,
+    enableLocation: false,
+    showLatLng: true,
+    showAddress: true,
+    lat: "",
+    lng: "",
+    placeQuery: "",
+    enableLogPanel: false
+  };
+
+  const fileGallery = document.getElementById('fileGallery');
+
+  const imgSpinner  = document.getElementById('imgSpinner');
+  const imgBadge    = document.getElementById('imgBadge');
+  const imgHint     = document.getElementById('imgHint');
+  const imgStatus   = document.getElementById('imgStatus');
+
+  const useNow      = document.getElementById('useNow');
+  const customTime  = document.getElementById('customTime');
+  const btnSetNow   = document.getElementById('btnSetNow');
+  const timeStatus  = document.getElementById('timeStatus');
+
+  const outputMode  = document.getElementById('outputMode');
+  const outputSize  = document.getElementById('outputSize');
+  const fitMode     = document.getElementById('fitMode');
+  const fontAuto    = document.getElementById('fontAuto');
+  const fontScale   = document.getElementById('fontScale');
+  const fontPx      = document.getElementById('fontPx');
+  const outStatus   = document.getElementById('outStatus');
+
+  const enableLocation = document.getElementById('enableLocation');
+  const showLatLng     = document.getElementById('showLatLng');
+  const showAddress    = document.getElementById('showAddress');
+  const btnUseGPS      = document.getElementById('btnUseGPS');
+  const btnPickOnMap   = document.getElementById('btnPickOnMap');
+  const btnConfirmMap  = document.getElementById('btnConfirmMap');
+  const btnCloseMap    = document.getElementById('btnCloseMap');
+  const mapWrap        = document.getElementById('mapWrap');
+  const locStatus      = document.getElementById('locStatus');
+
+  const latEl       = document.getElementById('lat');
+  const lngEl       = document.getElementById('lng');
+  const placeQuery  = document.getElementById('placeQuery');
+  const btnSearchPlace = document.getElementById('btnSearchPlace');
+
+  const btnPreview  = document.getElementById('btnPreview');
+  const btnDownload = document.getElementById('btnDownload');
+  const canvas      = document.getElementById('canvas');
+  const ctx         = canvas.getContext('2d', { alpha: false });
+  const renderStatus= document.getElementById('renderStatus');
+
+  // ✅ เป้าหมาย scroll
+  const previewSection = document.getElementById('previewSection');
+
+  // Camera
+  const btnOpenCamera  = document.getElementById('btnOpenCamera');
+  const camBackdrop    = document.getElementById('camBackdrop');
+  const btnCloseCamera = document.getElementById('btnCloseCamera');
+  const camVideo       = document.getElementById('camVideo');
+  const btnSnap        = document.getElementById('btnSnap');
+  const btnSwitchCam   = document.getElementById('btnSwitchCam');
+  const camStatus      = document.getElementById('camStatus');
+
+  // Log
+  const enableLogPanel = document.getElementById('enableLogPanel');
+  const logBox         = document.getElementById('logBox');
+  const logPre         = document.getElementById('logPre');
+  const btnClearLog    = document.getElementById('btnClearLog');
+
+  const logs = [];
+  function ts() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;
+  }
+  function addLog(line) {
+    const msg = `[${ts()}] ${line}`;
+    logs.push(msg);
+    if (logs.length > 250) logs.shift();
+    if (enableLogPanel.checked) logPre.textContent = logs.join("\n");
+  }
+  window.addEventListener("error", (e) => {
+    addLog(`❌ error: ${e.message || "unknown"} @ ${e.filename || ""}:${e.lineno || ""}`);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    addLog(`❌ promise: ${String(e.reason || "unknown")}`);
+  });
+
+  let sourceFile = null;
+  let sourceImg  = new Image();
+  let correctedCanvas = document.createElement('canvas');
+  let correctedReady = false;
+
+  let addressText = "";
+  let map = null;
+  let mapMarker = null;
+
+  let camStream = null;
+  let facingMode = "environment";
+
+  let imageState = "idle";
+  let lastLoadedName = "";
+
+  const pad2 = (n) => String(n).padStart(2,'0');
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  function toNumberOrNull(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function hasValidLatLng(){
+    const lat = toNumberOrNull(latEl.value);
+    const lng = toNumberOrNull(lngEl.value);
+    if (lat === null || lng === null) return false;
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  function setImageUIState(state, extraText=""){
+    imageState = state;
+    imgSpinner.style.display = (state === "loading") ? "inline-block" : "none";
+
+    if (state === "idle"){
+      imgBadge.className = "badge wait";
+      imgBadge.textContent = "⏳ ยังไม่เลือกรูป";
+      imgHint.textContent = "เลือก/ถ่ายภาพ แล้วรอให้สถานะเป็น “พร้อมใช้งาน”";
+      imgStatus.textContent = extraText || "-";
+      btnPreview.disabled = true;
+      btnDownload.disabled = true;
+      return;
+    }
+    if (state === "loading"){
+      imgBadge.className = "badge wait";
+      imgBadge.textContent = "⏳ กำลังโหลดภาพ...";
+      imgHint.textContent = "รอสักครู่… เมื่อโหลดเสร็จ ปุ่มพรีวิวจะกดได้";
+      imgStatus.textContent = extraText || "กำลังเตรียมรูป…";
+      btnPreview.disabled = true;
+      btnDownload.disabled = true;
+      return;
+    }
+    if (state === "ready"){
+      imgBadge.className = "badge ok";
+      imgBadge.textContent = "✅ พร้อมใช้งาน";
+      imgHint.textContent = "ตอนนี้กด “แสดงพรีวิว” ได้เลย";
+      imgStatus.textContent = extraText || imgStatus.textContent;
+      btnPreview.disabled = false;
+      btnDownload.disabled = true;
+      return;
+    }
+    if (state === "error"){
+      imgBadge.className = "badge err";
+      imgBadge.textContent = "❌ โหลดภาพไม่สำเร็จ";
+      imgHint.textContent = "ลองเลือกรูปใหม่ หรือถ่ายใหม่อีกครั้ง";
+      imgStatus.textContent = extraText || "เกิดข้อผิดพลาด";
+      btnPreview.disabled = true;
+      btnDownload.disabled = true;
+      return;
+    }
+  }
+
+  function getSelectedDate(){
+    if (useNow.checked) return new Date();
+    const v = customTime.value;
+    if (!v) return null;
+    return new Date(v);
+  }
+
+  function formatThaiDate(date){
+    const d = date.getDate();
+    const m = date.toLocaleString("th-TH", { month: "short" });
+    const y = date.getFullYear();
+    const hh = date.getHours();
+    const mm = date.getMinutes();
+    const ss = date.getSeconds();
+    const tz = "GMT+07:00";
+    return `${d} ${m}. ${y} ${hh} นาฬิกา ${mm} นาที ${ss} วินาที ${tz}`;
+  }
+
+  function buildFilenameFromNow(){
+    const date = new Date();
+    const yyyy = date.getFullYear();
+    const MM = pad2(date.getMonth()+1);
+    const dd = pad2(date.getDate());
+    const HH = pad2(date.getHours());
+    const mm = pad2(date.getMinutes());
+    const ss = pad2(date.getSeconds());
+    return `PT_${yyyy}${MM}${dd}_${HH}${mm}${ss}.jpg`;
+  }
+
+  function setTimeUIStatus(){
+    const d = getSelectedDate();
+    if (!d){
+      timeStatus.textContent = "กรุณาเลือกเวลา (datetime-local)";
+      return;
+    }
+    timeStatus.textContent = `เวลาที่จะใช้: ${formatThaiDate(d)}`;
+  }
+
+  function parseOutputSize(){
+    const v = (outputSize.value || "1920x1440").toLowerCase().trim();
+    const m = v.match(/^(\d+)\s*x\s*(\d+)$/);
+    if (!m) return { w: 1920, h: 1440 };
+    const w = Number(m[1]);
+    const h = Number(m[2]);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) return { w: 1920, h: 1440 };
+    return { w, h };
+  }
+
+  function updateOutputUI(){
+    const mode = outputMode.value;
+    outputSize.disabled = (mode !== "preset");
+    fitMode.disabled = (mode !== "preset");
+
+    if (mode === "original"){
+      outStatus.textContent = "Output = ขนาดรูปเดิม (ตามภาพจริง) • ไม่บังคับ preset";
+    } else {
+      const { w, h } = parseOutputSize();
+      outStatus.textContent = `Output = ${w}×${h} • Fit = ${fitMode.value === "contain" ? "Contain (ขอบดำ)" : "Cover (ครอปเต็มเฟรม)"}`;
+    }
+  }
+
+  function updateFontUI(){
+    const auto = fontAuto.checked;
+    fontScale.disabled = !auto;
+    fontPx.disabled = auto;
+  }
+
+  function computeFontSizePx(outW, outH){
+    if (!fontAuto.checked){
+      const px = Number(fontPx.value);
+      return clamp(Number.isFinite(px) ? px : 32, 10, 200);
+    }
+    const base = Math.min(outW, outH);
+    const autoPx = clamp(Math.round(base * 0.022), 12, 200);
+    const scalePct = clamp(Number(fontScale.value) || 100, 50, 250);
+    return clamp(Math.round(autoPx * (scalePct / 100)), 10, 200);
+  }
+
+  function buildOverlayLines(date){
+    const lines = [];
+    lines.push(`Network: ${formatThaiDate(date)}`);
+    lines.push(`Local: ${formatThaiDate(date)}`);
+
+    if (enableLocation.checked && hasValidLatLng()){
+      const lat = Number(latEl.value);
+      const lng = Number(lngEl.value);
+
+      if (showLatLng.checked){
+        lines.push(`📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      }
+      if (showAddress.checked){
+        lines.push(addressText ? addressText : "(ที่อยู่ยังไม่พร้อม)");
+      }
+    }
+    return lines;
+  }
+
+  function drawOverlayText(lines, outW, outH){
+    const fontSize = computeFontSizePx(outW, outH);
+    const padding = Math.round(Math.min(outW, outH) * 0.018);
+    const lineGap = Math.round(fontSize * 1.15);
+
+    ctx.save();
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+
+    ctx.font = `800 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif`;
+    ctx.fillStyle = "white";
+
+    ctx.shadowColor = "rgba(0,0,0,.85)";
+    ctx.shadowBlur = Math.round(fontSize * 0.35);
+
+    const x = outW - padding;
+    let y = padding;
+    for (const line of lines){
+      ctx.fillText(line, x, y);
+      y += lineGap;
+    }
+    ctx.restore();
+  }
+
+  async function fileToDataURL(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = () => reject(new Error("FileReader failed"));
+      r.onload = () => resolve(String(r.result || ""));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function getExifOrientation(file){
+    try{
+      if (!file || !file.type || !file.type.toLowerCase().includes("jpeg")) return 1;
+      const buf = await file.arrayBuffer();
+      const view = new DataView(buf);
+
+      if (view.getUint16(0, false) !== 0xFFD8) return 1;
+      let offset = 2;
+      const length = view.byteLength;
+
+      while (offset < length){
+        if (view.getUint8(offset) !== 0xFF) break;
+        const marker = view.getUint16(offset, false);
+        offset += 2;
+
+        if (marker === 0xFFE1){
+          offset += 2; // segment length
+          if (view.getUint32(offset, false) !== 0x45786966) return 1;
+          offset += 6;
+
+          const tiffOffset = offset;
+          const endianness = view.getUint16(tiffOffset, false);
+          const little = (endianness === 0x4949);
+          if (!little && endianness !== 0x4D4D) return 1;
+
+          const getU16 = (o) => view.getUint16(o, little);
+          const getU32 = (o) => view.getUint32(o, little);
+
+          if (getU16(tiffOffset + 2) !== 0x002A) return 1;
+
+          const ifd0Offset = getU32(tiffOffset + 4);
+          let dirOffset = tiffOffset + ifd0Offset;
+          if (dirOffset < 0 || dirOffset > length - 2) return 1;
+
+          const entries = getU16(dirOffset);
+          dirOffset += 2;
+
+          for (let i=0;i<entries;i++){
+            const entryOffset = dirOffset + i*12;
+            if (entryOffset + 12 > length) break;
+            const tag = getU16(entryOffset);
+            if (tag === 0x0112){
+              const type = getU16(entryOffset + 2);
+              const count = getU32(entryOffset + 4);
+              if (type !== 3 || count !== 1) return 1;
+              const valOffset = entryOffset + 8;
+              const orient = getU16(valOffset);
+              return (orient >= 1 && orient <= 8) ? orient : 1;
+            }
+          }
+          return 1;
+        } else {
+          if (offset + 2 > length) break;
+          const size = view.getUint16(offset, false);
+          offset += size;
+        }
+      }
+      return 1;
+    } catch (e){
+      addLog(`getExifOrientation fallback: ${String(e.message || e)}`);
+      return 1;
+    }
+  }
+
+  function drawToCanvasWithOrientation(img, orientation){
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+
+    const c = correctedCanvas;
+    const cctx = c.getContext("2d");
+
+    if ([5,6,7,8].includes(orientation)){
+      c.width = h; c.height = w;
+    } else {
+      c.width = w; c.height = h;
+    }
+
+    cctx.save();
+    switch (orientation){
+      case 2: cctx.translate(w, 0); cctx.scale(-1, 1); break;
+      case 3: cctx.translate(w, h); cctx.rotate(Math.PI); break;
+      case 4: cctx.translate(0, h); cctx.scale(1, -1); break;
+      case 5: cctx.rotate(0.5*Math.PI); cctx.scale(1, -1); break;
+      case 6: cctx.translate(h, 0); cctx.rotate(0.5*Math.PI); break;
+      case 7: cctx.translate(h, 0); cctx.rotate(0.5*Math.PI); cctx.scale(-1, 1); break;
+      case 8: cctx.translate(0, w); cctx.rotate(-0.5*Math.PI); break;
+      default: break;
+    }
+    cctx.drawImage(img, 0, 0);
+    cctx.restore();
+    correctedReady = true;
+  }
+
+  async function loadImageFromFile(file){
+    const blobUrl = URL.createObjectURL(file);
+    try{
+      await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("Image onerror(blobUrl)"));
+        im.src = blobUrl;
+        sourceImg = im;
+      });
+      return;
+    } catch (e){
+      addLog(`blobUrl failed -> fallback DataURL: ${String(e.message || e)}`);
+      try { URL.revokeObjectURL(blobUrl); } catch {}
+      const dataUrl = await fileToDataURL(file);
+      await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("Image onerror(dataUrl)"));
+        im.src = dataUrl;
+        sourceImg = im;
+      });
+      return;
+    } finally {
+      setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch {} }, 1500);
+    }
+  }
+
+  async function loadFile(file, { fromCamera=false } = {}){
+    try{
+      sourceFile = file;
+      correctedReady = false;
+      btnDownload.disabled = true;
+      renderStatus.textContent = "ยังไม่ได้ render";
+
+      lastLoadedName = fromCamera ? "(Camera)" : (file?.name || "(unknown)");
+      setImageUIState("loading", `ไฟล์: ${lastLoadedName}`);
+
+      if (!file){
+        setImageUIState("error", "ไม่พบไฟล์ภาพ");
+        return;
+      }
+
+      await loadImageFromFile(file);
+
+      const w = sourceImg.naturalWidth;
+      const h = sourceImg.naturalHeight;
+      if (!w || !h){
+        setImageUIState("error", "โหลดภาพแล้ว แต่ขนาดรูปเป็น 0 (อาจเป็นบัคบาง WebView)");
+        return;
+      }
+
+      let info = `โหลดรูปแล้ว: ${lastLoadedName}\nขนาดเดิม: ${w}×${h}`;
+
+      if (fromCamera){
+        correctedCanvas.width = w;
+        correctedCanvas.height = h;
+        correctedCanvas.getContext("2d").drawImage(sourceImg, 0, 0);
+        correctedReady = true;
+        info += `\n(กล้องโดยตรง: ${correctedCanvas.width}×${correctedCanvas.height})`;
+      } else {
+        const orient = await getExifOrientation(file);
+        info += `\nEXIF orientation: ${orient}`;
+        drawToCanvasWithOrientation(sourceImg, orient);
+        info += `\n(หลังแก้ orientation: ${correctedCanvas.width}×${correctedCanvas.height})`;
+      }
+
+      setImageUIState("ready", info);
+      addLog(`✅ image ready: ${lastLoadedName} ${correctedCanvas.width}x${correctedCanvas.height}`);
+    } catch (e){
+      setImageUIState("error", "โหลดภาพไม่สำเร็จ: " + String(e?.message || e));
+      addLog(`❌ loadFile: ${String(e?.message || e)}`);
+    }
+  }
+
+  function drawContain(src, outW, outH){
+    ctx.clearRect(0, 0, outW, outH);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, outW, outH);
+
+    const sw = src.width;
+    const sh = src.height;
+    const scale = Math.min(outW / sw, outH / sh);
+    const dw = Math.round(sw * scale);
+    const dh = Math.round(sh * scale);
+    const dx = Math.round((outW - dw) / 2);
+    const dy = Math.round((outH - dh) / 2);
+    ctx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh);
+  }
+
+  function drawCover(src, outW, outH){
+    ctx.clearRect(0, 0, outW, outH);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, outW, outH);
+
+    const sw = src.width;
+    const sh = src.height;
+    const scale = Math.max(outW / sw, outH / sh);
+    const dw = Math.round(sw * scale);
+    const dh = Math.round(sh * scale);
+    const dx = Math.round((outW - dw) / 2);
+    const dy = Math.round((outH - dh) / 2);
+    ctx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh);
+  }
+
+  async function reverseGeocode(lat, lng){
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
+    const res = await fetch(url, { headers: { "Accept":"application/json", "Accept-Language":"th-TH,th;q=0.9,en;q=0.7" } });
+    if (!res.ok) throw new Error("Reverse geocode failed");
+    const data = await res.json();
+    return data?.display_name || "";
+  }
+
+  async function forwardGeocode(q){
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
+    const res = await fetch(url, { headers: { "Accept":"application/json", "Accept-Language":"th-TH,th;q=0.9,en;q=0.7" } });
+    if (!res.ok) throw new Error("Search place failed");
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: Number(data[0].lat), lng: Number(data[0].lon), display_name: data[0].display_name || "" };
+  }
+
+  async function refreshAddressIfNeeded(){
+    addressText = "";
+    if (!enableLocation.checked){
+      locStatus.textContent = "ปิดใช้งานตำแหน่ง";
+      return;
+    }
+    if (!hasValidLatLng()){
+      locStatus.textContent = "เปิดใช้งานตำแหน่ง แต่ยังไม่มี Lat/Lng ที่ถูกต้อง";
+      return;
+    }
+
+    const lat = Number(latEl.value);
+    const lng = Number(lngEl.value);
+    let msg = `Lat/Lng: ${lat.toFixed(6)}, ${lng.toFixed(6)}\n`;
+
+    if (showAddress.checked){
+      locStatus.textContent = msg + "กำลังดึงที่อยู่จาก Nominatim...";
+      try{
+        addressText = await reverseGeocode(lat, lng);
+        msg += `Address: ${addressText || "(ไม่พบที่อยู่)"}`;
+      } catch (e){
+        msg += "Address: (ดึงที่อยู่ไม่ได้ — แนะนำเปิดผ่าน https)";
+        addLog(`reverseGeocode failed: ${String(e.message || e)}`);
+      }
+    } else {
+      msg += "Address: (ปิดการแสดงที่อยู่)";
+    }
+
+    locStatus.textContent = msg;
+  }
+
+  async function render(){
+    btnDownload.disabled = true;
+
+    if (!sourceFile || !correctedReady){
+      renderStatus.textContent = "กรุณาเลือกรูป/ถ่ายรูปก่อน";
+      return;
+    }
+    if (imageState !== "ready"){
+      renderStatus.textContent = "รูปภาพกำลังโหลด/กำลังเตรียม… กรุณารอสถานะ “พร้อมใช้งาน”";
+      return;
+    }
+    const d = getSelectedDate();
+    if (!d){
+      renderStatus.textContent = "กรุณาเลือกเวลา";
+      return;
+    }
+
+    const src = correctedCanvas;
+    const sw = src.width;
+    const sh = src.height;
+
+    let outW, outH;
+    if (outputMode.value === "original"){
+      outW = sw; outH = sh;
+    } else {
+      const s = parseOutputSize();
+      outW = s.w; outH = s.h;
+    }
+
+    canvas.width = outW;
+    canvas.height = outH;
+
+    if (outputMode.value === "original"){
+      ctx.clearRect(0,0,outW,outH);
+      ctx.drawImage(src, 0,0, sw,sh, 0,0, outW,outH);
+    } else {
+      if (fitMode.value === "cover") drawCover(src, outW, outH);
+      else drawContain(src, outW, outH);
+    }
+
+    if (enableLocation.checked && hasValidLatLng() && showAddress.checked && !addressText){
+      try { addressText = await reverseGeocode(Number(latEl.value), Number(lngEl.value)); }
+      catch (e){ addLog(`reverseGeocode(lazy) failed: ${String(e.message || e)}`); }
+    }
+
+    const lines = buildOverlayLines(d);
+    drawOverlayText(lines, outW, outH);
+
+    renderStatus.textContent =
+      `พรีวิวพร้อมแล้ว\nOutput: ${outW}×${outH} • ${outputMode.value === "preset" ? (fitMode.value === "cover" ? "Cover(crop)" : "Contain") : "Original size"}\nFont: ${computeFontSizePx(outW, outH)}px • Overlay: ${lines.length} บรรทัด`;
+
+    btnDownload.disabled = false;
+    addLog(`👁️ render ok: ${outW}x${outH}`);
+  }
+
+  function download(){
+    if (btnDownload.disabled) return;
+    const name = buildFilenameFromNow();
+    const link = document.createElement("a");
+    link.download = name;
+    link.href = canvas.toDataURL("image/jpeg", 0.95);
+    link.click();
+    addLog(`⬇️ download: ${name}`);
+  }
+
+  function openMap(){
+    if (!window.L){
+      locStatus.textContent = "แผนที่โหลดไม่สำเร็จ (Leaflet) — ตรวจเน็ต/เปิดผ่าน https";
+      addLog("Leaflet not available: window.L is undefined");
+      mapWrap.style.display = "none";
+      return;
+    }
+
+    mapWrap.style.display = "block";
+    const lat = hasValidLatLng() ? Number(latEl.value) : 13.7563;
+    const lng = hasValidLatLng() ? Number(lngEl.value) : 100.5018;
+
+    if (!map){
+      map = L.map('map', { zoomControl: true }).setView([lat, lng], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      mapMarker = L.marker([lat, lng]).addTo(map);
+
+      map.on('click', async (e) => {
+        latEl.value = e.latlng.lat;
+        lngEl.value = e.latlng.lng;
+        mapMarker.setLatLng(e.latlng);
+        addressText = "";
+        if (!enableLocation.checked) enableLocation.checked = true;
+        await refreshAddressIfNeeded();
+        scheduleSaveSettings();
+      });
+    } else {
+      map.setView([lat, lng], 15);
+      if (mapMarker) mapMarker.setLatLng([lat, lng]);
+    }
+
+    setTimeout(() => map.invalidateSize(), 80);
+  }
+
+  function closeMap(){
+    mapWrap.style.display = "none";
+  }
+
+  function showCamModal(on){
+    camBackdrop.style.display = on ? "flex" : "none";
+    camBackdrop.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  async function stopCamera(){
+    if (camStream){
+      camStream.getTracks().forEach(t => t.stop());
+      camStream = null;
+    }
+    camVideo.srcObject = null;
+  }
+
+  async function startCamera(){
+    camStatus.textContent = "กำลังเปิดกล้อง...";
+    try{
+      if (!navigator.mediaDevices?.getUserMedia){
+        camStatus.textContent = "เบราว์เซอร์นี้ไม่รองรับกล้องโดยตรง";
+        return;
+      }
+      await stopCamera();
+
+      const constraints = {
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height:{ ideal: 1080 }
+        },
+        audio: false
+      };
+
+      camStream = await navigator.mediaDevices.getUserMedia(constraints);
+      camVideo.srcObject = camStream;
+
+      camStatus.textContent = `กล้องพร้อมแล้ว (${facingMode === "environment" ? "กล้องหลัง" : "กล้องหน้า"})`;
+      addLog(`📷 camera started: ${facingMode}`);
+    } catch (e){
+      camStatus.textContent = "เปิดกล้องไม่สำเร็จ: " + (e?.message || "unknown error") + "\n(ต้องเปิดผ่าน https และอนุญาตกล้อง)";
+      addLog(`camera start failed: ${String(e?.message || e)}`);
+    }
+  }
+
+  function snapPhoto(){
+    if (!camStream){
+      camStatus.textContent = "ยังไม่มีกล้อง";
+      return;
+    }
+
+    const vw = camVideo.videoWidth || 1280;
+    const vh = camVideo.videoHeight || 720;
+
+    const c = document.createElement('canvas');
+    c.width = vw;
+    c.height = vh;
+    c.getContext('2d').drawImage(camVideo, 0, 0, vw, vh);
+
+    c.toBlob(async (blob) => {
+      if (!blob){
+        camStatus.textContent = "ถ่ายภาพไม่สำเร็จ";
+        addLog("snapPhoto: blob null");
+        return;
+      }
+      const file = new File([blob], "camera.jpg", { type: "image/jpeg" });
+      await loadFile(file, { fromCamera: true });
+
+      camStatus.textContent = "ถ่ายภาพแล้ว ✅";
+      showCamModal(false);
+      await stopCamera();
+    }, "image/jpeg", 0.95);
+  }
+
+  function readSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return { ...DEFAULT_SETTINGS };
+      const obj = JSON.parse(raw);
+      return { ...DEFAULT_SETTINGS, ...(obj || {}) };
+    } catch (e){
+      addLog(`readSettings failed: ${String(e.message || e)}`);
+      return { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  function applySettings(s){
+    useNow.checked = !!s.useNow;
+    customTime.value = s.customTime || "";
+    outputMode.value = s.outputMode || "preset";
+    outputSize.value = s.outputSize || "1920x1440";
+    fitMode.value = s.fitMode || "contain";
+
+    fontAuto.checked = !!s.fontAuto;
+    fontScale.value = String(s.fontScale ?? 100);
+    fontPx.value = String(s.fontPx ?? 32);
+
+    enableLocation.checked = !!s.enableLocation;
+    showLatLng.checked = (s.showLatLng ?? true);
+    showAddress.checked = (s.showAddress ?? true);
+    latEl.value = s.lat ?? "";
+    lngEl.value = s.lng ?? "";
+    placeQuery.value = s.placeQuery ?? "";
+
+    enableLogPanel.checked = !!s.enableLogPanel;
+    logBox.style.display = enableLogPanel.checked ? "block" : "none";
+    if (enableLogPanel.checked) logPre.textContent = logs.join("\n");
+
+    updateOutputUI();
+    updateFontUI();
+    setTimeUIStatus();
+  }
+
+  function collectSettings(){
+    return {
+      useNow: useNow.checked,
+      customTime: customTime.value || "",
+      outputMode: outputMode.value,
+      outputSize: outputSize.value,
+      fitMode: fitMode.value,
+      fontAuto: fontAuto.checked,
+      fontScale: Number(fontScale.value) || 100,
+      fontPx: Number(fontPx.value) || 32,
+      enableLocation: enableLocation.checked,
+      showLatLng: showLatLng.checked,
+      showAddress: showAddress.checked,
+      lat: latEl.value || "",
+      lng: lngEl.value || "",
+      placeQuery: placeQuery.value || "",
+      enableLogPanel: enableLogPanel.checked
+    };
+  }
+
+  let saveTimer = null;
+  function scheduleSaveSettings(){
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try{
+        const s = collectSettings();
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+        addLog("💾 saved settings");
+      } catch (e){
+        addLog(`saveSettings failed: ${String(e.message || e)}`);
+      }
+    }, 250);
+  }
+
+  /* =========================
+     ✅ Scroll to Preview helper
+  ========================== */
+  function scrollToPreview(){
+    try{
+      previewSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      // fallback
+      window.location.hash = "#previewSection";
+    }
+  }
+
+  /* =========================
+     Events
+  ========================== */
+  fileGallery.addEventListener("click", () => { fileGallery.value = ""; });
+
+  fileGallery.addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (!f){
+      addLog("fileGallery: no file");
+      return;
+    }
+    loadFile(f, { fromCamera:false });
+  });
+
+  useNow.addEventListener("change", () => { setTimeUIStatus(); scheduleSaveSettings(); });
+  customTime.addEventListener("input", () => { setTimeUIStatus(); scheduleSaveSettings(); });
+  btnSetNow.addEventListener("click", () => {
+    const now = new Date();
+    const v = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    customTime.value = v;
+    useNow.checked = true;
+    setTimeUIStatus();
+    scheduleSaveSettings();
+  });
+
+  outputMode.addEventListener("change", () => { updateOutputUI(); scheduleSaveSettings(); });
+  outputSize.addEventListener("change", () => { updateOutputUI(); scheduleSaveSettings(); });
+  fitMode.addEventListener("change", () => { updateOutputUI(); scheduleSaveSettings(); });
+
+  fontAuto.addEventListener("change", () => { updateFontUI(); scheduleSaveSettings(); });
+  fontScale.addEventListener("input", () => { scheduleSaveSettings(); });
+  fontPx.addEventListener("input", () => { scheduleSaveSettings(); });
+
+  enableLocation.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSaveSettings(); });
+  showLatLng.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSaveSettings(); });
+  showAddress.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSaveSettings(); });
+  latEl.addEventListener("input", async () => { addressText=""; await refreshAddressIfNeeded(); scheduleSaveSettings(); });
+  lngEl.addEventListener("input", async () => { addressText=""; await refreshAddressIfNeeded(); scheduleSaveSettings(); });
+
+  btnUseGPS.addEventListener("click", async () => {
+    if (!enableLocation.checked) enableLocation.checked = true;
+    scheduleSaveSettings();
+
+    if (!navigator.geolocation){
+      locStatus.textContent = "อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ GPS";
+      addLog("geolocation not supported");
+      return;
+    }
+
+    locStatus.textContent = "กำลังขอพิกัดจาก GPS...";
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      latEl.value = pos.coords.latitude;
+      lngEl.value = pos.coords.longitude;
+      addressText = "";
+      await refreshAddressIfNeeded();
+      scheduleSaveSettings();
+    }, (err) => {
+      locStatus.textContent = "ขอพิกัดไม่ได้: " + (err?.message || "unknown error") + "\n(ต้องเปิดผ่าน https และอนุญาต location)";
+      addLog(`geolocation error: ${String(err?.message || err)}`);
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  });
+
+  btnPickOnMap.addEventListener("click", () => {
+    if (!enableLocation.checked) enableLocation.checked = true;
+    scheduleSaveSettings();
+    openMap();
+  });
+  btnConfirmMap.addEventListener("click", async () => {
+    if (!hasValidLatLng()){
+      locStatus.textContent = "ยังไม่มีพิกัดที่ถูกต้อง";
+      return;
+    }
+    closeMap();
+    await refreshAddressIfNeeded();
+    scheduleSaveSettings();
+  });
+  btnCloseMap.addEventListener("click", closeMap);
+
+  btnSearchPlace.addEventListener("click", async () => {
+    const q = placeQuery.value.trim();
+    if (!q) return;
+    if (!enableLocation.checked) enableLocation.checked = true;
+
+    locStatus.textContent = "กำลังค้นหาสถานที่...";
+    try{
+      const r = await forwardGeocode(q);
+      if (!r){
+        locStatus.textContent = "ไม่พบสถานที่";
+        return;
+      }
+      latEl.value = r.lat;
+      lngEl.value = r.lng;
+      addressText = r.display_name || "";
+      await refreshAddressIfNeeded();
+      scheduleSaveSettings();
+
+      if (map && window.L){
+        map.setView([r.lat, r.lng], 17);
+        if (!mapMarker) mapMarker = L.marker([r.lat, r.lng]).addTo(map);
+        mapMarker.setLatLng([r.lat, r.lng]);
+      }
+    } catch (e){
+      locStatus.textContent = "ค้นหาไม่สำเร็จ (แนะนำเปิดผ่าน https)";
+      addLog(`forwardGeocode failed: ${String(e.message || e)}`);
+    }
+  });
+
+  // ✅ เปลี่ยน handler: render แล้วเลื่อนไปพรีวิวทันที (ไม่ว่าจออยู่ตรงไหน)
+  btnPreview.addEventListener("click", async () => {
+    await render();
+    scrollToPreview();
+  });
+
+  btnDownload.addEventListener("click", download);
+
+  btnOpenCamera.addEventListener("click", async () => {
+    showCamModal(true);
+    await startCamera();
+  });
+  btnCloseCamera.addEventListener("click", async () => {
+    showCamModal(false);
+    await stopCamera();
+  });
+  btnSwitchCam.addEventListener("click", async () => {
+    facingMode = (facingMode === "environment") ? "user" : "environment";
+    await startCamera();
+  });
+  btnSnap.addEventListener("click", snapPhoto);
+
+  enableLogPanel.addEventListener("change", () => {
+    logBox.style.display = enableLogPanel.checked ? "block" : "none";
+    if (enableLogPanel.checked) logPre.textContent = logs.join("\n");
+    scheduleSaveSettings();
+  });
+  btnClearLog.addEventListener("click", () => {
+    logs.length = 0;
+    logPre.textContent = "";
+    addLog("log cleared");
+  });
+
+  window.addEventListener("beforeunload", () => {
+    try{ stopCamera(); } catch {}
+  });
+
+  addLog("boot v2.4");
+  setImageUIState("idle");
+  updateOutputUI();
+  updateFontUI();
+  setTimeUIStatus();
+  locStatus.textContent = "ปิดใช้งานตำแหน่ง";
+
+  const s = (() => {
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return { ...DEFAULT_SETTINGS };
+      const obj = JSON.parse(raw);
+      return { ...DEFAULT_SETTINGS, ...(obj || {}) };
+    } catch {
+      return { ...DEFAULT_SETTINGS };
+    }
+  })();
+  applySettings(s);
+
+})();
+</script>
+</body>
+</html>
