@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>GBKK4 Tracker</title>
 
-  <!-- Leaflet + OSM (ฟรี ไม่ใช้ API key) -->
+  <!-- Leaflet + OSM -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root{
-      /* Mint Light (กลางแจ้งอ่านชัด) */
       --bg:#f4fbf9;
       --card:#ffffff;
       --text:#071915;
@@ -23,8 +22,6 @@
       --r:18px;
       --tap:44px;
       --danger:#e23a3a;
-
-      /* ความสูงแถบแท็บล่าง */
       --bottomTabsH:76px;
     }
     *{box-sizing:border-box}
@@ -35,7 +32,6 @@
       color:var(--text);
     }
 
-    /* header */
     header{
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
@@ -43,9 +39,7 @@
       padding:12px 14px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .hdr{
-      display:flex; gap:10px; align-items:center;
-    }
+    .hdr{display:flex; gap:10px; align-items:center;}
     .title{
       font-weight:1000;
       font-size:18px;
@@ -53,7 +47,6 @@
       flex-wrap:wrap;
       line-height:1.15;
     }
-    /* ✅ สเตตัสในบรรทัดเดียวกับชื่อ */
     .tstats{
       display:inline-flex;
       align-items:center;
@@ -66,7 +59,6 @@
       font-size:12px;
       white-space:nowrap;
     }
-
     .badge{
       margin-left:auto;
       padding:8px 12px;
@@ -78,7 +70,6 @@
       white-space:nowrap;
     }
 
-    /* controls mobile-first */
     .controls{
       margin-top:10px;
       display:flex;
@@ -134,9 +125,8 @@
       padding-bottom: calc(14px + var(--bottomTabsH) + env(safe-area-inset-bottom));
     }
 
-    /* pages */
-    .page{ display:none; }
-    .page.active{ display:block; }
+    .page{display:none;}
+    .page.active{display:block;}
 
     .panel{
       background:var(--card);
@@ -160,29 +150,16 @@
       white-space:nowrap;
     }
 
-    /* list items */
     .list{display:flex; flex-direction:column}
     .item{
       padding:12px 14px;
       border-bottom:1px solid var(--line);
     }
     .item:last-child{border-bottom:none}
-    .name{
-      font-weight:1000;
-      font-size:15px;
-      line-height:1.25;
-    }
-    .sub{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:900;
-    }
+    .name{font-weight:1000; font-size:15px; line-height:1.25;}
+    .sub{margin-top:6px; color:var(--muted); font-size:12px; font-weight:900;}
     .warn{color:#b05a00}
-    .actions{
-      margin-top:10px;
-      display:flex; gap:10px; flex-wrap:wrap;
-    }
+    .actions{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;}
     .a-btn{
       min-height:var(--tap);
       border-radius:14px;
@@ -198,7 +175,6 @@
     .a-nav{background:rgba(20,184,166,.14)}
     .a-done{background:rgba(20,184,166,.18)}
 
-    /* loading */
     .center{
       padding:22px 14px;
       text-align:center;
@@ -215,7 +191,6 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* map page */
     .map-wrap{
       background:var(--card);
       border:1px solid var(--line);
@@ -244,7 +219,6 @@
     }
     #map{height:72vh; min-height:360px; width:100%}
 
-    /* modal */
     .backdrop{
       position:fixed; inset:0;
       display:none; align-items:center; justify-content:center;
@@ -299,7 +273,6 @@
       color:#7b1111;
     }
 
-    /* toast */
     .toast{
       position:fixed;
       left:50%;
@@ -318,7 +291,6 @@
       z-index:100000;
     }
 
-    /* Leaflet popup buttons */
     .map-link{
       display:inline-flex;
       align-items:center;
@@ -334,13 +306,8 @@
       line-height:1;
       width:100%;
     }
-    .map-actions{
-      display:flex;
-      gap:10px;
-      margin-top:8px;
-    }
-    .map-actions .map-link:active{ transform:scale(.99); }
-
+    .map-actions{display:flex; gap:10px; margin-top:8px;}
+    .map-actions .map-link:active{transform:scale(.99);}
     .map-done{
       border-color:rgba(226,58,58,.28);
       background:rgba(226,58,58,.10);
@@ -354,11 +321,11 @@
       pointer-events:none;
     }
 
-    /* Current location marker */
+    /* ===== Current location marker (ปรับขนาด/หน้าตาได้ที่นี่) ===== */
     .me-icon{ background: transparent !important; border: none !important; }
     .me-dot{
-      width: 18px;
-      height: 18px;
+      width: 18px;      /* ✅ ลด/เพิ่มขนาดจุดได้ */
+      height: 18px;     /* ✅ */
       border-radius: 999px;
       background: #ffffff;
       border: 5px solid var(--mint);
@@ -378,7 +345,6 @@
       100% { transform: scale(1.25); opacity: 0; }
     }
 
-    /* Bottom Tabs */
     .bottom-tabs{
       position:fixed;
       left:0; right:0; bottom:0;
@@ -414,7 +380,7 @@
       border-color:rgba(15,143,131,.25);
       color:#fff;
     }
-    .tabbtn:active{ transform:scale(.99); }
+    .tabbtn:active{transform:scale(.99);}
   </style>
 </head>
 
@@ -428,8 +394,7 @@
     <div id="badge" class="badge">กำลังโหลด…</div>
   </div>
 
-  <!-- ✅ คอนโทรล: ให้แสดงตลอด (ทั้งหน้า รายการ/แผนที่) -->
-  <div id="controls" class="controls">
+  <div class="controls">
     <div class="search">
       🔎
       <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
@@ -446,7 +411,6 @@
 </header>
 
 <main>
-  <!-- หน้า 1: รายการ -->
   <section id="pageList" class="page active">
     <section class="panel">
       <div class="panel-h">
@@ -463,7 +427,6 @@
     </section>
   </section>
 
-  <!-- หน้า 2: แผนที่ -->
   <section id="pageMap" class="page">
     <section class="map-wrap">
       <div class="map-h">
@@ -475,7 +438,6 @@
   </section>
 </main>
 
-<!-- แถบแท็บด้านล่าง -->
 <nav class="bottom-tabs" role="tablist" aria-label="สลับหน้า">
   <div class="row">
     <button id="tabList" class="tabbtn active" type="button">รายการ</button>
@@ -483,7 +445,6 @@
   </div>
 </nav>
 
-<!-- Modal -->
 <div id="backdrop" class="backdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="mTitle">ยืนยัน</h3>
@@ -498,12 +459,12 @@
 <div id="toast" class="toast">—</div>
 
 <script>
-  /* ===================== CONFIG (API) ===================== */
-  // ✅ ใส่ลิงก์ Web App ใหม่ของคุณไว้ที่นี่
-  var API_BASE = 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec';
-  var API_TIMEOUT_MS = 15000;
+  /** =========================
+   *  CONFIG (GitHub -> Apps Script API)
+   *  ========================= */
+  var API_BASE = "https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec";
+  var API_TOKEN = ""; // ถ้าตั้ง token ใน Code.gs ให้ใส่ตรงนี้ด้วย
 
-  /* ===================== Utils ===================== */
   function $(id){ return document.getElementById(id); }
 
   function escapeHtml(s){
@@ -545,95 +506,61 @@
     });
   }
 
-  function withTimeout(promise, ms){
-    return new Promise(function(resolve, reject){
-      var t = setTimeout(function(){ reject(new Error('timeout')); }, ms);
-      promise.then(function(v){ clearTimeout(t); resolve(v); })
-             .catch(function(e){ clearTimeout(t); reject(e); });
-    });
-  }
-
-  // ✅ API call: พยายาม fetch ก่อน (ถ้าโดน CORS จะ fallback JSONP)
-  function apiFetch_(action, params){
+  /** =========================
+   *  API helper (สำคัญมากเรื่อง CORS)
+   *  - GET: อย่าใส่ headers แปลกๆ
+   *  - POST: ใช้ text/plain เพื่อหลีก preflight
+   *  ========================= */
+  async function apiGet(action, params){
     params = params || {};
     params.action = action;
+    if(API_TOKEN) params.token = API_TOKEN;
 
-    var qs = new URLSearchParams(params);
-    var url = API_BASE + (API_BASE.indexOf('?') >= 0 ? '&' : '?') + qs.toString();
+    var qs = new URLSearchParams(params).toString();
+    var url = API_BASE + (API_BASE.indexOf('?') >= 0 ? '&' : '?') + qs;
 
-    return withTimeout(fetch(url, { method:'GET', cache:'no-store' }), API_TIMEOUT_MS)
-      .then(function(res){
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      });
+    // ✅ ไม่ใส่ headers เพื่อเลี่ยง preflight/CORS :contentReference[oaicite:2]{index=2}
+    var res = await fetch(url, { method:'GET', redirect:'follow' });
+    var txt = await res.text();
+    try { return JSON.parse(txt); } catch(e){ return { ok:false, message:'API ไม่คืน JSON', raw:txt }; }
   }
 
-  // ✅ JSONP fallback (ต้องให้ Code.gs รองรับ ?callback=xxx)
-  function apiJsonp_(action, params){
-    params = params || {};
-    params.action = action;
+  async function apiPost(action, bodyObj){
+    bodyObj = bodyObj || {};
+    bodyObj.action = action;
+    if(API_TOKEN) bodyObj.token = API_TOKEN;
 
-    return new Promise(function(resolve, reject){
-      var cb = '__jsonp_cb_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-      params.callback = cb;
-
-      var qs = new URLSearchParams(params);
-      var url = API_BASE + (API_BASE.indexOf('?') >= 0 ? '&' : '?') + qs.toString();
-
-      var s = document.createElement('script');
-      var done = false;
-
-      var to = setTimeout(function(){
-        cleanup();
-        reject(new Error('JSONP timeout (ถ้าใช้ GitHub แล้วขึ้น CORS ต้องเปิด callback ใน Code.gs)'));
-      }, API_TIMEOUT_MS);
-
-      window[cb] = function(data){
-        done = true;
-        cleanup();
-        resolve(data);
-      };
-
-      s.onerror = function(){
-        cleanup();
-        reject(new Error('JSONP load failed'));
-      };
-
-      function cleanup(){
-        clearTimeout(to);
-        if(s && s.parentNode) s.parentNode.removeChild(s);
-        try{ delete window[cb]; }catch(e){ window[cb] = undefined; }
-      }
-
-      s.src = url;
-      document.head.appendChild(s);
+    // ✅ text/plain ช่วยข้าม preflight ได้บ่อย :contentReference[oaicite:3]{index=3}
+    var res = await fetch(API_BASE, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(bodyObj),
+      redirect:'follow'
     });
+
+    var txt = await res.text();
+    try { return JSON.parse(txt); } catch(e){ return { ok:false, message:'API ไม่คืน JSON', raw:txt }; }
   }
 
-  function apiCall(action, params){
-    return apiFetch_(action, params).catch(function(err){
-      console.warn('fetch failed -> try jsonp', err);
-      return apiJsonp_(action, params);
-    });
-  }
-
-  /* ===================== Data ===================== */
+  /** ===== Data ===== */
   var META = { total:0, visited:0, remaining:0 };
   var PLACES = [];
 
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-
     $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
   }
 
-  /* ===================== Map ===================== */
+  /** ===== Map ===== */
   var map = null;
   var layer = null;
   var currentMarker = null;
   var currentLatLng = null;
   var meIcon = null;
+
+  // ✅ ถ้าต้องการ “เปลี่ยนไอคอนหมุดร้าน” ให้ทำ L.icon แล้วใส่ใน L.marker(...,{icon:SHOP_ICON})
+  // var SHOP_ICON = L.icon({ iconUrl:'pin.png', iconSize:[26,26], iconAnchor:[13,26] });
 
   function initMap(){
     if(map) return;
@@ -647,6 +574,7 @@
       layer = L.layerGroup().addTo(map);
       map.setView([13.95, 100.40], 11);
 
+      // หมุด "ฉัน"
       meIcon = L.divIcon({
         className: 'me-icon',
         html: '<div class="me-dot"></div>',
@@ -679,7 +607,7 @@
     function toRad(x){ return x*Math.PI/180; }
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
-    var la1 = toRad(a.lat), la2 = toRad(b.lat);
+    var la1 = toRad(a.lat), la2 = toRad(a.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -743,7 +671,6 @@
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
-  /* ===================== List ===================== */
   function renderList(){
     renderHeader();
 
@@ -790,9 +717,7 @@
       var id = el.getAttribute('data-id');
       var place = PLACES.find(function(x){ return String(x.id) === String(id); });
 
-      el.querySelector('[data-act="nav"]').onclick = function(){
-        openMaps(place);
-      };
+      el.querySelector('[data-act="nav"]').onclick = function(){ openMaps(place); };
 
       el.querySelector('[data-act="done"]').onclick = async function(){
         var ok = await openModal({
@@ -809,12 +734,16 @@
         btn.textContent = 'กำลังบันทึก…';
 
         try{
-          var res = await apiCall('markVisited', { id: place.id, placeId: place.id });
-          if(res && res.ok === false){
-            throw new Error(res.message || 'บันทึกไม่สำเร็จ');
+          var res = await apiPost('markVisited', { id: place.id });
+          if(!res || !res.ok){
+            btn.disabled = false;
+            btn.innerHTML = '<b>ไปแล้ว</b>';
+            showToast('บันทึกไม่สำเร็จ: ' + (res && res.message ? res.message : ''));
+            console.error('markVisited failed:', res);
+            return;
           }
           showToast('บันทึกแล้ว ✅');
-          loadPlaces();
+          await loadPlaces();
         }catch(err){
           console.error(err);
           btn.disabled = false;
@@ -825,7 +754,6 @@
     });
   }
 
-  /* ===================== Map Render ===================== */
   function renderMap(){
     if(!map || !layer) return;
     layer.clearLayers();
@@ -848,6 +776,8 @@
         '<div style="font-weight:1000;color:#071915">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
         '<div class="map-actions">' + navHtml + doneHtml + '</div>';
 
+      // ✅ ถ้าจะเปลี่ยนหมุดร้านให้เล็กลง/เป็นรูปอื่น:
+      // L.marker([p.lat, p.lng], { icon: SHOP_ICON }).addTo(layer)...
       L.marker([p.lat, p.lng]).addTo(layer).bindPopup(popup);
     });
 
@@ -859,7 +789,6 @@
     }
   }
 
-  /* ✅ click "ไปแล้ว" ใน popup ของแผนที่ (event delegation) */
   document.addEventListener('click', function(ev){
     var btn = ev.target && ev.target.closest ? ev.target.closest('.map-done') : null;
     if(!btn) return;
@@ -869,10 +798,7 @@
 
     var id = btn.getAttribute('data-id');
     var place = PLACES.find(function(x){ return String(x.id) === String(id); });
-    if(!place){
-      showToast('ไม่พบรายการสำหรับปุ่มนี้');
-      return;
-    }
+    if(!place){ showToast('ไม่พบรายการสำหรับปุ่มนี้'); return; }
 
     try{ if(map) map.closePopup(); }catch(e){}
 
@@ -882,63 +808,66 @@
       okText:'ยืนยัน (ไปแล้ว)',
       cancelText:'ยกเลิก',
       danger:false
-    }).then(function(ok){
+    }).then(async function(ok){
       if(!ok) return;
 
       btn.disabled = true;
       btn.textContent = 'กำลังบันทึก…';
-      showToast('กำลังบันทึก…');
 
-      apiCall('markVisited', { id: place.id, placeId: place.id })
-        .then(function(res){
-          if(res && res.ok === false){
-            throw new Error(res.message || 'บันทึกไม่สำเร็จ');
-          }
-          showToast('บันทึกแล้ว ✅');
-          loadPlaces();
-        })
-        .catch(function(err){
-          console.error(err);
+      try{
+        showToast('กำลังบันทึก…');
+        var res = await apiPost('markVisited', { id: place.id });
+        if(!res || !res.ok){
           btn.disabled = false;
           btn.textContent = 'ไปแล้ว';
-          showToast('ผิดพลาดตอนบันทึก');
-        });
+          showToast('บันทึกไม่สำเร็จ: ' + (res && res.message ? res.message : ''));
+          console.error('markVisited failed:', res);
+          return;
+        }
+        showToast('บันทึกแล้ว ✅');
+        await loadPlaces();
+      }catch(err){
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = 'ไปแล้ว';
+        showToast('ผิดพลาดตอนบันทึก');
+      }
     });
   }, true);
 
-  /* ===================== Server Load ===================== */
-  function loadPlaces(){ doLoadPlaces_(); }
-
-  function doLoadPlaces_(){
+  async function loadPlaces(){
     showLoading();
-
-    apiCall('getPlaces', {})
-      .then(function(res){
-        // รองรับทั้งแบบ {total,visited,remaining,places} และแบบ {ok:true, ...}
-        if(res && res.ok === false){
-          throw new Error(res.message || 'โหลดไม่สำเร็จ');
-        }
-
-        META = {
-          total: (res && res.total) ? res.total : 0,
-          visited: (res && res.visited) ? res.visited : 0,
-          remaining: (res && res.remaining) ? res.remaining : 0
-        };
-        PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
-        renderList();
-        if(map) renderMap();
-      })
-      .catch(function(err){
-        console.error(err);
+    try{
+      var res = await apiGet('getPlaces', {});
+      if(!res || res.ok === false){
         $('badge').textContent = 'ผิดพลาด';
         $('list').innerHTML =
-          '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' + escapeHtml(err && err.message ? err.message : String(err)) + '</span></div>';
-        // เผื่อไม่ให้ titleStats ค้าง
-        $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
-      });
+          '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
+          escapeHtml(res && res.message ? res.message : 'ไม่ทราบสาเหตุ') +
+          '</span></div>';
+        console.error('getPlaces failed:', res);
+        return;
+      }
+
+      META = {
+        total: (res && res.total) ? res.total : 0,
+        visited: (res && res.visited) ? res.visited : 0,
+        remaining: (res && res.remaining) ? res.remaining : 0
+      };
+      PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
+
+      renderList();
+      if(map) renderMap();
+    }catch(err){
+      console.error(err);
+      $('badge').textContent = 'ผิดพลาด';
+      $('list').innerHTML =
+        '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
+        escapeHtml(err && err.message ? err.message : String(err)) +
+        '</span></div>';
+    }
   }
 
-  /* ===================== GPS ===================== */
   function requestGPS(){
     if(!navigator.geolocation){
       $('gpsPill').textContent = 'GPS: ไม่รองรับ';
@@ -949,7 +878,7 @@
       var lat = pos.coords.latitude;
       var lng = pos.coords.longitude;
       if(map) setCurrentLocation(lat, lng);
-      else currentLatLng = {lat:lat, lng:lng}; // เผื่อยังไม่ init map
+      else currentLatLng = {lat:lat, lng:lng};
       $('gpsPill').textContent = 'GPS: พร้อม';
       if($('sortMode').value === 'nearest'){ renderList(); }
       if(map) renderMap();
@@ -960,7 +889,6 @@
     }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
   }
 
-  /* ===================== Reset ===================== */
   async function onResetAll(){
     var ok = await openModal({
       title:'ยืนยันล้างทั้งหมด',
@@ -972,29 +900,27 @@
     if(!ok) return;
 
     showToast('กำลังล้าง…');
-
     try{
-      var res = await apiCall('resetVisitedAll', {});
-      if(res && res.ok === false){
-        throw new Error(res.message || 'ล้างไม่สำเร็จ');
+      var res = await apiPost('resetVisitedAll', {});
+      if(!res || !res.ok){
+        showToast('ล้างไม่สำเร็จ: ' + (res && res.message ? res.message : ''));
+        console.error('resetVisitedAll failed:', res);
+        return;
       }
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
       $('sortMode').value = 'default';
-      loadPlaces();
+      await loadPlaces();
     }catch(err){
       console.error(err);
       showToast('ผิดพลาดตอนล้าง');
     }
   }
 
-  /* ===================== Pages ===================== */
   function setPage(page){
     var isMap = (page === 'map');
-
     $('pageList').classList.toggle('active', !isMap);
     $('pageMap').classList.toggle('active', isMap);
-
     $('tabList').classList.toggle('active', !isMap);
     $('tabMap').classList.toggle('active', isMap);
 
@@ -1013,7 +939,6 @@
     else setPage('list');
   }
 
-  /* ===================== Events ===================== */
   $('q').addEventListener('input', function(){ renderList(); if(map) renderMap(); });
   $('sortMode').addEventListener('change', function(){
     if($('sortMode').value === 'nearest' && !currentLatLng){
@@ -1022,11 +947,7 @@
     renderList(); if(map) renderMap();
   });
 
-  $('btnRefresh').onclick = function(){
-    loadPlaces();
-    requestGPS();
-    showToast('รีเฟรชแล้ว');
-  };
+  $('btnRefresh').onclick = function(){ loadPlaces(); requestGPS(); showToast('รีเฟรชแล้ว'); };
   $('btnResetAll').onclick = onResetAll;
   $('gpsPill').onclick = requestGPS;
 
@@ -1034,7 +955,6 @@
   $('tabMap').onclick = function(){ location.hash = '#map'; };
   window.addEventListener('hashchange', syncPageFromHash);
 
-  /* ===================== Boot ===================== */
   loadPlaces();
   requestGPS();
   syncPageFromHash();
