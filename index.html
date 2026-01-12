@@ -31,8 +31,9 @@
       --sbW: 290px;
       --sbZ: 100001;
 
-      /* Report popup */
-      --toolZ: 100002;
+      /* Report Popup */
+      --repZ: 100002;
+      --repBarH: 56px;
     }
     *{box-sizing:border-box}
     body{
@@ -41,7 +42,7 @@
       background:linear-gradient(180deg,#e9fbf7,var(--bg));
       color:var(--text);
     }
-    body.tool-open{ overflow:hidden; }
+    body.rep-open{ overflow:hidden; }
 
     /* header */
     header{
@@ -222,9 +223,9 @@
     .a-nav{background:rgba(20,184,166,.14)}
     .a-done{background:rgba(20,184,166,.18)}
     .a-report{
-      border-color:rgba(15,143,131,.28);
-      background:rgba(15,143,131,.10);
-      color:#064e46;
+      border-color:rgba(7,25,21,.12);
+      background:rgba(7,25,21,.04);
+      color:#071915;
     }
 
     /* loading */
@@ -362,11 +363,13 @@
       min-height:40px;
       line-height:1;
       width:100%;
+      cursor:pointer;
     }
     .map-actions{
       display:flex;
       gap:10px;
       margin-top:8px;
+      flex-wrap:wrap;
     }
     .map-actions .map-link:active{ transform:scale(.99); }
 
@@ -377,11 +380,12 @@
       cursor:pointer;
     }
     .map-report{
-      border-color:rgba(15,143,131,.28);
-      background:rgba(15,143,131,.10);
-      color:#064e46;
+      border-color:rgba(7,25,21,.12);
+      background:rgba(7,25,21,.04);
+      color:#071915;
       cursor:pointer;
     }
+
     .map-link[disabled],
     .map-link.disabled{
       opacity:.6;
@@ -452,7 +456,7 @@
     .tabbtn:active{ transform:scale(.99); }
 
     /* =========================
-       ✅ SIDEBAR (คงเดิม)
+       ✅ SIDEBAR (ใหม่)
        ========================= */
     .sb-overlay{
       position:fixed;
@@ -554,53 +558,50 @@
     /* =========================
        ✅ REPORT POPUP (ใหม่)
        ========================= */
-    .tool-overlay{
+    .rep-overlay{
       position:fixed;
       inset:0;
-      z-index:var(--toolZ);
+      z-index:var(--repZ);
+      background:rgba(0,0,0,.45);
       display:none;
       align-items:center;
       justify-content:center;
-      padding:14px;
-      background:rgba(0,0,0,.55);
-      touch-action: manipulation;
+      padding:10px;
     }
-    .tool-overlay.show{ display:flex; }
-
-    .tool-shell{
-      width:min(980px, 100%);
+    .rep-overlay.show{ display:flex; }
+    .rep-modal{
+      width:min(1200px, 100%);
       height:min(92vh, 100%);
       background:#fff;
       border-radius:18px;
       border:1px solid rgba(0,0,0,.10);
-      box-shadow:0 22px 80px rgba(0,0,0,.30);
+      box-shadow:0 20px 70px rgba(0,0,0,.28);
       overflow:hidden;
       display:flex;
       flex-direction:column;
     }
-    .tool-bar{
+    .rep-bar{
+      height:var(--repBarH);
       display:flex;
       align-items:center;
       gap:10px;
       padding:10px 12px;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
-      border-bottom:1px solid rgba(255,255,255,.14);
     }
-    .tool-title{
+    .rep-title{
       font-weight:1000;
-      font-size:14px;
       white-space:nowrap;
     }
-    .tool-subtitle{
+    .rep-sub{
       font-weight:900;
       font-size:12px;
-      opacity:.95;
+      opacity:.92;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
     }
-    .tool-close{
+    .rep-close{
       margin-left:auto;
       min-height:40px;
       border-radius:14px;
@@ -611,11 +612,9 @@
       font-weight:1000;
       cursor:pointer;
     }
-    .tool-close:active{ transform:scale(.99); }
-
-    .tool-frame{
-      flex:1;
+    #repFrame{
       width:100%;
+      height: calc(100% - var(--repBarH));
       border:0;
       background:#fff;
     }
@@ -624,7 +623,7 @@
 
 <body>
 
-<!-- ✅ Sidebar Overlay (คงเดิม) -->
+<!-- ✅ Sidebar Overlay -->
 <div id="sbOverlay" class="sb-overlay" aria-hidden="true">
   <aside class="sidebar" role="navigation" aria-label="Tools Sidebar">
     <div class="sb-head">
@@ -634,6 +633,7 @@
 
     <div class="sb-section">เครื่องมือ</div>
 
+    <!-- Tool #1 -->
     <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Report.html">
       <div class="sb-ico">🧾</div>
       <div class="sb-text">
@@ -642,8 +642,9 @@
       </div>
     </a>
 
+    <!-- Tool #2 -->
     <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Timestamp.html">
-      <div class="sb-ico">🕒</div>
+      <div class="sb-ico">⏱️</div>
       <div class="sb-text">
         Timestamp Camera
         <small>เปิดหน้า Timestamp.html</small>
@@ -654,6 +655,7 @@
 
 <header>
   <div class="hdr">
+    <!-- ✅ ปุ่มเปิด Sidebar -->
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
     <div class="title">
@@ -727,15 +729,15 @@
 
 <div id="toast" class="toast">—</div>
 
-<!-- ✅ Report Popup (ใหม่) -->
-<div id="reportOverlay" class="tool-overlay" aria-hidden="true">
-  <div class="tool-shell" role="dialog" aria-modal="true" aria-label="Report Popup">
-    <div class="tool-bar">
-      <div class="tool-title">🧾 Report</div>
-      <div id="reportSubtitle" class="tool-subtitle">—</div>
-      <button id="btnReportClose" class="tool-close" type="button">ปิด</button>
+<!-- ✅ Report Popup -->
+<div id="repOverlay" class="rep-overlay" aria-hidden="true">
+  <div class="rep-modal" role="dialog" aria-modal="true">
+    <div class="rep-bar">
+      <div class="rep-title">🧾 Report</div>
+      <div id="repSub" class="rep-sub">—</div>
+      <button id="repClose" class="rep-close" type="button">ปิด</button>
     </div>
-    <iframe id="reportFrame" class="tool-frame" src="about:blank" title="Report"></iframe>
+    <iframe id="repFrame" title="Report Popup" src=""></iframe>
   </div>
 </div>
 
@@ -744,7 +746,11 @@
    *  CONFIG (แก้แค่จุดนี้)
    *  ========================= */
   const CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec',
+
+    // ✅ path ของ Report.html (ให้เป็น "relative path" เพื่อ same-origin และคุม iframe ได้)
+    // ถ้า index.html อยู่ root ของ repo และ Report อยู่ /Tools/Report.html → ใช้แบบนี้ได้เลย
+    REPORT_PATH: 'Tools/Report.html'
   };
 
   function $(id){ return document.getElementById(id); }
@@ -789,7 +795,7 @@
   }
 
   /** =========================
-   *  ✅ SIDEBAR LOGIC (คงเดิม)
+   *  ✅ SIDEBAR LOGIC
    *  ========================= */
   function openSidebar(){
     var o = $('sbOverlay');
@@ -825,233 +831,6 @@
       closeSidebar();
     }
   });
-
-  /** =========================
-   *  ✅ FULLSCREEN (คงเดิม)
-   *  ========================= */
-  function isFullscreen(){
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-  }
-
-  function requestFullscreen(){
-    var el = document.documentElement;
-    var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if(!fn) return Promise.reject(new Error('Fullscreen API not supported'));
-    try{
-      var r = fn.call(el);
-      if(r && typeof r.then === 'function') return r;
-      return Promise.resolve(true);
-    }catch(e){
-      return Promise.reject(e);
-    }
-  }
-
-  function attachFullscreenOnFirstGesture(){
-    if(attachFullscreenOnFirstGesture._done) return;
-    attachFullscreenOnFirstGesture._done = true;
-
-    function handler(){
-      if(isFullscreen()) return;
-      requestFullscreen().catch(function(){});
-    }
-
-    document.addEventListener('click', handler, { once:false, passive:true });
-    document.addEventListener('touchend', handler, { once:false, passive:true });
-    document.addEventListener('keydown', handler, { once:false });
-  }
-
-  function tryFullscreenOnOpen(){
-    if(isFullscreen()) return;
-    requestFullscreen().catch(function(){
-      showToast('แตะหน้าจอ 1 ครั้งเพื่อเข้าโหมดเต็มจอ');
-      attachFullscreenOnFirstGesture();
-    });
-  }
-
-  document.addEventListener('visibilitychange', function(){
-    if(!document.hidden){
-      setTimeout(function(){
-        tryFullscreenOnOpen();
-      }, 200);
-    }
-  });
-
-  /** =========================
-   *  ✅ REPORT POPUP (ใหม่)
-   *  ========================= */
-  function getRepoRootUrl(){
-    // พยายามหา root ของ /CVS_PHANToM/ ให้ชัวร์
-    var p = location.pathname || '';
-    var lower = p.toLowerCase();
-    var key = '/cvs_phantom/';
-    var idx = lower.indexOf(key);
-    if(idx >= 0){
-      return location.origin + p.slice(0, idx + key.length);
-    }
-    // fallback: โฟลเดอร์เดียวกับไฟล์นี้
-    return new URL('./', location.href).href;
-  }
-
-  function getReportUrl(){
-    return getRepoRootUrl() + 'Tools/Report.html';
-  }
-
-  function reportIsOpen(){
-    return $('reportOverlay').classList.contains('show');
-  }
-
-  function openReport(place){
-    place = place || {};
-    // ค่าที่ต้องกรอก (F/G/H)
-    var payload = {
-      account: place.account || '',
-      number: place.number || '',
-      account_name: place.account_name || '',
-      id: place.id || '',
-      name: place.name || '',
-      ts: Date.now()
-    };
-
-    // เก็บ context ไว้ (เผื่อ Report.html จะอ่านในอนาคต/เพิ่มทีหลัง)
-    try{
-      localStorage.setItem('GBKK4_REPORT_CONTEXT', JSON.stringify(payload));
-      localStorage.setItem('REPORT_CONTEXT', JSON.stringify(payload));
-    }catch(e){}
-
-    // ปิด sidebar ถ้าเปิดอยู่ (ให้ลื่น)
-    try{ if(sidebarIsOpen()) closeSidebar(); }catch(e){}
-
-    // เปิด overlay
-    document.body.classList.add('tool-open');
-    $('reportOverlay').classList.add('show');
-    $('reportOverlay').setAttribute('aria-hidden','false');
-    $('reportSubtitle').textContent = (payload.id ? ('[' + payload.id + '] ') : '') + (payload.name || '—');
-
-    var frame = $('reportFrame');
-    var url = getReportUrl();
-
-    // โหลดครั้งแรกครั้งเดียว (หลังจากนั้นไม่รีโหลดเพื่อความลื่น)
-    if(!frame.dataset.loaded || frame.dataset.loaded !== '1'){
-      frame.dataset.loaded = '1';
-      frame.src = url;
-    }
-
-    // พยายาม prefill เข้า Report.html (หลายวิธี + retry)
-    schedulePrefillToReport(payload);
-  }
-
-  function closeReport(){
-    $('reportOverlay').classList.remove('show');
-    $('reportOverlay').setAttribute('aria-hidden','true');
-    document.body.classList.remove('tool-open');
-  }
-
-  $('btnReportClose').addEventListener('click', function(e){
-    e.preventDefault();
-    closeReport();
-  });
-
-  // คลิกพื้นที่มืดเพื่อปิด (ถ้าคลิกนอกกล่อง)
-  $('reportOverlay').addEventListener('click', function(ev){
-    if(ev.target && ev.target.id === 'reportOverlay'){
-      closeReport();
-    }
-  });
-
-  // ESC เพื่อปิด report (เผื่อใช้บน PC)
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && reportIsOpen()){
-      closeReport();
-    }
-  });
-
-  function setFieldInDoc(doc, selectors, value){
-    value = (value === null || value === undefined) ? '' : String(value);
-
-    for(var i=0;i<selectors.length;i++){
-      var sel = selectors[i];
-      var el = null;
-      try{ el = doc.querySelector(sel); }catch(e){ el = null; }
-      if(!el) continue;
-
-      try{
-        var tag = (el.tagName || '').toUpperCase();
-        if(tag === 'SELECT'){
-          // พยายาม match value / text
-          var ok = false;
-          for(var j=0;j<el.options.length;j++){
-            var opt = el.options[j];
-            if(String(opt.value).toLowerCase() === value.toLowerCase() || String(opt.text).toLowerCase() === value.toLowerCase()){
-              el.value = opt.value;
-              ok = true;
-              break;
-            }
-          }
-          if(!ok){
-            // ถ้าไม่มี option ตรง ให้ยัดค่า (บาง select รองรับ)
-            el.value = value;
-          }
-        }else{
-          el.value = value;
-        }
-
-        // trigger events เพื่อให้ Report.html เซฟ localStorage ตามเดิม
-        el.dispatchEvent(new Event('input', { bubbles:true }));
-        el.dispatchEvent(new Event('change', { bubbles:true }));
-        return true;
-      }catch(e2){
-        // continue
-      }
-    }
-    return false;
-  }
-
-  function tryPrefillReportOnce(payload){
-    var frame = $('reportFrame');
-    if(!frame || !frame.contentWindow) return false;
-
-    // 1) postMessage เผื่อ Report.html รองรับ
-    try{
-      frame.contentWindow.postMessage({ type:'GBKK4_PREFILL', payload: payload }, location.origin);
-    }catch(e){}
-
-    // 2) ถ้า same-origin: set ค่าใน DOM ตรง ๆ
-    try{
-      var doc = frame.contentWindow.document;
-      if(!doc) return false;
-
-      var okA = setFieldInDoc(doc,
-        ['#account','select#account','select[name="account"]','input[name="account"]','#accountInput','[data-field="account"]'],
-        payload.account
-      );
-      var okN = setFieldInDoc(doc,
-        ['#number','#branch','#branchNumber','input[name="number"]','input[name="branch"]','input[name="branchNumber"]','[data-field="number"]'],
-        payload.number
-      );
-      var okName = setFieldInDoc(doc,
-        ['#account_name','#accountName','#branchName','input[name="account_name"]','input[name="accountName"]','input[name="branchName"]','[data-field="account_name"]'],
-        payload.account_name
-      );
-
-      // อย่างน้อยต้อง set ได้สัก field หนึ่งถึงจะถือว่า ok
-      return !!(okA || okN || okName);
-    }catch(e2){
-      return false;
-    }
-  }
-
-  function schedulePrefillToReport(payload){
-    // retry หลายครั้ง เพราะ iframe โหลดไม่ทัน
-    var tries = 0;
-    var maxTries = 24; // ~6 วินาที (250ms)
-    var timer = setInterval(function(){
-      tries++;
-      var ok = tryPrefillReportOnce(payload);
-      if(ok || tries >= maxTries){
-        clearInterval(timer);
-      }
-    }, 250);
-  }
 
   /** =========================
    *  JSONP Helper
@@ -1186,7 +965,8 @@
     function toRad(x){ return x*Math.PI/180; }
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
-    var la1 = toRad(a.lat), la2 = toRad(b.lat);
+    var la1 = toRad(a.lat), la2 = toRad(a.lat);
+    la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -1250,6 +1030,292 @@
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
+  /** =========================
+   *  ✅ REPORT POPUP (ใหม่)
+   *  ========================= */
+  var REPORT_CTX = null;
+  var REPORT_FRAME_READY = false;
+  var REPORT_TRIMMED = false;
+  var REPORT_NO_SAVE_SET = false;
+
+  function normText(s){
+    return String(s || '').replace(/\s+/g,' ').trim().toLowerCase();
+  }
+
+  function openReport(place){
+    REPORT_CTX = place || null;
+
+    var subtitle = '';
+    if(place){
+      subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
+      var a = place.account ? (' | ' + place.account) : '';
+      var n = place.number ? (' | ' + place.number) : '';
+      $('repSub').textContent = subtitle + a + n;
+    }else{
+      $('repSub').textContent = '—';
+    }
+
+    $('repOverlay').classList.add('show');
+    $('repOverlay').setAttribute('aria-hidden','false');
+    document.body.classList.add('rep-open');
+
+    var frame = $('repFrame');
+    if(!frame.src){
+      // ให้เป็น relative path เพื่อ same-origin
+      frame.src = CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
+      frame.onload = function(){
+        REPORT_FRAME_READY = true;
+        // ทำ “ตัด UI” และ “ติดตั้ง no-save” หนเดียว (ตอนโหลด)
+        tryTrimReportUI();
+        setupNoSaveHooksOnce();
+        // Prefill แบบวนจนกว่าจะเจอ field (กันโหลดช้า)
+        startPrefillLoop();
+      };
+    }else{
+      // เปิดซ้ำ: Prefill ใหม่ทุกครั้ง
+      startPrefillLoop();
+    }
+  }
+
+  function closeReport(){
+    $('repOverlay').classList.remove('show');
+    $('repOverlay').setAttribute('aria-hidden','true');
+    document.body.classList.remove('rep-open');
+  }
+
+  $('repClose').addEventListener('click', closeReport);
+  $('repOverlay').addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'repOverlay') closeReport();
+  });
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && $('repOverlay').classList.contains('show')){
+      closeReport();
+    }
+  });
+
+  function getReportDoc(){
+    var frame = $('repFrame');
+    try{
+      return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  // ✅ ตัดปุ่ม "สรุปยอด" และการ์ด "ประวัติ" 3 ใบ ออกเฉพาะ popup
+  function tryTrimReportUI(){
+    if(REPORT_TRIMMED) return;
+    var doc = getReportDoc();
+    if(!doc || !doc.body) return;
+
+    try{
+      // ซ่อนปุ่มที่มีคำว่า "สรุปยอด"
+      var btns = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
+      btns.forEach(function(el){
+        var t = normText(el.textContent || el.value || '');
+        if(t.indexOf('สรุปยอด') !== -1){
+          el.style.display = 'none';
+        }
+      });
+
+      // ซ่อนการ์ด/ส่วนที่มีคำว่า "ประวัติ" สูงสุด 3 ส่วน
+      var removed = 0;
+      var blocks = doc.querySelectorAll('section, article, div');
+      for(var i=0;i<blocks.length && removed<3;i++){
+        var el = blocks[i];
+        if(!el || !el.textContent) continue;
+        var t = normText(el.textContent);
+        if(t.indexOf('ประวัติ') !== -1){
+          // กันซ่อนใหญ่เกิน: ต้องเป็นบล็อกที่ดูเหมือน “การ์ด”
+          var cls = normText(el.className || '');
+          var looksCard = (cls.indexOf('card') !== -1) || (cls.indexOf('history') !== -1);
+          var hasBorder = false;
+          try{
+            var st = (doc.defaultView || window).getComputedStyle(el);
+            hasBorder = (st && (st.borderTopWidth !== '0px' || st.boxShadow !== 'none'));
+          }catch(e){}
+          if(looksCard || hasBorder){
+            el.style.display = 'none';
+            removed++;
+          }
+        }
+      }
+
+      REPORT_TRIMMED = true;
+    }catch(e){
+      console.warn('trim report failed', e);
+    }
+  }
+
+  // ✅ หา input จาก "label/placeholder/aria-label" ไม่เดา selector
+  function findFieldBySemantic(doc, keywords){
+    keywords = (keywords || []).map(function(x){ return normText(x); }).filter(Boolean);
+
+    // 1) label
+    var labels = doc.querySelectorAll('label');
+    for(var i=0;i<labels.length;i++){
+      var lb = labels[i];
+      var lt = normText(lb.textContent || '');
+      if(!lt) continue;
+
+      var hit = keywords.some(function(k){ return lt.indexOf(k) !== -1; });
+      if(!hit) continue;
+
+      var forId = lb.getAttribute('for');
+      if(forId){
+        var el1 = doc.getElementById(forId);
+        if(el1) return el1;
+      }
+
+      var inside = lb.querySelector('input, textarea, select');
+      if(inside) return inside;
+
+      // ใกล้ๆ label
+      var near = lb.parentElement ? lb.parentElement.querySelector('input, textarea, select') : null;
+      if(near) return near;
+    }
+
+    // 2) placeholder / aria-label
+    var fields = doc.querySelectorAll('input, textarea, select');
+    for(var j=0;j<fields.length;j++){
+      var f = fields[j];
+      var meta = normText((f.getAttribute('placeholder')||'') + ' ' + (f.getAttribute('aria-label')||''));
+      if(!meta) continue;
+      var hit2 = keywords.some(function(k){ return meta.indexOf(k) !== -1; });
+      if(hit2) return f;
+    }
+
+    return null;
+  }
+
+  // ✅ กันการ save ของ 3 ช่อง (account/number/name) โดยไม่ต้องรู้ key
+  // หลักการ: ดัก localStorage.setItem เฉพาะกรณี "ค่าที่กำลังจะ save" ตรงกับค่าของช่องนั้น
+  function setupNoSaveHooksOnce(){
+    if(REPORT_NO_SAVE_SET) return;
+    var doc = getReportDoc();
+    if(!doc || !doc.body) return;
+
+    var win = null;
+    try{ win = $('repFrame').contentWindow; }catch(e){ win = null; }
+    if(!win || !win.localStorage) return;
+
+    try{
+      var accEl = findFieldBySemantic(doc, ['แอคเคาท์','account']);
+      var numEl = findFieldBySemantic(doc, ['เลขสาขา','สาขา','branch','store no']);
+      var nameEl = findFieldBySemantic(doc, ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+
+      var restricted = [accEl, numEl, nameEl].filter(Boolean);
+
+      // patch setItem แค่ใน iframe นี้
+      var LS = win.localStorage;
+      if(!LS.__patched_no_save){
+        var orig = LS.setItem.bind(LS);
+        LS.__patched_no_save = true;
+
+        LS.setItem = function(k, v){
+          try{
+            var sv = String(v);
+            for(var i=0;i<restricted.length;i++){
+              var el = restricted[i];
+              if(!el) continue;
+              var cur = String(el.value || '');
+              if(cur && sv === cur){
+                // บล็อกการบันทึกของ 3 ช่องนี้
+                return;
+              }
+            }
+          }catch(e){}
+          return orig(k, v);
+        };
+      }
+
+      REPORT_NO_SAVE_SET = true;
+    }catch(e){
+      console.warn('setupNoSaveHooksOnce failed', e);
+    }
+  }
+
+  function prefillReportOnce(){
+    var place = REPORT_CTX;
+    if(!place) return false;
+
+    var doc = getReportDoc();
+    if(!doc || !doc.body) return false;
+
+    var frame = $('repFrame');
+    var win = null;
+    try{ win = frame.contentWindow; }catch(e){ win = null; }
+    if(!win) return false;
+
+    // ค่าที่เตรียมไว้จากคอลัม F/G/H (ในอนาคต)
+    var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
+    var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
+    var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
+
+    // หา input แบบ semantic
+    var accEl = findFieldBySemantic(doc, ['แอคเคาท์','account']);
+    var numEl = findFieldBySemantic(doc, ['เลขสาขา','สาขา','branch','store no']);
+    var nameEl = findFieldBySemantic(doc, ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+
+    // ถ้า field ไม่เจอ → ปล่อยว่างไว้ ไม่ฝืน (ตามที่คุณขอ)
+    // ถ้าค่าไม่มี → ก็ปล่อยว่าง
+    function setVal(el, val){
+      if(!el) return false;
+      // ให้พิมพ์ได้เต็ม
+      try{
+        el.removeAttribute('readonly');
+        el.removeAttribute('disabled');
+        el.style.pointerEvents = 'auto';
+      }catch(e){}
+
+      // เซ็ตค่า + dispatch เพื่อให้ report.html อัปเดต UI (แต่ localStorage จะโดนบล็อกด้วย hook)
+      try{
+        el.value = val || '';
+        el.dispatchEvent(new win.Event('input', { bubbles:true }));
+        el.dispatchEvent(new win.Event('change', { bubbles:true }));
+      }catch(e){}
+      return true;
+    }
+
+    // ติดตั้ง no-save hook ก่อน
+    tryTrimReportUI();
+    setupNoSaveHooksOnce();
+
+    // เซ็ต
+    var okA = setVal(accEl, acc);
+    var okN = setVal(numEl, num);
+    var okS = setVal(nameEl, nam);
+
+    // เงื่อนไข “Prefill ชัวร์”: ถ้าอย่างน้อยเจอช่องใดช่องหนึ่ง ให้ถือว่าพร้อม
+    return !!(okA || okN || okS);
+  }
+
+  function startPrefillLoop(){
+    // พยายามหลายครั้ง กัน report.html โหลดช้า
+    var tries = 0;
+    var maxTries = 40;        // ~40*120ms = 4.8s
+    var interval = 120;
+
+    var t = setInterval(function(){
+      tries++;
+      tryTrimReportUI();
+      setupNoSaveHooksOnce();
+
+      var ok = prefillReportOnce();
+      if(ok || tries >= maxTries){
+        clearInterval(t);
+        if(!ok){
+          // ไม่เจอช่องใน report.html → ก็ไม่พัง แค่แจ้งเตือน (และไม่ไป save อะไร)
+          showToast('Prefill ไม่เจอช่องใน Report.html (ปล่อยว่างไว้)');
+        }
+      }
+    }, interval);
+  }
+
+  /** =========================
+   *  ✅ END REPORT POPUP
+   *  ========================= */
+
   function renderList(){
     renderHeader();
 
@@ -1284,8 +1350,8 @@
           '<div class="name">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
           '<div class="sub">' + locText + '</div>' +
           '<div class="actions">' +
-            '<button class="a-btn a-report" data-act="report" type="button">Report</button>' +
             '<button class="a-btn a-nav" data-act="nav" type="button">นำทาง</button>' +
+            '<button class="a-btn a-report" data-act="report" type="button">Report</button>' +
             '<button class="a-btn a-done" data-act="done" type="button"><b>ไปแล้ว</b></button>' +
           '</div>' +
         '</div>';
@@ -1375,24 +1441,8 @@
     }
   }
 
-  // Map popup buttons delegation (Report + Done)
+  // คลิกปุ่ม “ไปแล้ว” ใน popup map
   document.addEventListener('click', function(ev){
-    var rbtn = ev.target && ev.target.closest ? ev.target.closest('.map-report') : null;
-    if(rbtn){
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      var rid = rbtn.getAttribute('data-id');
-      var rplace = PLACES.find(function(x){ return String(x.id) === String(rid); });
-      if(!rplace){
-        showToast('ไม่พบรายการสำหรับปุ่มนี้');
-        return;
-      }
-      try{ if(map) map.closePopup(); }catch(e){}
-      openReport(rplace);
-      return;
-    }
-
     var btn = ev.target && ev.target.closest ? ev.target.closest('.map-done') : null;
     if(!btn) return;
 
@@ -1439,6 +1489,25 @@
     });
   }, true);
 
+  // คลิกปุ่ม “Report” ใน popup map
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.map-report') : null;
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var id = btn.getAttribute('data-id');
+    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
+    if(!place){
+      showToast('ไม่พบรายการสำหรับปุ่มนี้');
+      return;
+    }
+
+    try{ if(map) map.closePopup(); }catch(e){}
+    openReport(place);
+  }, true);
+
   async function loadPlaces(){ await doLoadPlaces_(); }
 
   async function doLoadPlaces_(){
@@ -1461,26 +1530,8 @@
         remaining: (res && res.remaining) ? res.remaining : 0
       };
 
-      // ✅ รองรับฟิลด์ใหม่ในอนาคต: account / number / account_name (จากคอลัมน์ F/G/H)
-      PLACES = (res && res.places)
-        ? res.places
-            .filter(function(p){ return p && p.id && p.name; })
-            .map(function(p){
-              return {
-                id: p.id,
-                name: p.name,
-                lat: (p.lat !== undefined ? p.lat : null),
-                lng: (p.lng !== undefined ? p.lng : null),
-                mapsUrl: (p.mapsUrl !== undefined ? p.mapsUrl : ''),
-                visited: (p.visited !== undefined ? p.visited : 0),
-
-                // F/G/H (เผื่อใช้ Report)
-                account: (p.account !== undefined ? p.account : ''),
-                number: (p.number !== undefined ? p.number : ''),
-                account_name: (p.account_name !== undefined ? p.account_name : '')
-              };
-            })
-        : [];
+      // ✅ เตรียมรองรับคอลัม F/G/H ในอนาคต: place.account / place.number / place.account_name
+      PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
 
       renderList();
       if(map) renderMap();
@@ -1582,10 +1633,6 @@
   window.addEventListener('hashchange', syncPageFromHash);
 
   // ===== Boot =====
-  setTimeout(function(){
-    tryFullscreenOnOpen();
-  }, 120);
-
   loadPlaces();
   requestGPS();
   syncPageFromHash();
