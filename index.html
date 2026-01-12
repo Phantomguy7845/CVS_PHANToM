@@ -31,9 +31,9 @@
       --sbW: 290px;
       --sbZ: 100001;
 
-      /* Report Popup */
-      --repZ: 100002;
-      --repBarH: 56px;
+      /* Tool Popup */
+      --toolZ: 100002;
+      --toolBarH: 56px;
     }
     *{box-sizing:border-box}
     body{
@@ -42,7 +42,7 @@
       background:linear-gradient(180deg,#e9fbf7,var(--bg));
       color:var(--text);
     }
-    body.rep-open{ overflow:hidden; }
+    body.tool-open{ overflow:hidden; }
 
     /* header */
     header{
@@ -456,7 +456,7 @@
     .tabbtn:active{ transform:scale(.99); }
 
     /* =========================
-       ✅ SIDEBAR (ใหม่)
+       ✅ SIDEBAR
        ========================= */
     .sb-overlay{
       position:fixed;
@@ -519,7 +519,10 @@
       padding:0 6px;
     }
 
+    /* ใช้ได้ทั้ง a / button */
     .sb-link{
+      appearance:none;
+      -webkit-appearance:none;
       display:flex;
       align-items:center;
       gap:10px;
@@ -533,6 +536,8 @@
       font-weight:1000;
       text-decoration:none;
       cursor:pointer;
+      text-align:left;
+      font:inherit;
     }
     .sb-link:active{ transform:scale(.99); }
     .sb-ico{
@@ -542,6 +547,7 @@
       border:1px solid rgba(20,184,166,.22);
       display:flex; align-items:center; justify-content:center;
       font-size:18px;
+      flex:0 0 auto;
     }
     .sb-text{
       display:flex;
@@ -556,20 +562,21 @@
     }
 
     /* =========================
-       ✅ REPORT POPUP (ใหม่)
+       ✅ TOOL POPUP (Report / Timestamp)
        ========================= */
-    .rep-overlay{
+    .tool-overlay{
       position:fixed;
       inset:0;
-      z-index:var(--repZ);
+      z-index:var(--toolZ);
       background:rgba(0,0,0,.45);
       display:none;
       align-items:center;
       justify-content:center;
       padding:10px;
     }
-    .rep-overlay.show{ display:flex; }
-    .rep-modal{
+    .tool-overlay.show{ display:flex; }
+
+    .tool-modal{
       width:min(1200px, 100%);
       height:min(92vh, 100%);
       background:#fff;
@@ -580,8 +587,8 @@
       display:flex;
       flex-direction:column;
     }
-    .rep-bar{
-      height:var(--repBarH);
+    .tool-bar{
+      height:var(--toolBarH);
       display:flex;
       align-items:center;
       gap:10px;
@@ -589,11 +596,11 @@
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
     }
-    .rep-title{
+    .tool-title{
       font-weight:1000;
       white-space:nowrap;
     }
-    .rep-sub{
+    .tool-sub{
       font-weight:900;
       font-size:12px;
       opacity:.92;
@@ -601,7 +608,7 @@
       text-overflow:ellipsis;
       white-space:nowrap;
     }
-    .rep-close{
+    .tool-close{
       margin-left:auto;
       min-height:40px;
       border-radius:14px;
@@ -612,9 +619,9 @@
       font-weight:1000;
       cursor:pointer;
     }
-    #repFrame{
+    .tool-frame{
       width:100%;
-      height: calc(100% - var(--repBarH));
+      height: calc(100% - var(--toolBarH));
       border:0;
       background:#fff;
     }
@@ -633,23 +640,23 @@
 
     <div class="sb-section">เครื่องมือ</div>
 
-    <!-- Tool #1 -->
-    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Report.html">
+    <!-- ✅ Tool #1 (ไม่เปิดลิงก์แล้ว) -->
+    <button class="sb-link" type="button" data-tool="report">
       <div class="sb-ico">🧾</div>
       <div class="sb-text">
         Report Script
-        <small>เปิดหน้า Report.html</small>
+        <small>เปิดใน Popup (Report.html)</small>
       </div>
-    </a>
+    </button>
 
-    <!-- Tool #2 -->
-    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Timestamp.html">
+    <!-- ✅ Tool #2 (ไม่เปิดลิงก์แล้ว) -->
+    <button class="sb-link" type="button" data-tool="timestamp">
       <div class="sb-ico">⏱️</div>
       <div class="sb-text">
         Timestamp Camera
-        <small>เปิดหน้า Timestamp.html</small>
+        <small>เปิดใน Popup (Timestamp.html)</small>
       </div>
-    </a>
+    </button>
   </aside>
 </div>
 
@@ -729,15 +736,27 @@
 
 <div id="toast" class="toast">—</div>
 
-<!-- ✅ Report Popup -->
-<div id="repOverlay" class="rep-overlay" aria-hidden="true">
-  <div class="rep-modal" role="dialog" aria-modal="true">
-    <div class="rep-bar">
-      <div class="rep-title">🧾 Report</div>
-      <div id="repSub" class="rep-sub">—</div>
-      <button id="repClose" class="rep-close" type="button">ปิด</button>
+<!-- ✅ Tool Popup: Report -->
+<div id="repOverlay" class="tool-overlay" aria-hidden="true">
+  <div class="tool-modal" role="dialog" aria-modal="true">
+    <div class="tool-bar">
+      <div class="tool-title">🧾 Report</div>
+      <div id="repSub" class="tool-sub">—</div>
+      <button id="repClose" class="tool-close" type="button">ปิด</button>
     </div>
-    <iframe id="repFrame" title="Report Popup" src=""></iframe>
+    <iframe id="repFrame" class="tool-frame" title="Report Popup" src=""></iframe>
+  </div>
+</div>
+
+<!-- ✅ Tool Popup: Timestamp -->
+<div id="tsOverlay" class="tool-overlay" aria-hidden="true">
+  <div class="tool-modal" role="dialog" aria-modal="true">
+    <div class="tool-bar">
+      <div class="tool-title">⏱️ Timestamp</div>
+      <div id="tsSub" class="tool-sub">Timestamp Camera</div>
+      <button id="tsClose" class="tool-close" type="button">ปิด</button>
+    </div>
+    <iframe id="tsFrame" class="tool-frame" title="Timestamp Popup" src=""></iframe>
   </div>
 </div>
 
@@ -748,9 +767,9 @@
   const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec',
 
-    // ✅ path ของ Report.html (ให้เป็น "relative path" เพื่อ same-origin และคุม iframe ได้)
-    // ถ้า index.html อยู่ root ของ repo และ Report อยู่ /Tools/Report.html → ใช้แบบนี้ได้เลย
-    REPORT_PATH: 'Tools/Report.html'
+    // ✅ ใช้ path แบบ relative เพื่อ same-origin (คุม iframe ได้)
+    REPORT_PATH: 'Tools/Report.html',
+    TIMESTAMP_PATH: 'Tools/Timestamp.html'
   };
 
   function $(id){ return document.getElementById(id); }
@@ -819,15 +838,8 @@
     e.stopPropagation();
     closeSidebar();
   });
-
   $('sbOverlay').addEventListener('click', function(ev){
     if(ev.target && ev.target.id === 'sbOverlay'){
-      closeSidebar();
-    }
-  });
-
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && sidebarIsOpen()){
       closeSidebar();
     }
   });
@@ -965,8 +977,8 @@
     function toRad(x){ return x*Math.PI/180; }
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
-    var la1 = toRad(a.lat), la2 = toRad(a.lat);
-    la2 = toRad(b.lat);
+    var la1 = toRad(a.lat);
+    var la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -1031,291 +1043,268 @@
   }
 
   /** =========================
-   *  ✅ REPORT POPUP (ใหม่)
+   *  ✅ TOOL POPUP: REPORT (Prefill แบบไม่เดา selector)
+   *  - ใช้ "id" ตรงๆ: account / branchCode / branchName
+   *  - map ค่าจาก API: account / number / account_name
+   *  - บล็อก localStorage เฉพาะ key PT_REPORT_FORM_V1 เพื่อไม่ให้ 3 ช่องนี้ถูก save ใน popup
    *  ========================= */
   var REPORT_CTX = null;
-  var REPORT_FRAME_READY = false;
-  var REPORT_TRIMMED = false;
-  var REPORT_NO_SAVE_SET = false;
+  var REPORT_BOOTED = false;
 
-  function normText(s){
-    return String(s || '').replace(/\s+/g,' ').trim().toLowerCase();
+  function reportIsOpen(){
+    return $('repOverlay').classList.contains('show');
   }
 
   function openReport(place){
     REPORT_CTX = place || null;
 
-    var subtitle = '';
     if(place){
-      subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
+      var subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
       var a = place.account ? (' | ' + place.account) : '';
       var n = place.number ? (' | ' + place.number) : '';
       $('repSub').textContent = subtitle + a + n;
     }else{
-      $('repSub').textContent = '—';
+      $('repSub').textContent = 'เปิดเครื่องมือ Report';
     }
 
     $('repOverlay').classList.add('show');
     $('repOverlay').setAttribute('aria-hidden','false');
-    document.body.classList.add('rep-open');
+    document.body.classList.add('tool-open');
 
     var frame = $('repFrame');
     if(!frame.src){
-      // ให้เป็น relative path เพื่อ same-origin
       frame.src = CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
       frame.onload = function(){
-        REPORT_FRAME_READY = true;
-        // ทำ “ตัด UI” และ “ติดตั้ง no-save” หนเดียว (ตอนโหลด)
-        tryTrimReportUI();
-        setupNoSaveHooksOnce();
-        // Prefill แบบวนจนกว่าจะเจอ field (กันโหลดช้า)
-        startPrefillLoop();
+        REPORT_BOOTED = true;
+        patchReportLocalStorage();
+        trimReportUIByIds(); // ซ่อนสรุปยอด + ประวัติ (แบบใช้ id)
+        if(REPORT_CTX){
+          sendPrefillToReport(REPORT_CTX);
+          setTimeout(function(){ sendPrefillToReport(REPORT_CTX); }, 250);
+        }
       };
     }else{
-      // เปิดซ้ำ: Prefill ใหม่ทุกครั้ง
-      startPrefillLoop();
+      // เปิดซ้ำ: prefill ใหม่ (ถ้ามี place)
+      if(REPORT_CTX){
+        sendPrefillToReport(REPORT_CTX);
+        setTimeout(function(){ sendPrefillToReport(REPORT_CTX); }, 250);
+      }else{
+        // เปิดจาก sidebar แบบไม่ส่งค่า
+        if(REPORT_BOOTED){
+          patchReportLocalStorage();
+          trimReportUIByIds();
+        }
+      }
     }
   }
 
   function closeReport(){
     $('repOverlay').classList.remove('show');
     $('repOverlay').setAttribute('aria-hidden','true');
-    document.body.classList.remove('rep-open');
+    document.body.classList.remove('tool-open');
   }
 
   $('repClose').addEventListener('click', closeReport);
   $('repOverlay').addEventListener('click', function(ev){
     if(ev.target && ev.target.id === 'repOverlay') closeReport();
   });
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && $('repOverlay').classList.contains('show')){
-      closeReport();
-    }
-  });
 
+  function getReportWin(){
+    try{ return $('repFrame').contentWindow || null; }catch(e){ return null; }
+  }
   function getReportDoc(){
-    var frame = $('repFrame');
     try{
-      return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null;
-    }catch(e){
-      return null;
-    }
+      var f = $('repFrame');
+      return f.contentDocument || (f.contentWindow && f.contentWindow.document) || null;
+    }catch(e){ return null; }
   }
 
-  // ✅ ตัดปุ่ม "สรุปยอด" และการ์ด "ประวัติ" 3 ใบ ออกเฉพาะ popup
-  function tryTrimReportUI(){
-    if(REPORT_TRIMMED) return;
+  // ✅ ซ่อนปุ่มสรุปยอด + การ์ดประวัติ (ใช้ id ที่มีอยู่ใน Report.html)
+  function trimReportUIByIds(){
     var doc = getReportDoc();
-    if(!doc || !doc.body) return;
+    if(!doc) return;
 
     try{
-      // ซ่อนปุ่มที่มีคำว่า "สรุปยอด"
-      var btns = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
-      btns.forEach(function(el){
-        var t = normText(el.textContent || el.value || '');
-        if(t.indexOf('สรุปยอด') !== -1){
-          el.style.display = 'none';
-        }
-      });
+      // 1) ซ่อนปุ่มสรุปยอด (id ชัวร์)
+      var btnSummary = doc.getElementById('btnSummary');
+      if(btnSummary) btnSummary.style.display = 'none';
 
-      // ซ่อนการ์ด/ส่วนที่มีคำว่า "ประวัติ" สูงสุด 3 ส่วน
-      var removed = 0;
-      var blocks = doc.querySelectorAll('section, article, div');
-      for(var i=0;i<blocks.length && removed<3;i++){
-        var el = blocks[i];
-        if(!el || !el.textContent) continue;
-        var t = normText(el.textContent);
-        if(t.indexOf('ประวัติ') !== -1){
-          // กันซ่อนใหญ่เกิน: ต้องเป็นบล็อกที่ดูเหมือน “การ์ด”
-          var cls = normText(el.className || '');
-          var looksCard = (cls.indexOf('card') !== -1) || (cls.indexOf('history') !== -1);
-          var hasBorder = false;
-          try{
-            var st = (doc.defaultView || window).getComputedStyle(el);
-            hasBorder = (st && (st.borderTopWidth !== '0px' || st.boxShadow !== 'none'));
-          }catch(e){}
-          if(looksCard || hasBorder){
-            el.style.display = 'none';
-            removed++;
-          }
-        }
+      // 2) ซ่อนการ์ดประวัติ: อิง id histList แล้วซ่อนการ์ดครอบ
+      var histList = doc.getElementById('histList');
+      if(histList){
+        var card = histList.closest ? histList.closest('.card') : null;
+        if(card) card.style.display = 'none';
       }
 
-      REPORT_TRIMMED = true;
+      // 3) ถ้าซ่อน summary แล้วเหลือปุ่มเดียว ให้ขยายปุ่ม copy ให้เต็ม
+      var btnCopy = doc.getElementById('btnCopy');
+      if(btnCopy && btnSummary && btnSummary.style.display === 'none'){
+        // ปรับเล็กน้อย เผื่อ grid2 ยังอยู่
+        btnCopy.style.width = '100%';
+      }
     }catch(e){
-      console.warn('trim report failed', e);
+      // ignore
     }
   }
 
-  // ✅ หา input จาก "label/placeholder/aria-label" ไม่เดา selector
-  function findFieldBySemantic(doc, keywords){
-    keywords = (keywords || []).map(function(x){ return normText(x); }).filter(Boolean);
-
-    // 1) label
-    var labels = doc.querySelectorAll('label');
-    for(var i=0;i<labels.length;i++){
-      var lb = labels[i];
-      var lt = normText(lb.textContent || '');
-      if(!lt) continue;
-
-      var hit = keywords.some(function(k){ return lt.indexOf(k) !== -1; });
-      if(!hit) continue;
-
-      var forId = lb.getAttribute('for');
-      if(forId){
-        var el1 = doc.getElementById(forId);
-        if(el1) return el1;
-      }
-
-      var inside = lb.querySelector('input, textarea, select');
-      if(inside) return inside;
-
-      // ใกล้ๆ label
-      var near = lb.parentElement ? lb.parentElement.querySelector('input, textarea, select') : null;
-      if(near) return near;
-    }
-
-    // 2) placeholder / aria-label
-    var fields = doc.querySelectorAll('input, textarea, select');
-    for(var j=0;j<fields.length;j++){
-      var f = fields[j];
-      var meta = normText((f.getAttribute('placeholder')||'') + ' ' + (f.getAttribute('aria-label')||''));
-      if(!meta) continue;
-      var hit2 = keywords.some(function(k){ return meta.indexOf(k) !== -1; });
-      if(hit2) return f;
-    }
-
-    return null;
-  }
-
-  // ✅ กันการ save ของ 3 ช่อง (account/number/name) โดยไม่ต้องรู้ key
-  // หลักการ: ดัก localStorage.setItem เฉพาะกรณี "ค่าที่กำลังจะ save" ตรงกับค่าของช่องนั้น
-  function setupNoSaveHooksOnce(){
-    if(REPORT_NO_SAVE_SET) return;
-    var doc = getReportDoc();
-    if(!doc || !doc.body) return;
-
-    var win = null;
-    try{ win = $('repFrame').contentWindow; }catch(e){ win = null; }
+  // ✅ บล็อกการ save ของ account/branchCode/branchName ใน popup:
+  // intercept localStorage.setItem เฉพาะ key "PT_REPORT_FORM_V1" แล้วลบ 3 field ออกก่อนเขียน
+  function patchReportLocalStorage(){
+    var win = getReportWin();
     if(!win || !win.localStorage) return;
 
+    var LS = win.localStorage;
+    if(LS.__PT_EMBED_PATCHED) return;
+
     try{
-      var accEl = findFieldBySemantic(doc, ['แอคเคาท์','account']);
-      var numEl = findFieldBySemantic(doc, ['เลขสาขา','สาขา','branch','store no']);
-      var nameEl = findFieldBySemantic(doc, ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
-
-      var restricted = [accEl, numEl, nameEl].filter(Boolean);
-
-      // patch setItem แค่ใน iframe นี้
-      var LS = win.localStorage;
-      if(!LS.__patched_no_save){
-        var orig = LS.setItem.bind(LS);
-        LS.__patched_no_save = true;
-
-        LS.setItem = function(k, v){
-          try{
-            var sv = String(v);
-            for(var i=0;i<restricted.length;i++){
-              var el = restricted[i];
-              if(!el) continue;
-              var cur = String(el.value || '');
-              if(cur && sv === cur){
-                // บล็อกการบันทึกของ 3 ช่องนี้
-                return;
-              }
+      var orig = LS.setItem.bind(LS);
+      LS.setItem = function(k, v){
+        try{
+          if(String(k) === 'PT_REPORT_FORM_V1'){
+            var obj = JSON.parse(String(v));
+            if(obj && typeof obj === 'object'){
+              delete obj.account;
+              delete obj.branchCode;
+              delete obj.branchName;
+              v = JSON.stringify(obj);
             }
-          }catch(e){}
-          return orig(k, v);
-        };
-      }
-
-      REPORT_NO_SAVE_SET = true;
+          }
+        }catch(e){}
+        return orig(k, v);
+      };
+      LS.__PT_EMBED_PATCHED = true;
     }catch(e){
-      console.warn('setupNoSaveHooksOnce failed', e);
+      // ignore
     }
   }
 
-  function prefillReportOnce(){
-    var place = REPORT_CTX;
-    if(!place) return false;
-
-    var doc = getReportDoc();
-    if(!doc || !doc.body) return false;
+  // ✅ Prefill แบบไม่เดา selector: ใช้ id ตรงๆ + ส่ง postMessage เผื่ออนาคต
+  function sendPrefillToReport(place){
+    if(!place) return;
 
     var frame = $('repFrame');
-    var win = null;
-    try{ win = frame.contentWindow; }catch(e){ win = null; }
-    if(!win) return false;
+    var win = getReportWin();
+    var doc = getReportDoc();
+    if(!win || !doc) return;
 
-    // ค่าที่เตรียมไว้จากคอลัม F/G/H (ในอนาคต)
-    var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
-    var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
-    var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
+    var payload = {
+      account: place.account || '',
+      branchCode: place.number || '',
+      branchName: place.account_name || ''
+    };
 
-    // หา input แบบ semantic
-    var accEl = findFieldBySemantic(doc, ['แอคเคาท์','account']);
-    var numEl = findFieldBySemantic(doc, ['เลขสาขา','สาขา','branch','store no']);
-    var nameEl = findFieldBySemantic(doc, ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+    // 1) postMessage (เตรียมไว้รองรับในอนาคต ถ้า Report.html ฟังข้อความ)
+    try{
+      win.postMessage({ type:'PT_PREFILL', payload: payload }, location.origin);
+    }catch(e){}
 
-    // ถ้า field ไม่เจอ → ปล่อยว่างไว้ ไม่ฝืน (ตามที่คุณขอ)
-    // ถ้าค่าไม่มี → ก็ปล่อยว่าง
-    function setVal(el, val){
+    // 2) ตรงๆ ด้วย id (ชัวร์ 100% ไม่เดา selector)
+    function setVal(id, val){
+      var el = doc.getElementById(id);
       if(!el) return false;
-      // ให้พิมพ์ได้เต็ม
+
       try{
         el.removeAttribute('readonly');
         el.removeAttribute('disabled');
         el.style.pointerEvents = 'auto';
       }catch(e){}
 
-      // เซ็ตค่า + dispatch เพื่อให้ report.html อัปเดต UI (แต่ localStorage จะโดนบล็อกด้วย hook)
       try{
-        el.value = val || '';
+        el.value = (val || '');
         el.dispatchEvent(new win.Event('input', { bubbles:true }));
         el.dispatchEvent(new win.Event('change', { bubbles:true }));
       }catch(e){}
       return true;
     }
 
-    // ติดตั้ง no-save hook ก่อน
-    tryTrimReportUI();
-    setupNoSaveHooksOnce();
+    // ถ้าช่องไหนไม่มีจริงๆ ก็ปล่อยว่างตามที่คุณขอ
+    setVal('account', payload.account);
+    setVal('branchCode', payload.branchCode);
+    setVal('branchName', payload.branchName);
 
-    // เซ็ต
-    var okA = setVal(accEl, acc);
-    var okN = setVal(numEl, num);
-    var okS = setVal(nameEl, nam);
-
-    // เงื่อนไข “Prefill ชัวร์”: ถ้าอย่างน้อยเจอช่องใดช่องหนึ่ง ให้ถือว่าพร้อม
-    return !!(okA || okN || okS);
-  }
-
-  function startPrefillLoop(){
-    // พยายามหลายครั้ง กัน report.html โหลดช้า
-    var tries = 0;
-    var maxTries = 40;        // ~40*120ms = 4.8s
-    var interval = 120;
-
-    var t = setInterval(function(){
-      tries++;
-      tryTrimReportUI();
-      setupNoSaveHooksOnce();
-
-      var ok = prefillReportOnce();
-      if(ok || tries >= maxTries){
-        clearInterval(t);
-        if(!ok){
-          // ไม่เจอช่องใน report.html → ก็ไม่พัง แค่แจ้งเตือน (และไม่ไป save อะไร)
-          showToast('Prefill ไม่เจอช่องใน Report.html (ปล่อยว่างไว้)');
-        }
-      }
-    }, interval);
+    // เผื่อ Report.html มี logic updatePreview ใน change/input แล้ว
   }
 
   /** =========================
-   *  ✅ END REPORT POPUP
+   *  ✅ TOOL POPUP: TIMESTAMP
    *  ========================= */
+  var TS_BOOTED = false;
 
+  function timestampIsOpen(){
+    return $('tsOverlay').classList.contains('show');
+  }
+
+  function openTimestamp(){
+    $('tsOverlay').classList.add('show');
+    $('tsOverlay').setAttribute('aria-hidden','false');
+    document.body.classList.add('tool-open');
+
+    var frame = $('tsFrame');
+    if(!frame.src){
+      frame.src = CONFIG.TIMESTAMP_PATH;
+      frame.onload = function(){
+        TS_BOOTED = true;
+      };
+    }
+  }
+
+  function closeTimestamp(){
+    $('tsOverlay').classList.remove('show');
+    $('tsOverlay').setAttribute('aria-hidden','true');
+    document.body.classList.remove('tool-open');
+  }
+
+  $('tsClose').addEventListener('click', closeTimestamp);
+  $('tsOverlay').addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'tsOverlay') closeTimestamp();
+  });
+
+  /** =========================
+   *  ✅ Global ESC: ปิด Tool/Sidebar แบบลำดับ
+   *  ========================= */
+  window.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+
+    if(reportIsOpen()){
+      closeReport();
+      return;
+    }
+    if(timestampIsOpen()){
+      closeTimestamp();
+      return;
+    }
+    if(sidebarIsOpen()){
+      closeSidebar();
+      return;
+    }
+  });
+
+  /** =========================
+   *  ✅ Sidebar Tool Buttons (ไม่เปิดลิงก์แล้ว)
+   *  ========================= */
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.sb-link[data-tool]') : null;
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var tool = btn.getAttribute('data-tool');
+    closeSidebar();
+
+    if(tool === 'report'){
+      openReport(null); // เปิดแบบเครื่องมือ (ไม่ prefill)
+      return;
+    }
+    if(tool === 'timestamp'){
+      openTimestamp();
+      return;
+    }
+  }, true);
+
+  /** =========================
+   *  List / Map render
+   *  ========================= */
   function renderList(){
     renderHeader();
 
@@ -1530,7 +1519,7 @@
         remaining: (res && res.remaining) ? res.remaining : 0
       };
 
-      // ✅ เตรียมรองรับคอลัม F/G/H ในอนาคต: place.account / place.number / place.account_name
+      // ✅ รองรับคอลัม F/G/H: place.account / place.number / place.account_name
       PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
 
       renderList();
