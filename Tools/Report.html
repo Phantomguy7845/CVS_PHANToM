@@ -404,7 +404,7 @@
       <div class="mini">ปุ่มด้านบนนี้จะ COPY อย่างเดียว (กันกรณีไม่อยากเปิด LINE)</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="historyCard">
       <div class="label">3) ประวัติ (30 รายการล่าสุด)</div>
 
       <div class="histTop">
@@ -423,7 +423,7 @@
       <div class="mini">เรียงจาก “ล่าสุด” อยู่บนสุด • แต่สรุปยอดจะเรียง “เก่าก่อน → ใหม่สุด” ตามที่คุณต้องการ</div>
     </div>
 
-    <div class="stickyBar">
+    <div class="stickyBar" id="stickyBar">
       <div class="grid2">
         <button class="btn primary" id="btnCopy">✅ COPY + เปิด LINE กลุ่ม</button>
         <button class="btn soft" id="btnSummary">🧾 สรุปยอด (จากที่ติ๊ก) + เปิด LINE สรุป</button>
@@ -461,6 +461,11 @@
   "use strict";
 
   /* =========================
+     ✅ Embed Mode
+  ========================== */
+  const EMBED = new URLSearchParams(location.search).get("embed") === "1";
+
+  /* =========================
      Storage Keys
   ========================== */
   const STORE_FORM = "PT_REPORT_FORM_V1";
@@ -474,10 +479,10 @@
   const TEAM_SUMMARY = "GBBK 4";
 
   const LINE_GROUPS = {
-    groupA: "https://line.me/R/ti/g/_udUgHC5kF",   // CJ MORE/LAWSON/BIG C/VILLA MARKET
-    groupB: "https://line.me/R/ti/g/bVz2_mXbq8",   // JIFFY/TOPS DAILY
-    groupC: "https://line.me/R/ti/g/XrNLFTykZG",   // LOTUS'S
-    summary: "https://line.me/R/ti/g/UEDp_YJDwn"   // สรุปยอดรายวัน
+    groupA: "https://line.me/R/ti/g/_udUgHC5kF",
+    groupB: "https://line.me/R/ti/g/bVz2_mXbq8",
+    groupC: "https://line.me/R/ti/g/XrNLFTykZG",
+    summary: "https://line.me/R/ti/g/UEDp_YJDwn"
   };
 
   function getLineUrlByAccount(account){
@@ -485,7 +490,7 @@
     if (["CJ MORE","LAWSON","BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
     if (["JIFFY","TOPS DAILY"].includes(a)) return LINE_GROUPS.groupB;
     if (["LOTUS'S"].includes(a)) return LINE_GROUPS.groupC;
-    return LINE_GROUPS.groupA; // fallback
+    return LINE_GROUPS.groupA;
   }
 
   /* =========================
@@ -531,8 +536,8 @@
   /* =========================
      State
   ========================== */
-  let history = [];                 // array of {id, createdAt, reportDateISO, reportText, account, branchCode, branchName}
-  let selectedIds = new Set();      // for summary
+  let history = [];
+  let selectedIds = new Set();
   let showAllHistory = false;
 
   let modalOnYes = null;
@@ -548,7 +553,6 @@
   }
 
   function parseISODate(iso){
-    // iso: YYYY-MM-DD
     if (!iso) return null;
     const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return null;
@@ -559,10 +563,9 @@
   }
 
   function formatReportDateBuddhist2(d){
-    // dd/mm/YY where YY is last 2 digits of Buddhist year
     const dd = pad2(d.getDate());
     const mm = pad2(d.getMonth()+1);
-    const be = d.getFullYear() + 543;     // Buddhist year
+    const be = d.getFullYear() + 543;
     const yy = pad2(be % 100);
     return `${dd}/${mm}/${yy}`;
   }
@@ -611,9 +614,24 @@
   function openUrl(url){
     try{
       window.open(url, "_blank", "noopener,noreferrer");
-    } catch (e){
-      // ignore
-    }
+    } catch (e){}
+  }
+
+  /* =========================
+     ✅ Embed-only UI trim
+  ========================== */
+  function applyEmbedModeUI(){
+    if (!EMBED) return;
+
+    // ซ่อนปุ่มสรุปยอด
+    if (btnSummary) btnSummary.style.display = "none";
+
+    // ซ่อนการ์ดประวัติทั้งก้อน
+    const historyCard = document.getElementById("historyCard") || (histList && histList.closest(".card"));
+    if (historyCard) historyCard.style.display = "none";
+
+    // เปลี่ยน hint เล็กน้อย (กันงง)
+    setStatus("wait", "โหมด Popup: ซ่อนสรุปยอด/ประวัติแล้ว");
   }
 
   /* =========================
@@ -633,7 +651,6 @@
     const issueV = safeText(issue.value).trimEnd();
     const noteV = safeText(note.value).trimEnd();
 
-    // Maintain structure and blank lines like example
     return [
       `${dateLine}`,
       `${TEAM_REPORT}`,
@@ -663,17 +680,13 @@
   ========================== */
   async function copyToClipboard(text){
     const t = String(text ?? "");
-    // Try modern API first
     try{
       if (navigator.clipboard && window.isSecureContext){
         await navigator.clipboard.writeText(t);
         return true;
       }
-    } catch (e){
-      // fallthrough to execCommand
-    }
+    } catch (e){}
 
-    // Fallback: execCommand
     try{
       const ta = document.createElement("textarea");
       ta.value = t;
@@ -711,11 +724,11 @@
   }
 
   function saveFormState(){
-    // Date must NOT persist (always reset to today on refresh)
+    // ✅ Embed mode: ห้ามบันทึก account/branchCode/branchName ลง localStorage
+    // แต่ยังบันทึกฟิลด์อื่นได้ และ "คงค่าเดิม" ของ 3 ช่องไว้ (ไม่ไปเขียนทับ)
+    const base = loadJSON(STORE_FORM, {}) || {};
     const data = {
-      account: account.value || "",
-      branchCode: branchCode.value || "",
-      branchName: branchName.value || "",
+      ...base,
       pog: pog.value || "ตรง",
       sku: sku.value || "ไม่ครบ",
       oos: oos.value || "",
@@ -723,6 +736,13 @@
       note: note.value || "",
       autoOpenLine: !!autoOpenLine.checked
     };
+
+    if (!EMBED){
+      data.account = account.value || "";
+      data.branchCode = branchCode.value || "";
+      data.branchName = branchName.value || "";
+    }
+
     saveJSON(STORE_FORM, data);
   }
 
@@ -730,9 +750,17 @@
     const data = loadJSON(STORE_FORM, null);
     if (!data) return;
 
-    account.value = data.account || "";
-    branchCode.value = data.branchCode || "";
-    branchName.value = data.branchName || "";
+    // ✅ Embed mode: ไม่โหลด 3 ช่องนี้จาก localStorage (ปล่อยว่างไว้)
+    if (!EMBED){
+      account.value = data.account || "";
+      branchCode.value = data.branchCode || "";
+      branchName.value = data.branchName || "";
+    } else {
+      account.value = "";
+      branchCode.value = "";
+      branchName.value = "";
+    }
+
     pog.value = data.pog || "ตรง";
     sku.value = data.sku || "ไม่ครบ";
     oos.value = data.oos || "";
@@ -771,6 +799,7 @@
   }
 
   function addHistoryEntry(reportText){
+    // ✅ Embed mode: จะใช้หรือไม่ใช้ประวัติ ก็ได้ แต่ตอนนี้เราปล่อยทำงานตามเดิม
     const id = makeId();
     const createdAt = Date.now();
     const reportDateISO = reportDate.value || todayISO();
@@ -785,7 +814,7 @@
       branchName: safeText(branchName.value).trim(),
     };
 
-    history.unshift(entry); // latest on top
+    history.unshift(entry);
     saveHistory();
     renderHistory();
     return entry;
@@ -811,10 +840,14 @@
      Render History
   ========================== */
   function renderHistory(){
+    if (EMBED){
+      // โหมด embed ซ่อนทั้งการ์ดอยู่แล้ว ไม่ต้อง render ให้เสียเวลา
+      return;
+    }
+
     const total = history.length;
     histCount.textContent = `${total} รายการ`;
 
-    // Show hint count selected
     const selectedCount = Array.from(selectedIds).filter(id => history.some(h => h.id === id)).length;
     histHint.textContent = selectedCount > 0
       ? `เลือกไว้ ${selectedCount} รายการ (ใช้สรุปยอดได้เลย)`
@@ -851,7 +884,7 @@
         if (cb.checked) selectedIds.add(item.id);
         else selectedIds.delete(item.id);
         saveUIState();
-        renderHistory(); // update hint
+        renderHistory();
       });
 
       const main = document.createElement("div");
@@ -890,7 +923,6 @@
           showToast("คัดลอกไม่สำเร็จ ❌");
         }
 
-        // open group by item account if autoOpen enabled
         if (autoOpenLine.checked){
           const url = getLineUrlByAccount(item.account);
           openUrl(url);
@@ -960,10 +992,8 @@
     updatePreview();
     const text = preview.textContent || buildReportText();
 
-    // If missing important fields, ask but still allow
     const miss = validateForCopy();
     if (miss.length){
-      // still copy, just warn
       setStatus("wait", `เตือน: ยังไม่ได้กรอก ${miss.join(", ")} (แต่คัดลอกให้แล้ว)`);
     }
 
@@ -971,17 +1001,15 @@
     if (ok){
       setStatus("ok", "คัดลอกสคริปแล้ว");
       showToast("คัดลอกแล้ว ✅");
-      addHistoryEntry(text);
+      if (!EMBED) addHistoryEntry(text);
     } else {
       setStatus("err", "คัดลอกไม่สำเร็จ (ลองอีกครั้ง)");
       showToast("คัดลอกไม่สำเร็จ ❌");
       return;
     }
 
-    // Save form (except date)
     saveFormState();
 
-    // Open LINE group
     if (openLine && autoOpenLine.checked){
       const url = getLineUrlByAccount(account.value);
       openUrl(url);
@@ -996,16 +1024,13 @@
     const d = parseISODate(reportDate.value) || new Date();
     const dateLine = formatSummaryDateGregorian4(d);
 
-    // take selected items that still exist
     const selectedItems = history.filter(h => selectedIds.has(h.id));
-
-    // sort old -> new (มาก่อน -> ล่าสุด)
     selectedItems.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
 
     const lines = [];
     lines.push(`สรุปงาน วันที่ ${dateLine}`);
     lines.push(`${TEAM_SUMMARY}`);
-    lines.push(""); // blank line
+    lines.push("");
 
     selectedItems.forEach((it, idx) => {
       const a = (it.account || "").trim();
@@ -1018,7 +1043,8 @@
   }
 
   async function doSummary(){
-    // must have selection
+    if (EMBED) return;
+
     const { text, count } = buildSummaryText();
     if (count <= 0){
       setStatus("wait", "ยังไม่ได้ติ๊กเลือกรายการในประวัติ");
@@ -1036,7 +1062,6 @@
       return;
     }
 
-    // Open summary group
     openUrl(LINE_GROUPS.summary);
     showToast("เปิด LINE กลุ่มสรุปแล้ว");
     saveUIState();
@@ -1056,7 +1081,6 @@
     });
   }
 
-  // Date: always reset to today on load, but allow user to change (NOT persisted)
   reportDate.addEventListener("change", () => updatePreview());
 
   bindSaveOnInput(account);
@@ -1071,15 +1095,15 @@
 
   btnCopy.addEventListener("click", () => doCopy({openLine:true}));
   btnCopyOnly.addEventListener("click", () => doCopy({openLine:false}));
-  btnSummary.addEventListener("click", doSummary);
+  if (btnSummary) btnSummary.addEventListener("click", doSummary);
 
-  btnToggleAll.addEventListener("click", () => {
+  if (btnToggleAll) btnToggleAll.addEventListener("click", () => {
     showAllHistory = !showAllHistory;
     saveUIState();
     renderHistory();
   });
 
-  btnClearAll.addEventListener("click", () => {
+  if (btnClearAll) btnClearAll.addEventListener("click", () => {
     if (!history.length){
       showToast("ไม่มีประวัติให้ล้าง");
       return;
@@ -1104,7 +1128,6 @@
         oos.value = "";
         issue.value = "";
         note.value = "";
-        // keep autoOpenLine as is
         saveFormState();
         updatePreview();
         setStatus("wait", "ล้างฟอร์มแล้ว");
@@ -1114,31 +1137,74 @@
   });
 
   /* =========================
+     ✅ Prefill via postMessage (100% ไม่เดา selector)
+     Parent -> iframe:
+       { type:"PT_PREFILL", payload:{ account, branchCode, branchName } }
+  ========================== */
+  function applyPrefill(payload){
+    payload = payload || {};
+    const a = String(payload.account ?? "").trim();
+    const bc = String(payload.branchCode ?? "").trim();
+    const bn = String(payload.branchName ?? "").trim();
+
+    // ใส่ค่าแบบตรงๆ (id ชัวร์)
+    if (a) account.value = a;
+    if (bc) branchCode.value = bc;
+    if (bn) branchName.value = bn;
+
+    // อัปเดต preview และสถานะ
+    updatePreview();
+    setStatus("wait", "Prefill แล้ว (Popup)");
+
+    // ✅ สำคัญ: ใน EMBED โหมด saveFormState จะไม่เขียน 3 ช่องนี้ลง localStorage อยู่แล้ว
+    // แต่ถ้าฟิลด์อื่นโดนเปลี่ยนโดยผู้ใช้ ก็ยัง save ได้ตามปกติ
+  }
+
+  window.addEventListener("message", (e) => {
+    const msg = e && e.data;
+    if (!msg || msg.type !== "PT_PREFILL") return;
+
+    // ปลอดภัยขึ้น: รับเฉพาะ origin เดียวกัน
+    try{
+      if (location.origin && e.origin && e.origin !== location.origin) return;
+    }catch(err){}
+
+    applyPrefill(msg.payload || {});
+    try{
+      window.parent && window.parent.postMessage({ type:"PT_PREFILL_ACK" }, (location.origin || "*"));
+    }catch(err){}
+  });
+
+  /* =========================
      Boot
   ========================== */
   function boot(){
-    // load persisted
     loadFormState();
-    loadHistory();
-    loadUIState();
+    if (!EMBED){
+      loadHistory();
+      loadUIState();
+    }
 
-    // date resets to TODAY on each refresh
     reportDate.value = todayISO();
 
-    // defaults
     if (localStorage.getItem(STORE_FORM) === null){
-      autoOpenLine.checked = true; // default ON for first use
+      autoOpenLine.checked = true;
       saveFormState();
     }
 
     updatePreview();
-    renderHistory();
-    setStatus("wait", "พร้อมใช้งาน");
+    applyEmbedModeUI();
+
+    if (!EMBED){
+      renderHistory();
+    }
+
+    if (!EMBED){
+      setStatus("wait", "พร้อมใช้งาน");
+    }
   }
 
-  // Ensure preview shows immediately
   boot();
-
 })();
 </script>
 </body>
