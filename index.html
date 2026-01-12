@@ -24,36 +24,24 @@
       --tap:44px;
       --danger:#e23a3a;
 
-      /* ความสูงแถบแท็บล่าง (เดิม) */
+      /* ความสูงแถบแท็บล่าง */
       --bottomTabsH:76px;
-
-      /* ✅ (Map View) ค่าจริงที่คำนวณจาก DOM */
-      --headerH: 0px;
-      --tabsH: var(--bottomTabsH);
 
       /* Sidebar */
       --sbW: 290px;
       --sbZ: 100001;
+
+      /* Report popup */
+      --toolZ: 100002;
     }
-
     *{box-sizing:border-box}
-    html, body{height:100%}
-
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background:linear-gradient(180deg,#e9fbf7,var(--bg));
       color:var(--text);
     }
-
-    /* =========================
-       ✅ MAP VIEW: ห้าม scroll หน้า (เฉพาะตอนอยู่แท็บแผนที่)
-       ========================= */
-    body.map-mode{
-      overflow:hidden;
-      overscroll-behavior:none;
-      touch-action: manipulation;
-    }
+    body.tool-open{ overflow:hidden; }
 
     /* header */
     header{
@@ -170,21 +158,6 @@
       padding-bottom: calc(14px + var(--bottomTabsH) + env(safe-area-inset-bottom));
     }
 
-    /* =========================
-       ✅ MAP VIEW: main สูงเท่าหน้าจอ และไม่ทำให้เกิด scroll
-       ========================= */
-    body.map-mode main{
-      /* fallback */
-      height: calc(100vh - var(--headerH) - var(--tabsH) - env(safe-area-inset-bottom));
-      padding-bottom: 0;
-      overflow: hidden;
-    }
-    @supports (height: 100dvh){
-      body.map-mode main{
-        height: calc(100dvh - var(--headerH) - var(--tabsH) - env(safe-area-inset-bottom));
-      }
-    }
-
     /* pages */
     .page{ display:none; }
     .page.active{ display:block; }
@@ -248,6 +221,11 @@
     .a-btn[disabled]{opacity:.6; cursor:not-allowed}
     .a-nav{background:rgba(20,184,166,.14)}
     .a-done{background:rgba(20,184,166,.18)}
+    .a-report{
+      border-color:rgba(15,143,131,.28);
+      background:rgba(15,143,131,.10);
+      color:#064e46;
+    }
 
     /* loading */
     .center{
@@ -293,26 +271,7 @@
       cursor:pointer;
       user-select:none;
     }
-
-    /* =========================
-       ✅ MAP VIEW: ทำให้ "แผนที่" พอดีกับหน้าจอ (ไม่ใช้ 72vh แล้ว)
-       ========================= */
-    body.map-mode #pageMap{
-      height: 100%;
-    }
-    body.map-mode .map-wrap{
-      height: 100%;
-      display:flex;
-      flex-direction:column;
-      overflow:hidden;
-    }
-    body.map-mode #map{
-      flex: 1 1 auto;
-      min-height: 0;  /* สำคัญมากใน flex เพื่อไม่ดันเกิด scroll */
-      width: 100%;
-      height: auto;   /* ให้ flex คุม */
-      touch-action: pan-x pan-y; /* ให้เลื่อนแผนที่ได้ แต่ไม่เลื่อนหน้า */
-    }
+    #map{height:72vh; min-height:360px; width:100%}
 
     /* modal */
     .backdrop{
@@ -417,6 +376,12 @@
       color:#7b1111;
       cursor:pointer;
     }
+    .map-report{
+      border-color:rgba(15,143,131,.28);
+      background:rgba(15,143,131,.10);
+      color:#064e46;
+      cursor:pointer;
+    }
     .map-link[disabled],
     .map-link.disabled{
       opacity:.6;
@@ -487,12 +452,12 @@
     .tabbtn:active{ transform:scale(.99); }
 
     /* =========================
-       ✅ SIDEBAR (ใหม่)
+       ✅ SIDEBAR (คงเดิม)
        ========================= */
     .sb-overlay{
       position:fixed;
       inset:0;
-      z-index:999999;
+      z-index:var(--sbZ);
       background:rgba(0,0,0,.38);
       display:none;
       touch-action: manipulation;
@@ -585,12 +550,81 @@
       margin-top:4px;
       font-size:12px;
     }
+
+    /* =========================
+       ✅ REPORT POPUP (ใหม่)
+       ========================= */
+    .tool-overlay{
+      position:fixed;
+      inset:0;
+      z-index:var(--toolZ);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      background:rgba(0,0,0,.55);
+      touch-action: manipulation;
+    }
+    .tool-overlay.show{ display:flex; }
+
+    .tool-shell{
+      width:min(980px, 100%);
+      height:min(92vh, 100%);
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.10);
+      box-shadow:0 22px 80px rgba(0,0,0,.30);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .tool-bar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      background:linear-gradient(90deg,#0f8f83,#0b7c73);
+      color:#fff;
+      border-bottom:1px solid rgba(255,255,255,.14);
+    }
+    .tool-title{
+      font-weight:1000;
+      font-size:14px;
+      white-space:nowrap;
+    }
+    .tool-subtitle{
+      font-weight:900;
+      font-size:12px;
+      opacity:.95;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .tool-close{
+      margin-left:auto;
+      min-height:40px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.14);
+      color:#fff;
+      padding:8px 12px;
+      font-weight:1000;
+      cursor:pointer;
+    }
+    .tool-close:active{ transform:scale(.99); }
+
+    .tool-frame{
+      flex:1;
+      width:100%;
+      border:0;
+      background:#fff;
+    }
   </style>
 </head>
 
 <body>
 
-<!-- ✅ Sidebar Overlay -->
+<!-- ✅ Sidebar Overlay (คงเดิม) -->
 <div id="sbOverlay" class="sb-overlay" aria-hidden="true">
   <aside class="sidebar" role="navigation" aria-label="Tools Sidebar">
     <div class="sb-head">
@@ -600,8 +634,7 @@
 
     <div class="sb-section">เครื่องมือ</div>
 
-    <!-- ✅ Tool #1: Report Script -->
-    <a class="sb-link" href="Tools/Report.html">
+    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Report.html">
       <div class="sb-ico">🧾</div>
       <div class="sb-text">
         Report Script
@@ -609,22 +642,18 @@
       </div>
     </a>
 
-    <!-- ✅ Tool #2: Timestamp Camera -->
-    <a class="sb-link" href="Tools/Timestamp.html">
-      <div class="sb-ico">📸</div>
+    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Timestamp.html">
+      <div class="sb-ico">🕒</div>
       <div class="sb-text">
         Timestamp Camera
         <small>เปิดหน้า Timestamp.html</small>
       </div>
     </a>
-
-    <!-- (เพิ่มเครื่องมืออื่นๆ ได้ โดยก็อปปี้ a.sb-link เพิ่ม) -->
   </aside>
 </div>
 
 <header>
   <div class="hdr">
-    <!-- ✅ ปุ่มเปิด Sidebar -->
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
     <div class="title">
@@ -698,6 +727,18 @@
 
 <div id="toast" class="toast">—</div>
 
+<!-- ✅ Report Popup (ใหม่) -->
+<div id="reportOverlay" class="tool-overlay" aria-hidden="true">
+  <div class="tool-shell" role="dialog" aria-modal="true" aria-label="Report Popup">
+    <div class="tool-bar">
+      <div class="tool-title">🧾 Report</div>
+      <div id="reportSubtitle" class="tool-subtitle">—</div>
+      <button id="btnReportClose" class="tool-close" type="button">ปิด</button>
+    </div>
+    <iframe id="reportFrame" class="tool-frame" src="about:blank" title="Report"></iframe>
+  </div>
+</div>
+
 <script>
   /** =========================
    *  CONFIG (แก้แค่จุดนี้)
@@ -748,7 +789,7 @@
   }
 
   /** =========================
-   *  ✅ SIDEBAR LOGIC
+   *  ✅ SIDEBAR LOGIC (คงเดิม)
    *  ========================= */
   function openSidebar(){
     var o = $('sbOverlay');
@@ -786,24 +827,231 @@
   });
 
   /** =========================
-   *  ✅ MAP VIEW: Sync header/tabs height (ใหม่)
+   *  ✅ FULLSCREEN (คงเดิม)
    *  ========================= */
-  function syncMapViewportVars(){
-    try{
-      var header = document.querySelector('header');
-      var tabs = document.querySelector('.bottom-tabs');
-      var root = document.documentElement;
-
-      if(header){
-        root.style.setProperty('--headerH', Math.ceil(header.getBoundingClientRect().height) + 'px');
-      }
-      if(tabs){
-        root.style.setProperty('--tabsH', Math.ceil(tabs.getBoundingClientRect().height) + 'px');
-      }
-    }catch(e){}
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
   }
-  window.addEventListener('resize', function(){ syncMapViewportVars(); });
-  window.addEventListener('orientationchange', function(){ setTimeout(syncMapViewportVars, 150); });
+
+  function requestFullscreen(){
+    var el = document.documentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if(!fn) return Promise.reject(new Error('Fullscreen API not supported'));
+    try{
+      var r = fn.call(el);
+      if(r && typeof r.then === 'function') return r;
+      return Promise.resolve(true);
+    }catch(e){
+      return Promise.reject(e);
+    }
+  }
+
+  function attachFullscreenOnFirstGesture(){
+    if(attachFullscreenOnFirstGesture._done) return;
+    attachFullscreenOnFirstGesture._done = true;
+
+    function handler(){
+      if(isFullscreen()) return;
+      requestFullscreen().catch(function(){});
+    }
+
+    document.addEventListener('click', handler, { once:false, passive:true });
+    document.addEventListener('touchend', handler, { once:false, passive:true });
+    document.addEventListener('keydown', handler, { once:false });
+  }
+
+  function tryFullscreenOnOpen(){
+    if(isFullscreen()) return;
+    requestFullscreen().catch(function(){
+      showToast('แตะหน้าจอ 1 ครั้งเพื่อเข้าโหมดเต็มจอ');
+      attachFullscreenOnFirstGesture();
+    });
+  }
+
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden){
+      setTimeout(function(){
+        tryFullscreenOnOpen();
+      }, 200);
+    }
+  });
+
+  /** =========================
+   *  ✅ REPORT POPUP (ใหม่)
+   *  ========================= */
+  function getRepoRootUrl(){
+    // พยายามหา root ของ /CVS_PHANToM/ ให้ชัวร์
+    var p = location.pathname || '';
+    var lower = p.toLowerCase();
+    var key = '/cvs_phantom/';
+    var idx = lower.indexOf(key);
+    if(idx >= 0){
+      return location.origin + p.slice(0, idx + key.length);
+    }
+    // fallback: โฟลเดอร์เดียวกับไฟล์นี้
+    return new URL('./', location.href).href;
+  }
+
+  function getReportUrl(){
+    return getRepoRootUrl() + 'Tools/Report.html';
+  }
+
+  function reportIsOpen(){
+    return $('reportOverlay').classList.contains('show');
+  }
+
+  function openReport(place){
+    place = place || {};
+    // ค่าที่ต้องกรอก (F/G/H)
+    var payload = {
+      account: place.account || '',
+      number: place.number || '',
+      account_name: place.account_name || '',
+      id: place.id || '',
+      name: place.name || '',
+      ts: Date.now()
+    };
+
+    // เก็บ context ไว้ (เผื่อ Report.html จะอ่านในอนาคต/เพิ่มทีหลัง)
+    try{
+      localStorage.setItem('GBKK4_REPORT_CONTEXT', JSON.stringify(payload));
+      localStorage.setItem('REPORT_CONTEXT', JSON.stringify(payload));
+    }catch(e){}
+
+    // ปิด sidebar ถ้าเปิดอยู่ (ให้ลื่น)
+    try{ if(sidebarIsOpen()) closeSidebar(); }catch(e){}
+
+    // เปิด overlay
+    document.body.classList.add('tool-open');
+    $('reportOverlay').classList.add('show');
+    $('reportOverlay').setAttribute('aria-hidden','false');
+    $('reportSubtitle').textContent = (payload.id ? ('[' + payload.id + '] ') : '') + (payload.name || '—');
+
+    var frame = $('reportFrame');
+    var url = getReportUrl();
+
+    // โหลดครั้งแรกครั้งเดียว (หลังจากนั้นไม่รีโหลดเพื่อความลื่น)
+    if(!frame.dataset.loaded || frame.dataset.loaded !== '1'){
+      frame.dataset.loaded = '1';
+      frame.src = url;
+    }
+
+    // พยายาม prefill เข้า Report.html (หลายวิธี + retry)
+    schedulePrefillToReport(payload);
+  }
+
+  function closeReport(){
+    $('reportOverlay').classList.remove('show');
+    $('reportOverlay').setAttribute('aria-hidden','true');
+    document.body.classList.remove('tool-open');
+  }
+
+  $('btnReportClose').addEventListener('click', function(e){
+    e.preventDefault();
+    closeReport();
+  });
+
+  // คลิกพื้นที่มืดเพื่อปิด (ถ้าคลิกนอกกล่อง)
+  $('reportOverlay').addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'reportOverlay'){
+      closeReport();
+    }
+  });
+
+  // ESC เพื่อปิด report (เผื่อใช้บน PC)
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && reportIsOpen()){
+      closeReport();
+    }
+  });
+
+  function setFieldInDoc(doc, selectors, value){
+    value = (value === null || value === undefined) ? '' : String(value);
+
+    for(var i=0;i<selectors.length;i++){
+      var sel = selectors[i];
+      var el = null;
+      try{ el = doc.querySelector(sel); }catch(e){ el = null; }
+      if(!el) continue;
+
+      try{
+        var tag = (el.tagName || '').toUpperCase();
+        if(tag === 'SELECT'){
+          // พยายาม match value / text
+          var ok = false;
+          for(var j=0;j<el.options.length;j++){
+            var opt = el.options[j];
+            if(String(opt.value).toLowerCase() === value.toLowerCase() || String(opt.text).toLowerCase() === value.toLowerCase()){
+              el.value = opt.value;
+              ok = true;
+              break;
+            }
+          }
+          if(!ok){
+            // ถ้าไม่มี option ตรง ให้ยัดค่า (บาง select รองรับ)
+            el.value = value;
+          }
+        }else{
+          el.value = value;
+        }
+
+        // trigger events เพื่อให้ Report.html เซฟ localStorage ตามเดิม
+        el.dispatchEvent(new Event('input', { bubbles:true }));
+        el.dispatchEvent(new Event('change', { bubbles:true }));
+        return true;
+      }catch(e2){
+        // continue
+      }
+    }
+    return false;
+  }
+
+  function tryPrefillReportOnce(payload){
+    var frame = $('reportFrame');
+    if(!frame || !frame.contentWindow) return false;
+
+    // 1) postMessage เผื่อ Report.html รองรับ
+    try{
+      frame.contentWindow.postMessage({ type:'GBKK4_PREFILL', payload: payload }, location.origin);
+    }catch(e){}
+
+    // 2) ถ้า same-origin: set ค่าใน DOM ตรง ๆ
+    try{
+      var doc = frame.contentWindow.document;
+      if(!doc) return false;
+
+      var okA = setFieldInDoc(doc,
+        ['#account','select#account','select[name="account"]','input[name="account"]','#accountInput','[data-field="account"]'],
+        payload.account
+      );
+      var okN = setFieldInDoc(doc,
+        ['#number','#branch','#branchNumber','input[name="number"]','input[name="branch"]','input[name="branchNumber"]','[data-field="number"]'],
+        payload.number
+      );
+      var okName = setFieldInDoc(doc,
+        ['#account_name','#accountName','#branchName','input[name="account_name"]','input[name="accountName"]','input[name="branchName"]','[data-field="account_name"]'],
+        payload.account_name
+      );
+
+      // อย่างน้อยต้อง set ได้สัก field หนึ่งถึงจะถือว่า ok
+      return !!(okA || okN || okName);
+    }catch(e2){
+      return false;
+    }
+  }
+
+  function schedulePrefillToReport(payload){
+    // retry หลายครั้ง เพราะ iframe โหลดไม่ทัน
+    var tries = 0;
+    var maxTries = 24; // ~6 วินาที (250ms)
+    var timer = setInterval(function(){
+      tries++;
+      var ok = tryPrefillReportOnce(payload);
+      if(ok || tries >= maxTries){
+        clearInterval(timer);
+      }
+    }, 250);
+  }
 
   /** =========================
    *  JSONP Helper
@@ -1036,6 +1284,7 @@
           '<div class="name">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
           '<div class="sub">' + locText + '</div>' +
           '<div class="actions">' +
+            '<button class="a-btn a-report" data-act="report" type="button">Report</button>' +
             '<button class="a-btn a-nav" data-act="nav" type="button">นำทาง</button>' +
             '<button class="a-btn a-done" data-act="done" type="button"><b>ไปแล้ว</b></button>' +
           '</div>' +
@@ -1050,6 +1299,10 @@
 
       el.querySelector('[data-act="nav"]').onclick = function(){
         openMaps(place);
+      };
+
+      el.querySelector('[data-act="report"]').onclick = function(){
+        openReport(place);
       };
 
       el.querySelector('[data-act="done"]').onclick = async function(){
@@ -1101,12 +1354,15 @@
         ? ('<a class="map-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">นำทาง</a>')
         : ('<button class="map-link disabled" type="button" disabled>นำทาง</button>');
 
+      var reportHtml =
+        '<button class="map-link map-report" type="button" data-id="' + escapeHtml(p.id) + '">Report</button>';
+
       var doneHtml =
         '<button class="map-link map-done" type="button" data-id="' + escapeHtml(p.id) + '">ไปแล้ว</button>';
 
       var popup =
         '<div style="font-weight:1000;color:#071915">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
-        '<div class="map-actions">' + navHtml + doneHtml + '</div>';
+        '<div class="map-actions">' + navHtml + reportHtml + doneHtml + '</div>';
 
       L.marker([p.lat, p.lng]).addTo(layer).bindPopup(popup);
     });
@@ -1119,7 +1375,24 @@
     }
   }
 
+  // Map popup buttons delegation (Report + Done)
   document.addEventListener('click', function(ev){
+    var rbtn = ev.target && ev.target.closest ? ev.target.closest('.map-report') : null;
+    if(rbtn){
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      var rid = rbtn.getAttribute('data-id');
+      var rplace = PLACES.find(function(x){ return String(x.id) === String(rid); });
+      if(!rplace){
+        showToast('ไม่พบรายการสำหรับปุ่มนี้');
+        return;
+      }
+      try{ if(map) map.closePopup(); }catch(e){}
+      openReport(rplace);
+      return;
+    }
+
     var btn = ev.target && ev.target.closest ? ev.target.closest('.map-done') : null;
     if(!btn) return;
 
@@ -1138,7 +1411,7 @@
     openModal({
       title:'ยืนยันว่าไปแล้ว',
       body:'[' + place.id + '] ' + place.name + '\n\nระบบจะตั้งค่า visited = 1 ในชีท และรายการจะหายไปทันที',
-      okText:'ยืนยัน',
+      okText:'ยืนยัน (ไปแล้ว)',
       cancelText:'ยกเลิก',
       danger:false
     }).then(async function(ok){
@@ -1187,7 +1460,28 @@
         visited: (res && res.visited) ? res.visited : 0,
         remaining: (res && res.remaining) ? res.remaining : 0
       };
-      PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
+
+      // ✅ รองรับฟิลด์ใหม่ในอนาคต: account / number / account_name (จากคอลัมน์ F/G/H)
+      PLACES = (res && res.places)
+        ? res.places
+            .filter(function(p){ return p && p.id && p.name; })
+            .map(function(p){
+              return {
+                id: p.id,
+                name: p.name,
+                lat: (p.lat !== undefined ? p.lat : null),
+                lng: (p.lng !== undefined ? p.lng : null),
+                mapsUrl: (p.mapsUrl !== undefined ? p.mapsUrl : ''),
+                visited: (p.visited !== undefined ? p.visited : 0),
+
+                // F/G/H (เผื่อใช้ Report)
+                account: (p.account !== undefined ? p.account : ''),
+                number: (p.number !== undefined ? p.number : ''),
+                account_name: (p.account_name !== undefined ? p.account_name : '')
+              };
+            })
+        : [];
+
       renderList();
       if(map) renderMap();
     }catch(err){
@@ -1256,14 +1550,9 @@
     $('tabList').classList.toggle('active', !isMap);
     $('tabMap').classList.toggle('active', isMap);
 
-    // ✅ MAP VIEW: เปิด/ปิดโหมดไม่ให้ scroll
-    document.body.classList.toggle('map-mode', isMap);
-    syncMapViewportVars();
-
     if(isMap){
       initMap();
       setTimeout(function(){
-        syncMapViewportVars();
         try{ map.invalidateSize(); }catch(e){}
         renderMap();
       }, 60);
@@ -1293,13 +1582,8 @@
   window.addEventListener('hashchange', syncPageFromHash);
 
   // ===== Boot =====
-  syncMapViewportVars();
-
-  // กัน error ถ้าไฟล์ของคุณไม่มีฟังก์ชันนี้แล้ว
   setTimeout(function(){
-    if(typeof tryFullscreenOnOpen === 'function'){
-      tryFullscreenOnOpen();
-    }
+    tryFullscreenOnOpen();
   }, 120);
 
   loadPlaces();
