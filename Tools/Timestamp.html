@@ -3,283 +3,301 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
-  <title>PT Timestamp Camera (4:3 Portrait UI) v3.2</title>
+  <title>PT Timestamp Camera (Camera-first)</title>
 
-  <!-- Leaflet (ใช้ตอนเปิดแผนที่ใน Settings เท่านั้น) -->
+  <!-- Leaflet (คงไว้ตามเดิม) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- JSZip (fallback ถ้า File System Access API ใช้ไม่ได้) -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+  <!-- (Optional) JSZip for fallback ZIP (จะใช้เฉพาะถ้า File System Access API ไม่มี) -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <style>
     :root{
       --bg:#000;
-      --text:#f5f7ff;
-      --muted:rgba(245,247,255,.72);
-      --muted2:rgba(245,247,255,.52);
-      --line:rgba(255,255,255,.10);
-      --accent:#10b981;
-      --danger:#ef4444;
+      --panel: rgba(18,18,18,.88);
+      --panel2: rgba(255,255,255,.06);
+      --line: rgba(255,255,255,.12);
+      --text:#e8e8e8;
+      --muted: rgba(255,255,255,.72);
+      --muted2: rgba(255,255,255,.55);
+      --accent: #10b981;
+      --danger: #ef4444;
+      --warn: #f59e0b;
 
-      --shadow: 0 18px 60px rgba(0,0,0,.55);
-      --radius:18px;
+      --safeB: env(safe-area-inset-bottom);
+      --safeT: env(safe-area-inset-top);
 
-      --safe-b: env(safe-area-inset-bottom);
-      --safe-t: env(safe-area-inset-top);
-      --safe-l: env(safe-area-inset-left);
-      --safe-r: env(safe-area-inset-right);
+      /* sizes (percent-first) */
+      --icon: clamp(20px, 6vw, 28px);
+      --iconBtn: clamp(38px, 11vw, 52px);
+      --shutter: clamp(62px, 18vw, 86px);
+      --thumb: clamp(52px, 16vw, 74px);
+      --radius: 18px;
 
-      /* Responsive sizing (เน้น %/vw/vh) */
-      --btn: clamp(40px, 10.5vw, 52px);
-      --btn-mini: clamp(56px, 14vw, 70px);
-      --shutter: clamp(78px, 20vw, 96px);
-      --top-pad: clamp(10px, 2.2vh, 14px);
-      --side-pad: clamp(10px, 2.4vw, 14px);
-      --bottom-bar-h: clamp(92px, 14vh, 124px);
-      --film-h: clamp(62px, 10.5vh, 78px);
+      /* Viewfinder bias up (เลื่อนขึ้นให้เหมือนแอปกล้อง) */
+      --vfTopPad: clamp(10px, 5vh, 46px);
+      --vfLift: clamp(6px, 2vh, 22px);
     }
 
     *{ box-sizing:border-box; }
-    html, body{
-      height:100%;
+    html,body{ height:100%; }
+    body{
       margin:0;
       background: var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
-      overflow:hidden;
+      overflow:hidden; /* camera-app feel */
     }
+
     button, input, select{
       font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
+      color: inherit;
     }
 
-    /* ===== Stage ===== */
+    /* ===== App Layout ===== */
+    .app{
+      height:100dvh;
+      display:grid;
+      grid-template-rows: auto 1fr auto;
+      padding-top: var(--safeT);
+      padding-bottom: var(--safeB);
+    }
+
+    /* ===== Top Bar (เหมือนแอปกล้อง) ===== */
+    .topbar{
+      height: clamp(48px, 7.5vh, 64px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 0 clamp(10px, 3vw, 16px);
+      gap: 10px;
+    }
+    .topbar .left,
+    .topbar .right{
+      display:flex;
+      align-items:center;
+      gap: clamp(8px, 2.6vw, 14px);
+      min-width: 25%;
+    }
+    .topbar .right{ justify-content:flex-end; }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 0;
+    }
+    .brand .title{
+      font-weight: 900;
+      letter-spacing:.2px;
+      font-size: clamp(12px, 3.4vw, 15px);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      color: rgba(255,255,255,.92);
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: clamp(11px, 3.2vw, 13px);
+      white-space:nowrap;
+    }
+
+    .iconBtn{
+      width: var(--iconBtn);
+      height: var(--iconBtn);
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+    }
+    .iconBtn:active{ transform: translateY(1px); }
+    .iconBtn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    svg{ width: var(--icon); height: var(--icon); fill: currentColor; }
+
+    /* ===== Stage (พื้นที่ดำ + Viewfinder 4:3 + ขอบดำบนล่าง) ===== */
     .stage{
       position:relative;
-      width:100%;
-      height: 100svh;
-      height: 100dvh;
-      background:#000;
-      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
+      align-items:center;
+      gap: clamp(10px, 2vh, 16px);
+      padding-top: calc(var(--vfTopPad) - var(--vfLift));
+      padding-left: clamp(10px, 3vw, 16px);
+      padding-right: clamp(10px, 3vw, 16px);
     }
 
-    /* ===== Viewfinder: 4:3 แนวตั้ง (3:4) + ขอบดำบน/ล่าง ===== */
-    .viewfinder{
-      position:absolute;
-      left:0; right:0;
-      top: 50%;
-      transform: translateY(-50%);
+    /* Viewfinder container: 4:3 landscape inside portrait screen */
+    .viewWrap{
       width: 100%;
-      aspect-ratio: 3 / 4; /* 4:3 ในแนวตั้ง */
-      background:#000;
+      display:flex;
+      justify-content:center;
+    }
+    .viewfinder{
+      width: min(92vw, 820px);
+      aspect-ratio: 4 / 3;
+      border-radius: calc(var(--radius) + 6px);
       overflow:hidden;
-      box-shadow: 0 22px 70px rgba(0,0,0,.50);
+      background: #000;
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+      position:relative;
+      transform: translateY(calc(-1 * var(--vfLift)));
     }
 
-    /* ปรับในแนวนอน (กันล้นจอ) */
-    @media (orientation: landscape){
-      .viewfinder{
-        width: min(70vw, 520px);
-        left: 50%;
-        right: auto;
-        transform: translate(-50%, -50%);
-      }
-    }
-
-    video#camVideo{
+    video{
       width:100%;
       height:100%;
       object-fit: cover;
       background:#000;
-      transform: translateZ(0);
+      display:block;
+      transform: none;
     }
-    video#camVideo.mirror{
-      transform: scaleX(-1) translateZ(0);
+    video.mirror{
+      transform: scaleX(-1); /* mirror preview for front camera */
     }
 
-    /* ===== Live overlay (STAMP GUIDE) : ไม่มีแถบดำ ===== */
-    .liveOverlay{
+    .vfOverlay{
       position:absolute;
-      inset:0;
+      inset: 0;
       pointer-events:none;
-      z-index: 3;
       display:flex;
       align-items:flex-start;
-      justify-content:flex-end;
-      padding: clamp(10px, 2.6vw, 16px);
+      justify-content:flex-start;
+      padding: clamp(10px, 3vw, 14px);
+      color: rgba(255,255,255,.9);
+      font-size: clamp(12px, 3.4vw, 14px);
+      text-shadow: 0 2px 12px rgba(0,0,0,.8);
     }
-    .overlayText{
-      max-width: 92%;
-      display:none;
-      white-space: pre-wrap;
-      line-height: 1.2;
-      font-weight: 950;
-      color:#fff;
-      background: transparent;
-      border: none;
-      padding: 0;
-      text-shadow:
-        0 2px 12px rgba(0,0,0,.88),
-        0 0 2px rgba(0,0,0,.88);
+    .vfOverlay .hint{
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 8px 10px;
+      border-radius: 14px;
+      max-width: 85%;
+      line-height: 1.25;
     }
 
-    /* ===== Top bar ===== */
-    .topBar{
-      position:absolute;
-      top:0; left:0; right:0;
-      z-index: 10;
-      padding:
-        calc(var(--top-pad) + var(--safe-t))
-        calc(var(--side-pad) + var(--safe-r))
-        var(--top-pad)
-        calc(var(--side-pad) + var(--safe-l));
+    /* ===== Compact Main Controls (Time / Location) ===== */
+    .metaBar{
+      width: min(92vw, 820px);
+      display:grid;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: calc(var(--radius) + 2px);
+      border: 1px solid var(--line);
+      background: rgba(18,18,18,.72);
+      backdrop-filter: blur(10px);
+    }
+    .metaRow{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
+      gap: 10px;
+      flex-wrap:wrap;
     }
-    .topGroup{ display:flex; align-items:center; gap: clamp(8px, 2vw, 12px); }
-
-    .brandPill{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding: clamp(8px, 2.2vw, 12px) clamp(10px, 2.6vw, 14px);
-      border-radius: 999px;
-      background: rgba(0,0,0,.34);
-      border: 1px solid rgba(255,255,255,.12);
-      backdrop-filter: blur(8px);
-      box-shadow: 0 14px 34px rgba(0,0,0,.35);
-      font-weight: 950;
-      letter-spacing:.4px;
-      user-select:none;
-      color: rgba(255,255,255,.92);
-      font-size: clamp(12px, 3.2vw, 14px);
-    }
-    .dot{
-      width:10px; height:10px; border-radius:999px;
-      background: rgba(255,255,255,.35);
-      box-shadow: 0 0 0 4px rgba(255,255,255,.08);
-    }
-    .dot.ok{ background: rgba(16,185,129,.95); box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
-    .dot.err{ background: rgba(239,68,68,.95); box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
-
-    .iconBtn{
-      width: var(--btn);
-      height: var(--btn);
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.34);
-      color:#fff;
-      cursor:pointer;
-      user-select:none;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 14px 34px rgba(0,0,0,.35);
-    }
-    .iconBtn:active{ transform: translateY(1px); }
-    .iconBtn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
-    .iconBtn.on{
-      border-color: rgba(16,185,129,.55);
-      background: rgba(16,185,129,.16);
-    }
-    .iconBtn svg{
-      width: 56%;
-      height: 56%;
-      opacity: .95;
-    }
-
-    /* ===== Main time HUD (หน้าหลัก) ===== */
-    .timeHUD{
-      position:absolute;
-      top: calc(var(--safe-t) + clamp(58px, 9vh, 78px));
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 11;
+    .metaLeft{
       display:flex;
       align-items:center;
-      gap: clamp(8px, 2vw, 12px);
-      padding: clamp(8px, 2vw, 10px) clamp(10px, 2.6vw, 12px);
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.32);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 14px 34px rgba(0,0,0,.30);
-      user-select:none;
-      max-width: min(92vw, 760px);
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 auto;
     }
-    .timeModeBtn{
-      padding: clamp(8px, 2vw, 10px) clamp(10px, 2.6vw, 12px);
+    .metaRight{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    .labelSmall{
+      font-size: clamp(11px, 3.1vw, 13px);
+      color: var(--muted2);
+      font-weight: 800;
+      letter-spacing:.2px;
+      white-space:nowrap;
+    }
+    .valueSmall{
+      font-size: clamp(12px, 3.4vw, 14px);
+      color: rgba(255,255,255,.92);
+      font-weight: 850;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 55vw;
+    }
+
+    .switch{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 8px 10px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.14);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      user-select:none;
+    }
+    .switch input{
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+    .switch span{
+      font-size: clamp(12px, 3.3vw, 14px);
+      font-weight: 850;
+      color: rgba(255,255,255,.9);
+      white-space:nowrap;
+    }
+
+    .dtInput{
+      width: min(92vw, 820px);
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
       background: rgba(255,255,255,.06);
       color: rgba(255,255,255,.92);
-      font-weight: 950;
-      cursor:pointer;
-      min-height: clamp(36px, 6.5vh, 42px);
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      white-space:nowrap;
-      font-size: clamp(12px, 3.3vw, 14px);
+      font-size: clamp(13px, 3.6vw, 15px);
+      outline: none;
     }
-    .timeModeBtn.on{
+    .dtInput:focus{
       border-color: rgba(16,185,129,.55);
-      background: rgba(16,185,129,.16);
-      color:#d6fff1;
-    }
-    .timeLabelBtn{
-      padding: clamp(8px, 2vw, 10px) clamp(10px, 2.6vw, 12px);
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.20);
-      color: rgba(255,255,255,.90);
-      font-weight: 950;
-      cursor:pointer;
-      min-height: clamp(36px, 6.5vh, 42px);
-      max-width: 62vw;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space:nowrap;
-      font-size: clamp(12px, 3.3vw, 14px);
+      box-shadow: 0 0 0 4px rgba(16,185,129,.18);
     }
 
-    /* ===== Filmstrip ===== */
-    .filmstrip{
-      position:absolute;
-      left: calc(var(--side-pad) + var(--safe-l));
-      right: calc(var(--side-pad) + var(--safe-r));
-      bottom: calc(var(--bottom-bar-h) + clamp(10px, 2.2vh, 16px) + var(--safe-b));
-      z-index: 12;
+    /* ===== Gallery Strip ===== */
+    .gallery{
+      width: min(92vw, 820px);
       display:flex;
-      gap: clamp(8px, 2.2vw, 12px);
-      align-items:center;
-      padding: clamp(8px, 2vw, 10px);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.26);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 40px rgba(0,0,0,.35);
-      overflow-x:auto;
+      gap: 10px;
+      overflow:auto;
+      padding: 8px 2px;
       scrollbar-width: none;
-      max-height: var(--film-h);
     }
-    .filmstrip::-webkit-scrollbar{ display:none; }
+    .gallery::-webkit-scrollbar{ display:none; }
 
     .thumb{
-      width: calc(var(--film-h) - 10px);
-      height: calc(var(--film-h) - 10px);
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.12);
+      width: var(--thumb);
+      height: var(--thumb);
+      border-radius: 16px;
       background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
       overflow:hidden;
-      flex: 0 0 auto;
       position:relative;
+      flex: 0 0 auto;
       cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
       user-select:none;
     }
     .thumb img{
@@ -288,170 +306,145 @@
       object-fit: cover;
       display:block;
     }
-    .thumb.active{
-      outline: 3px solid rgba(16,185,129,.55);
-      outline-offset: 2px;
+    .thumb .idx{
+      position:absolute;
+      left: 7px;
+      top: 7px;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.92);
+      pointer-events:none;
     }
     .thumb .del{
       position:absolute;
-      top:6px; right:6px;
-      width: 22px; height: 22px;
+      right: 6px;
+      top: 6px;
+      width: 26px;
+      height: 26px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.55);
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size: 13px;
-      font-weight: 950;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.45);
+      display:grid;
+      place-items:center;
       cursor:pointer;
-    }
-    .thumb .num{
-      position:absolute;
-      left:6px; bottom:6px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.55);
-      border: 1px solid rgba(255,255,255,.12);
-      color:#fff;
-      font-size: 11px;
-      font-weight: 950;
-    }
-    .emptyPill{
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.80);
-      font-size: 12px;
-      font-weight: 900;
-      user-select:none;
-      white-space:nowrap;
-    }
-
-    /* ===== Bottom controls ===== */
-    .bottomBar{
-      position:absolute;
-      left:0; right:0; bottom:0;
-      z-index: 13;
-      height: var(--bottom-bar-h);
-      padding:
-        clamp(10px, 2vh, 12px)
-        calc(var(--side-pad) + var(--safe-r))
-        calc(clamp(12px, 2.4vh, 14px) + var(--safe-b))
-        calc(var(--side-pad) + var(--safe-l));
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap: clamp(10px, 2.6vw, 16px);
       pointer-events:auto;
     }
-    .miniBtn{
-      width: var(--btn-mini);
-      height: var(--btn-mini);
-      border-radius: clamp(16px, 4.5vw, 22px);
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.34);
-      color:#fff;
-      cursor:pointer;
-      user-select:none;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 18px 40px rgba(0,0,0,.35);
-      display:inline-flex;
+    .thumb .del svg{ width: 16px; height: 16px; }
+
+    /* ===== Bottom Controls (Shutter + Switch + DeleteAll moved to bottom-left) ===== */
+    .controls{
+      padding: 10px clamp(10px, 3vw, 16px) calc(10px + var(--safeB));
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
       align-items:center;
-      justify-content:center;
-      overflow:hidden;
-      position:relative;
     }
-    .miniBtn:active{ transform: translateY(1px); }
-    .miniBtn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
 
-    .miniBtn svg{ width: 52%; height: 52%; opacity:.95; }
-
-    .latestThumbImg{
-      width:100%;
-      height:100%;
-      object-fit: cover;
-      display:block;
-      filter: saturate(1.05) contrast(1.05);
+    .ctrlRow{
+      width: min(92vw, 820px);
+      display:grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items:center;
+      gap: 10px;
     }
-    .countBadge{
-      position:absolute;
-      right:6px; bottom:6px;
-      padding: 3px 7px;
+
+    .actionBtn{
+      width: var(--iconBtn);
+      height: var(--iconBtn);
       border-radius: 999px;
-      background: rgba(0,0,0,.58);
-      border: 1px solid rgba(255,255,255,.12);
-      color:#fff;
-      font-size: 11px;
-      font-weight: 950;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+      justify-self:start;
     }
+    .actionBtn:active{ transform: translateY(1px); }
+    .actionBtn.danger{
+      background: rgba(239,68,68,.10);
+      border-color: rgba(239,68,68,.25);
+      color: rgba(255,255,255,.92);
+    }
+    .actionBtn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
 
     .shutter{
       width: var(--shutter);
       height: var(--shutter);
       border-radius: 999px;
-      border: clamp(5px, 1.2vw, 7px) solid rgba(255,255,255,.94);
-      background: rgba(255,255,255,.10);
+      border: 3px solid rgba(255,255,255,.85);
+      background: rgba(255,255,255,.08);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
       cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
       user-select:none;
+      display:grid;
+      place-items:center;
       position:relative;
-      box-shadow: 0 24px 70px rgba(0,0,0,.55);
-      flex: 0 0 auto;
     }
     .shutter::after{
       content:"";
-      position:absolute;
-      inset: clamp(9px, 2.2vw, 12px);
+      width: calc(var(--shutter) * .72);
+      height: calc(var(--shutter) * .72);
       border-radius: 999px;
-      background: rgba(255,255,255,.92);
+      background: rgba(255,255,255,.88);
+      opacity: .92;
+      transform: scale(.92);
+      transition: transform .08s ease;
     }
-    .shutter:active{ transform: scale(.987); }
+    .shutter:active::after{ transform: scale(.88); }
     .shutter[disabled]{ opacity:.45; cursor:not-allowed; }
 
-    /* ===== Delete all FAB (ขวาล่าง) ===== */
-    .fabDanger{
-      position:absolute;
-      right: calc(var(--side-pad) + var(--safe-r));
-      bottom: calc(var(--bottom-bar-h) + var(--safe-b) + clamp(10px, 2.2vh, 16px));
-      z-index: 20;
-      width: var(--btn-mini);
-      height: var(--btn-mini);
-      border-radius: 999px;
-      border: 1px solid rgba(239,68,68,.40);
-      background: rgba(239,68,68,.14);
-      color:#ffd7d7;
-      cursor:pointer;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 50px rgba(0,0,0,.55);
-      display:none;
+    .rightSlot{
+      justify-self:end;
+      display:flex;
       align-items:center;
-      justify-content:center;
+      gap: 10px;
     }
-    .fabDanger:active{ transform: translateY(1px); }
-    .fabDanger svg{ width: 52%; height: 52%; opacity:.95; }
 
-    /* ===== Modals ===== */
-    .backdrop{
-      position:fixed;
-      inset:0;
-      background: rgba(0,0,0,.74);
+    /* ===== Toast / Status ===== */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: calc(90px + var(--safeB));
+      transform: translateX(-50%);
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(18,18,18,.85);
+      color: rgba(255,255,255,.92);
+      font-size: 13px;
+      font-weight: 800;
       display:none;
-      z-index:50;
-      padding: 12px;
-      padding-top: calc(12px + var(--safe-t));
-      padding-bottom: calc(12px + var(--safe-b));
-      align-items:center;
-      justify-content:center;
+      z-index: 80;
+      max-width: 90vw;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* ===== Modals (Settings / Preview / Map / Log) ===== */
+    .backdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.68);
+      display:none;
+      align-items: stretch;
+      justify-content: center;
+      z-index: 100;
+      padding: calc(10px + var(--safeT)) 10px calc(10px + var(--safeB));
     }
     .modal{
-      width: min(920px, 100%);
-      max-height: 100%;
-      background: linear-gradient(180deg, rgba(15,22,32,.98), rgba(10,14,20,.98));
-      border: 1px solid rgba(255,255,255,.10);
+      width: min(900px, 100%);
       border-radius: 22px;
-      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(14,14,14,.96);
+      box-shadow: 0 22px 80px rgba(0,0,0,.55);
       overflow:hidden;
       display:flex;
       flex-direction:column;
@@ -460,19 +453,20 @@
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
       padding: 12px 12px;
       border-bottom: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.22);
+      background: rgba(255,255,255,.04);
+      gap:10px;
     }
-    .modalTitle{
+    .modalHeader .hTitle{
       font-weight: 950;
+      letter-spacing:.2px;
       font-size: 14px;
       color: rgba(255,255,255,.92);
-      letter-spacing:.2px;
       display:flex;
-      gap:10px;
       align-items:center;
+      gap:10px;
+      min-width:0;
     }
     .modalBody{
       padding: 12px;
@@ -482,667 +476,480 @@
     }
     .modalFooter{
       padding: 12px;
-      border-top: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.22);
       display:flex;
-      gap:10px;
+      gap: 10px;
       justify-content:flex-end;
-      flex-wrap:wrap;
+      border-top: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
     }
 
     .btn{
+      padding: 10px 12px;
+      border-radius: 14px;
       border: 1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.06);
-      color: rgba(255,255,255,.92);
-      padding: 12px 12px;
-      border-radius: 16px;
-      font-size: 15px;
-      font-weight: 950;
+      font-weight: 900;
+      font-size: 14px;
       cursor:pointer;
-      min-height: 46px;
+      -webkit-tap-highlight-color: transparent;
       user-select:none;
     }
     .btn:active{ transform: translateY(1px); }
     .btn.primary{
-      background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(16,185,129,.65));
-      border-color: rgba(16,185,129,.45);
-      color: #062b1f;
+      background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(16,185,129,.70));
+      border-color: rgba(16,185,129,.35);
+      color: #052e22;
     }
     .btn.danger{
       background: rgba(239,68,68,.12);
-      border-color: rgba(239,68,68,.35);
-      color: #ffd7d7;
+      border-color: rgba(239,68,68,.30);
     }
-    .btn.ghost{ background: rgba(255,255,255,.03); }
     .btn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
 
     .card{
-      background: rgba(255,255,255,.04);
       border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
       border-radius: 18px;
       padding: 12px;
       display:grid;
       gap: 10px;
     }
-    .label{
+    .card .label{
       font-size: 12px;
-      color: rgba(255,255,255,.78);
-      font-weight: 900;
+      font-weight: 950;
+      color: rgba(255,255,255,.86);
       letter-spacing:.2px;
     }
-    .mini{
-      font-size: 12px;
-      color: rgba(255,255,255,.60);
-      line-height:1.35;
-    }
     .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-    @media (max-width: 820px){ .grid3{ grid-template-columns: 1fr; } }
-    @media (max-width: 680px){ .grid2{ grid-template-columns: 1fr; } }
+    @media (max-width: 720px){ .grid2{ grid-template-columns: 1fr; } }
 
-    .field{
+    select.field, input.field{
       width:100%;
       border-radius: 14px;
       border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.25);
+      background: rgba(255,255,255,.06);
       color: rgba(255,255,255,.92);
-      padding: 12px 12px;
-      font-size: 15px;
-      outline: none;
-    }
-    .field:focus{
-      border-color: rgba(16,185,129,.55);
-      box-shadow: 0 0 0 4px rgba(16,185,129,.16);
-    }
-    .switch{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
       padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 14px;
-      background: rgba(0,0,0,.20);
+      font-size: 14px;
+      outline:none;
+    }
+    select.field:focus, input.field:focus{
+      border-color: rgba(16,185,129,.55);
+      box-shadow: 0 0 0 4px rgba(16,185,129,.18);
+    }
+    .mini{
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+      line-height:1.35;
+    }
+
+    /* Preview Modal */
+    .previewCanvas{
+      width:100%;
+      height:auto;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      background:#000;
+      display:block;
+    }
+    .seg{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+    }
+    .seg button{
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      padding: 8px 10px;
+      font-weight: 900;
+      font-size: 13px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
       user-select:none;
-      min-height: 46px;
     }
-    .switch .left{
-      display:flex; align-items:center; gap:10px;
+    .seg button.on{
+      border-color: rgba(16,185,129,.42);
+      background: rgba(16,185,129,.14);
+      color: rgba(255,255,255,.95);
     }
-    .switch input{ width: 20px; height: 20px; accent-color: var(--accent); }
-    .switch span{ font-size: 15px; font-weight: 900; color: rgba(255,255,255,.92); }
 
     /* Map */
-    #mapWrap{
-      display:none;
-      border-radius: 18px;
-      overflow:hidden;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-    }
-    #map{ width: 100%; height: 320px; }
-
-    /* Preview */
-    .previewImg{
+    #map{
       width:100%;
+      height: 54vh;
       border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+      background:#000;
+    }
+
+    /* Log */
+    pre{
+      margin:0;
+      padding: 10px 12px;
+      border-radius: 14px;
       border: 1px solid rgba(255,255,255,.10);
       background: rgba(0,0,0,.35);
-      display:block;
-      max-height: 58vh;
-      object-fit: contain;
-    }
-    .previewMeta{
-      font-size:12px;
-      color: rgba(255,255,255,.70);
-      line-height:1.35;
-      white-space: pre-wrap;
-    }
-
-    /* Toast */
-    .toast{
-      position:fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: calc(18px + var(--safe-b));
-      z-index: 60;
-      padding: 10px 12px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.62);
-      border: 1px solid rgba(255,255,255,.12);
-      color:#fff;
+      color: rgba(255,255,255,.88);
       font-size: 12px;
-      font-weight: 900;
-      display:none;
-      box-shadow: 0 20px 50px rgba(0,0,0,.55);
-      max-width: min(92vw, 720px);
-      text-align:center;
-      backdrop-filter: blur(8px);
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 42vh;
+      overflow:auto;
     }
 
-    /* Busy overlay */
-    .busy{
-      position:fixed;
-      inset:0;
-      z-index: 70;
-      background: rgba(0,0,0,.72);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 14px;
-      text-align:center;
-    }
-    .busyCard{
-      width:min(520px, 100%);
-      background: rgba(15,22,32,.98);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      padding: 14px;
-      display:grid;
-      gap: 10px;
-    }
-    .busyTitle{ font-weight: 950; font-size: 14px; }
-    .bar{
-      width:100%;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.08);
-      overflow:hidden;
-      border: 1px solid rgba(255,255,255,.10);
-    }
-    .bar > div{
-      height:100%;
-      width: 0%;
-      background: rgba(16,185,129,.92);
-      transition: width .15s linear;
-    }
+    /* Hidden file input */
+    #fileInput{ display:none; }
   </style>
 </head>
 
 <body>
-  <!-- SVG Icons -->
-  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
-    <symbol id="i-bolt" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M13 2 3 14h7l-1 8 12-14h-7l-1-6z"/>
-    </symbol>
-    <symbol id="i-image" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm2 0v14h12V5H6zm2 10 2.5-3 2.5 3 1.5-2 3.5 5H8z"/>
-    </symbol>
-    <symbol id="i-download" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42L11 13.59V4a1 1 0 0 1 1-1z"/>
-      <path fill="currentColor" d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/>
-    </symbol>
-    <symbol id="i-gear" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/>
-    </symbol>
-    <symbol id="i-switch" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M7 7h9l-1.5-1.5a1 1 0 0 1 1.4-1.4l3.2 3.2a1 1 0 0 1 0 1.4l-3.2 3.2a1 1 0 1 1-1.4-1.4L16 9H7a4 4 0 0 0-4 4v1a1 1 0 1 1-2 0v-1a6 6 0 0 1 6-6z"/>
-      <path fill="currentColor" d="M17 17H8l1.5 1.5a1 1 0 1 1-1.4 1.4l-3.2-3.2a1 1 0 0 1 0-1.4l3.2-3.2a1 1 0 0 1 1.4 1.4L8 15h9a4 4 0 0 0 4-4v-1a1 1 0 1 1 2 0v1a6 6 0 0 1-6 6z"/>
-    </symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 1 0 0 2h1v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7h1a1 1 0 1 0 0-2h-3V4a1 1 0 0 0-1-1H9zm1 2h4v0H10zM8 7h8v13H8V7zm2 2a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0v-7a1 1 0 0 1 1-1zm5 0a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0v-7a1 1 0 0 1 1-1z"/>
-    </symbol>
-  </svg>
-
-  <div class="stage" id="stage">
-    <!-- Viewfinder 4:3 portrait -->
-    <div class="viewfinder" id="viewfinder">
-      <video id="camVideo" playsinline autoplay muted></video>
-
-      <!-- Live overlay preview (ไม่มีพื้นหลังดำ) -->
-      <div class="liveOverlay" id="liveOverlay">
-        <div class="overlayText" id="liveOverlayText"></div>
-      </div>
-    </div>
-
-    <!-- Top bar -->
-    <div class="topBar">
-      <div class="topGroup">
-        <div class="brandPill" title="PT Timestamp">
-          <span class="dot" id="dotCam"></span>
-          <span>PT Timestamp</span>
+  <div class="app">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="left">
+        <button class="iconBtn" id="btnLog" title="Log">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v2H4V4zm0 14h16v2H4v-2zm0-7h16v2H4v-2z"/></svg>
+        </button>
+        <div class="brand">
+          <div class="title">PT Timestamp Camera</div>
         </div>
       </div>
 
-      <div class="topGroup">
-        <button class="iconBtn" id="btnTorch" title="Torch/Flash" aria-label="Torch" disabled>
-          <svg><use href="#i-bolt"></use></svg>
+      <div class="right">
+        <button class="iconBtn" id="btnTorch" title="Torch" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10v2l-3 6v4.5l2.2 2.2c.5.5.8 1.2.8 1.9V22H7v-3.4c0-.7.3-1.4.8-1.9L10 14.5V10L7 4V2zm2.2 20h5.6v-2.8c0-.2-.1-.4-.2-.6L12.4 16H11.6l-2.2 2.6c-.1.2-.2.4-.2.6V22z"/></svg>
         </button>
-        <button class="iconBtn" id="btnImport" title="Import from gallery" aria-label="Import">
-          <svg><use href="#i-image"></use></svg>
+
+        <button class="iconBtn" id="btnImport" title="Import">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7v12H5V7h14zm0-2H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H6l2.5-4.5z"/></svg>
         </button>
-        <button class="iconBtn" id="btnDownloadAll" title="Download All" aria-label="Download All" disabled>
-          <svg><use href="#i-download"></use></svg>
+
+        <button class="iconBtn" id="btnDownloadAll" title="Download All" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v2H5v-2zM12 2l5.5 5.5-1.4 1.4L13 5.8V16h-2V5.8L7.9 8.9 6.5 7.5 12 2z"/></svg>
         </button>
-        <button class="iconBtn" id="btnSettings" title="Settings" aria-label="Settings">
-          <svg><use href="#i-gear"></use></svg>
+
+        <button class="iconBtn" id="btnSettings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14,12.94a7.49,7.49,0,0,0,.05-.94,7.49,7.49,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.63l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,12.78,1H11.22a.5.5,0,0,0-.49.42L10.35,4.07a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.63L5.86,11.06a7.49,7.49,0,0,0-.05.94,7.49,7.49,0,0,0,.05.94L3.75,14.59a.5.5,0,0,0-.12.63l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.42h1.56a.5.5,0,0,0,.49-.42l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.63ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
         </button>
       </div>
     </div>
 
-    <!-- Main time HUD (หน้าหลัก) -->
-    <div class="timeHUD" id="timeHUD">
-      <button class="timeModeBtn on" id="btnMainNow" type="button">NOW</button>
-      <button class="timeLabelBtn" id="btnMainPick" type="button">-</button>
-      <input id="mainTimeInput" type="datetime-local" style="display:none" />
+    <!-- Stage -->
+    <div class="stage">
+      <div class="viewWrap">
+        <div class="viewfinder">
+          <video id="camVideo" playsinline autoplay muted></video>
+          <div class="vfOverlay">
+            <div class="hint" id="vfHint">กำลังเปิดกล้อง… (ต้องอนุญาตกล้อง และเปิดผ่าน HTTPS / GitHub Pages)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Time controls (อยู่หน้าหลัก + ยังมีใน Settings) -->
+      <div class="metaBar">
+        <div class="metaRow">
+          <div class="metaLeft">
+            <div class="labelSmall">เวลา</div>
+            <div class="valueSmall" id="timeSummary">-</div>
+          </div>
+          <div class="metaRight">
+            <label class="switch" title="Use current time">
+              <input id="useNowMain" type="checkbox" />
+              <span>ใช้เวลาปัจจุบัน</span>
+            </label>
+          </div>
+        </div>
+        <input id="customTimeMain" class="dtInput" type="datetime-local" />
+        <div class="metaRow">
+          <div class="metaLeft">
+            <div class="labelSmall">ตำแหน่ง</div>
+            <div class="valueSmall" id="locSummary">ปิดใช้งานตำแหน่ง</div>
+          </div>
+          <div class="metaRight">
+            <span class="pill" id="photoCountPill">0 รูป</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gallery -->
+      <div class="gallery" id="gallery"></div>
     </div>
 
-    <!-- Filmstrip -->
-    <div class="filmstrip" id="filmstrip" aria-label="filmstrip"></div>
+    <!-- Bottom Controls -->
+    <div class="controls">
+      <div class="ctrlRow">
+        <!-- ✅ ย้าย "ลบทั้งหมด" มาแทนปุ่มมุมล่างซ้าย -->
+        <button class="actionBtn danger" id="btnDeleteAll" title="Delete All" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 7h16v2H4V7z"/></svg>
+        </button>
 
-    <!-- Delete all (ขวาล่าง) -->
-    <button class="fabDanger" id="btnDeleteAll" title="ลบทั้งหมด" aria-label="Delete All">
-      <svg><use href="#i-trash"></use></svg>
-    </button>
+        <button class="shutter" id="btnShutter" title="Shutter"></button>
 
-    <!-- Bottom camera controls -->
-    <div class="bottomBar">
-      <button class="miniBtn" id="btnLatest" title="เปิดพรีวิวรูปล่าสุด" aria-label="Latest" disabled>
-        <img id="latestImg" class="latestThumbImg" alt="" style="display:none" />
-        <svg id="latestPlaceholder" viewBox="0 0 24 24" style="display:block">
-          <use href="#i-image"></use>
-        </svg>
-        <span class="countBadge" id="countBadge" style="display:none;">0</span>
-      </button>
-
-      <button class="shutter" id="btnShutter" title="Shutter" aria-label="Shutter"></button>
-
-      <button class="miniBtn" id="btnSwitchCam" title="Switch camera" aria-label="Switch camera">
-        <svg><use href="#i-switch"></use></svg>
-      </button>
+        <div class="rightSlot">
+          <button class="actionBtn" id="btnSwitchCam" title="Switch Camera" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5h-3.17l-1.83-2H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5h2.2l-2.7-2.7L3.8 14H6c0 3.31 2.69 6 6 6v-1.6l2.7 2.7L12 24v-5zM18 10h-2c0-3.31-2.69-6-6-6V5.6L7.3 2.9 10 0v5c2.76 0 5 2.24 5 5h-2.2l2.7 2.7L20.2 10H18z"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Hidden file input (multiple) -->
-  <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+  <!-- Hidden File Input (รองรับหลายรูป) -->
+  <input id="fileInput" type="file" accept="image/*" multiple />
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
 
   <!-- Preview Modal -->
   <div class="backdrop" id="previewBackdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal">
       <div class="modalHeader">
-        <div class="modalTitle">Preview / Download</div>
-        <button class="btn danger" id="btnClosePreview" style="min-height:42px; padding:10px 12px;">ปิด</button>
+        <div class="hTitle">
+          <span id="previewTitle">Preview</span>
+        </div>
+        <button class="iconBtn" id="btnClosePreview" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4z"/></svg>
+        </button>
       </div>
       <div class="modalBody">
-        <img id="previewImg" class="previewImg" alt="preview" />
-        <div class="previewMeta" id="previewMeta">-</div>
+        <canvas id="previewCanvas" class="previewCanvas" width="1280" height="720"></canvas>
 
-        <!-- Per-photo time controls -->
         <div class="card">
-          <div class="label">เวลา Stamp ของ “รูปนี้”</div>
-          <label class="switch">
-            <div class="left">
-              <input id="photoUseCustomTime" type="checkbox" />
-              <span>กำหนดเวลาเฉพาะรูปนี้</span>
-            </div>
-            <span class="mini">ถ้าปิด = ใช้เวลาหน้าหลัก</span>
-          </label>
-          <div class="grid2">
-            <div>
-              <div class="label">เวลาเฉพาะรูปนี้ (datetime-local)</div>
-              <input id="photoTimeInput" class="field" type="datetime-local" disabled />
-              <div class="mini">Tip: เปิดสวิตช์ด้านบนก่อน</div>
-            </div>
-            <div>
-              <div class="label">ดึงค่าจากหน้าหลัก</div>
-              <button class="btn" id="btnCopyMainTime">คัดลอกเวลาหน้าหลักใส่รูปนี้</button>
-              <div class="mini">ช่วยตั้งเร็ว ๆ ให้เหมือนกันหลายรูป</div>
-            </div>
+          <div class="label">เวลา (ต่อรูปนี้)</div>
+          <div class="seg">
+            <button id="photoTimeNow" type="button">ใช้เวลาปัจจุบัน</button>
+            <button id="photoTimeCustom" type="button">เลือกเวลาเอง</button>
           </div>
+          <input id="photoCustomTime" class="field" type="datetime-local" />
+          <div class="mini" id="photoTimeHint">ค่าเริ่มต้นมาจาก “หน้าหลัก” ตอนถ่าย/นำเข้า แต่แก้เฉพาะรูปนี้ได้</div>
         </div>
 
         <div class="card">
-          <div class="label">Download options (ต่อรูป)</div>
+          <div class="label">Download รูปนี้</div>
           <div class="grid2">
             <div>
-              <div class="label">ชนิดไฟล์</div>
-              <select id="dlFormat" class="field">
+              <div class="mini">ชนิดไฟล์</div>
+              <select id="dlType" class="field">
                 <option value="image/jpeg">JPG</option>
                 <option value="image/png">PNG</option>
               </select>
-              <div class="mini">Export ผ่าน canvas → ไฟล์ที่ได้ “ไม่มี EXIF/metadata ส่วนเกิน”</div>
             </div>
             <div>
-              <div class="label">JPG Quality</div>
-              <input id="dlQuality" class="field" type="number" min="0.5" max="1" step="0.01" value="0.95" />
-              <div class="mini">ใช้เมื่อเลือก JPG เท่านั้น</div>
+              <div class="mini">JPG quality (0.70 - 1.00)</div>
+              <input id="dlQuality" class="field" type="number" min="0.7" max="1" step="0.01" value="0.95" />
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; justify-content:space-between; flex-wrap:wrap;">
-            <button class="btn danger" id="btnDeletePhoto" style="flex:1">ลบรูปนี้</button>
-            <button class="btn primary" id="btnDownloadPhoto" style="flex:1">Download</button>
+          <div class="grid2">
+            <button class="btn primary" id="btnDownloadOne">Download</button>
+            <button class="btn danger" id="btnDeleteOne">Delete รูปนี้</button>
           </div>
+
+          <div class="mini" id="previewStatus">-</div>
         </div>
-      </div>
-      <div class="modalFooter">
-        <button class="btn ghost" id="btnReRender">Re-render preview</button>
-        <button class="btn" id="btnPrevPhoto">ก่อนหน้า</button>
-        <button class="btn" id="btnNextPhoto">ถัดไป</button>
       </div>
     </div>
   </div>
 
   <!-- Settings Modal -->
   <div class="backdrop" id="settingsBackdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal">
       <div class="modalHeader">
-        <div class="modalTitle">Settings</div>
-        <button class="btn danger" id="btnCloseSettings" style="min-height:42px; padding:10px 12px;">ปิด</button>
+        <div class="hTitle">Settings</div>
+        <button class="iconBtn" id="btnCloseSettings" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4z"/></svg>
+        </button>
       </div>
 
       <div class="modalBody">
         <div class="card">
-          <div class="label">1) เวลา (Timestamp)</div>
+          <div class="label">เวลา (Global) — มีบนหน้าหลักด้วย</div>
           <div class="grid2">
             <label class="switch">
-              <div class="left">
-                <input id="useNow" type="checkbox" checked />
-                <span>ใช้เวลาปัจจุบัน</span>
-              </div>
-              <span class="mini" id="timeMini">-</span>
+              <input id="useNow" type="checkbox" />
+              <span>ใช้เวลาปัจจุบัน</span>
             </label>
             <div>
-              <div class="label">แก้เวลาเอง (ถ้าไม่ติ๊กใช้เวลาปัจจุบัน)</div>
+              <div class="mini">เลือกเวลาเอง (เมื่อปิดใช้เวลาปัจจุบัน)</div>
               <input id="customTime" class="field" type="datetime-local" />
             </div>
           </div>
-
-          <div class="grid2">
-            <div>
-              <div class="label">รูปแบบเวลา</div>
-              <select id="timeFormat" class="field">
-                <option value="thai_verbose" selected>Thai verbose (แบบเดิม)</option>
-                <option value="ddmmyyyy_hms">DD/MM/YYYY HH:mm:ss</option>
-                <option value="yyyymmdd_hms">YYYY-MM-DD HH:mm:ss</option>
-                <option value="iso">ISO 8601</option>
-              </select>
-              <div class="mini">Overlay จะ render ใหม่ทุกครั้งที่ Download/Preview</div>
-            </div>
-            <div>
-              <div class="label">เส้นบรรทัดเวลา</div>
-              <select id="timeLines" class="field">
-                <option value="two" selected>2 บรรทัด (Network + Local)</option>
-                <option value="one">1 บรรทัด</option>
-              </select>
-              <div class="mini">คงฟีเจอร์เดิมไว้ + ปรับได้</div>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn" id="btnSetNow" style="flex:1">ตั้งเป็นเวลาปัจจุบัน</button>
-          </div>
+          <div class="mini" id="timeStatus">-</div>
         </div>
 
         <div class="card">
-          <div class="label">2) Output size (Preset/Original) + Fit</div>
-          <div class="grid3">
+          <div class="label">รูปแบบ Timestamp (ค่าเริ่มต้น = Thai verbose + GMT)</div>
+          <select id="timeFormat" class="field">
+            <option value="thaiVerboseGmt" selected>ไทยแบบยาว + GMT+07:00 (ค่าเริ่มต้น)</option>
+            <option value="isoLike">YYYY-MM-DD HH:mm:ss</option>
+          </select>
+          <div class="mini">คุณเลือก “โหมด 2” แล้ว: จะโชว์ 2 บรรทัด พร้อม label “Network:” และ “Local:”</div>
+        </div>
+
+        <div class="card">
+          <div class="label">Output & Preset Size (แนวตั้งเท่านั้น)</div>
+          <div class="grid2">
             <div>
-              <div class="label">โหมดขนาดส่งออก</div>
+              <div class="mini">โหมดขนาดส่งออก</div>
               <select id="outputMode" class="field">
-                <option value="preset" selected>เลือกขนาด (Preset)</option>
-                <option value="original">ขนาดรูปเดิม (ตามภาพจริง)</option>
+                <option value="preset" selected>Preset (เลือกขนาด)</option>
+                <option value="original">Original (ขนาดรูปเดิม)</option>
               </select>
-              <div class="mini">Preset = เลือกขนาดเอง • Original = ตามรูปจริง</div>
             </div>
-
             <div>
-              <div class="label">Preset Size (แนวตั้งทั้งหมด)</div>
-              <select id="outputSize" class="field">
-                <!-- 3:4 (4:3 แนวตั้ง) -->
-                <option value="1440x1920" selected>1440 × 1920 (3:4)</option>
-                <option value="1200x1600">1200 × 1600 (3:4)</option>
-                <option value="1536x2048">1536 × 2048 (3:4)</option>
-
-                <!-- 9:16 -->
-                <option value="1080x1920">1080 × 1920 (9:16)</option>
-                <option value="720x1280">720 × 1280 (9:16)</option>
-
-                <!-- 10:16 / 3:5-ish -->
-                <option value="1200x1920">1200 × 1920</option>
-                <option value="960x1600">960 × 1600</option>
-
-                <!-- 20:9 / Tall -->
-                <option value="1080x2400">1080 × 2400 (20:9)</option>
-                <option value="720x1600">720 × 1600</option>
-
-                <!-- Small vertical -->
-                <option value="600x800">600 × 800 (3:4)</option>
-                <option value="480x640">480 × 640 (3:4)</option>
-                <option value="360x480">360 × 480 (3:4)</option>
-              </select>
-              <div class="mini">ถ้าเลือก Original จะปิด preset</div>
-            </div>
-
-            <div>
-              <div class="label">Fit Mode</div>
+              <div class="mini">Fit Mode (ไม่ยืดภาพ)</div>
               <select id="fitMode" class="field">
-                <option value="contain" selected>Contain (มีขอบดำถ้าสัดส่วนไม่ตรง)</option>
-                <option value="cover">Cover (เต็มเฟรม + ครอป)</option>
+                <option value="contain" selected>Contain (มีขอบดำ)</option>
+                <option value="cover">Cover (ครอปเต็มเฟรม)</option>
               </select>
-              <div class="mini">ทั้งสองแบบ “ไม่ยืดภาพ”</div>
             </div>
           </div>
-          <div class="mini" id="outStatus">-</div>
+
+          <div>
+            <div class="mini">Preset Size (Portrait)</div>
+            <select id="outputSize" class="field">
+              <option value="1080x2340" selected>1080 × 2340</option>
+              <option value="1080x2160">1080 × 2160</option>
+              <option value="1080x1920">1080 × 1920</option>
+              <option value="1200x1600">1200 × 1600</option>
+              <option value="1440x1920">1440 × 1920</option>
+              <option value="960x1280">960 × 1280</option>
+              <option value="720x1560">720 × 1560</option>
+              <option value="720x1440">720 × 1440</option>
+              <option value="720x1280">720 × 1280</option>
+              <option value="800x1200">800 × 1200</option>
+              <option value="480x640">480 × 640</option>
+              <option value="360x640">360 × 640</option>
+              <option value="240x320">240 × 320</option>
+            </select>
+            <div class="mini" id="outStatus">-</div>
+          </div>
         </div>
 
         <div class="card">
-          <div class="label">3) Overlay style (ค่าเริ่มต้น “ไม่มีพื้นหลังดำ”)</div>
-
-          <div class="grid3">
+          <div class="label">Overlay (ไม่มีแถบพื้นดำ — ใช้ stroke/shadow เท่านั้น)</div>
+          <div class="grid2">
             <div>
-              <div class="label">ตำแหน่ง Overlay</div>
+              <div class="mini">ตำแหน่ง Overlay</div>
               <select id="overlayPos" class="field">
-                <option value="tl">ซ้ายบน</option>
                 <option value="tr" selected>ขวาบน</option>
-                <option value="bl">ซ้ายล่าง</option>
+                <option value="tl">ซ้ายบน</option>
                 <option value="br">ขวาล่าง</option>
+                <option value="bl">ซ้ายล่าง</option>
               </select>
             </div>
-
             <div>
-              <label class="switch">
-                <div class="left">
-                  <input id="overlayBoxEnable" type="checkbox" />
-                  <span>กล่องพื้นหลังโปร่งดำ</span>
-                </div>
-                <span class="mini">แนะนำ: ปิด</span>
-              </label>
-            </div>
-
-            <div>
-              <label class="switch">
-                <div class="left">
-                  <input id="overlayStrokeEnable" type="checkbox" checked />
-                  <span>Stroke/Shadow</span>
-                </div>
-                <span class="mini">แนะนำ: เปิด</span>
-              </label>
+              <div class="mini">ระยะขอบ (padding)</div>
+              <input id="overlayPad" class="field" type="number" min="8" max="120" step="1" value="24" />
             </div>
           </div>
 
           <div class="grid2">
             <div>
-              <div class="label">ฟอนต์</div>
-              <label class="switch" style="margin-bottom:10px">
-                <div class="left">
-                  <input id="fontAuto" type="checkbox" checked />
-                  <span>Auto (สเกลตาม Output)</span>
-                </div>
-                <span class="mini">เหมาะกับหลาย preset</span>
-              </label>
-
-              <div class="grid2">
-                <div>
-                  <div class="label">Auto scale (%)</div>
-                  <input id="fontScale" class="field" type="number" min="50" max="250" step="5" value="100">
-                </div>
-                <div>
-                  <div class="label">Fixed px (เมื่อปิด Auto)</div>
-                  <input id="fontPx" class="field" type="number" min="10" max="200" step="1" value="32" disabled>
-                </div>
-              </div>
-              <div class="mini">Auto จะคำนวณจาก output แล้วคูณด้วย %</div>
+              <div class="mini">Auto font scale (%)</div>
+              <input id="fontScale" class="field" type="number" min="50" max="250" step="5" value="100" />
             </div>
-
             <div>
-              <div class="label">ระยะขอบ/สเกลกล่อง</div>
-              <div class="grid2">
-                <div>
-                  <div class="label">Margin scale (%)</div>
-                  <input id="overlayMarginScale" class="field" type="number" min="50" max="200" step="5" value="100">
-                </div>
-                <div>
-                  <div class="label">Padding scale (%)</div>
-                  <input id="overlayPadScale" class="field" type="number" min="50" max="200" step="5" value="100">
-                </div>
-              </div>
-              <div class="mini">ช่วยปรับให้เข้ากับภาพแนวตั้ง/แนวนอน</div>
+              <div class="mini">Fixed px (ถ้าไม่ใช้ Auto)</div>
+              <input id="fontPx" class="field" type="number" min="10" max="220" step="1" value="32" />
             </div>
           </div>
 
-          <div class="grid2">
-            <label class="switch">
-              <div class="left">
-                <input id="liveOverlayEnable" type="checkbox" checked />
-                <span>แสดง overlay บนพรีวิวกล้อง</span>
-              </div>
-              <span class="mini">Preview-only</span>
-            </label>
-            <div class="mini">
-              * Preview overlay เป็นไกด์ แต่ไฟล์จริงจะ render ผ่าน canvas ตอน Download/Preview
-            </div>
-          </div>
+          <label class="switch">
+            <input id="fontAuto" type="checkbox" checked />
+            <span>Auto (สเกลตาม Output)</span>
+          </label>
+
+          <div class="mini">ข้อความจะวาดด้วย stroke + shadow เพื่ออ่านง่าย (ไม่ใช้พื้นหลังดำ)</div>
         </div>
 
         <div class="card">
-          <div class="label">4) Location (Lat/Lng + Address via Nominatim)</div>
-
+          <div class="label">Location (Nominatim / OSM)</div>
           <div class="grid2">
             <label class="switch">
-              <div class="left">
-                <input id="enableLocation" type="checkbox" />
-                <span>เปิดใช้งานตำแหน่ง (Overlay)</span>
-              </div>
-              <span class="mini" id="locMini">ปิดใช้งาน</span>
+              <input id="enableLocation" type="checkbox" />
+              <span>เปิดใช้งานตำแหน่ง (Overlay)</span>
             </label>
-
-            <div class="grid2">
+            <div class="grid2" style="gap:10px">
               <label class="switch">
-                <div class="left">
-                  <input id="showLatLng" type="checkbox" checked />
-                  <span>แสดง Lat/Lng</span>
-                </div>
+                <input id="showLatLng" type="checkbox" checked />
+                <span>แสดง Lat/Lng</span>
               </label>
               <label class="switch">
-                <div class="left">
-                  <input id="showAddress" type="checkbox" checked />
-                  <span>แสดงที่อยู่</span>
-                </div>
+                <input id="showAddress" type="checkbox" checked />
+                <span>แสดงที่อยู่</span>
               </label>
             </div>
           </div>
 
           <div class="grid2">
             <button class="btn" id="btnUseGPS">ใช้พิกัดปัจจุบัน (GPS)</button>
-            <button class="btn" id="btnPickOnMap">เลือกจุดบนแผนที่</button>
+            <button class="btn" id="btnOpenMap">เลือกบนแผนที่</button>
           </div>
 
           <div class="grid2">
-            <div>
-              <div class="label">Lat</div>
-              <input id="lat" class="field" type="number" step="any" placeholder="เช่น 13.7563" />
-            </div>
-            <div>
-              <div class="label">Lng</div>
-              <input id="lng" class="field" type="number" step="any" placeholder="เช่น 100.5018" />
-            </div>
+            <input id="lat" class="field" type="number" step="any" placeholder="Lat เช่น 13.7563" />
+            <input id="lng" class="field" type="number" step="any" placeholder="Lng เช่น 100.5018" />
           </div>
 
-          <div>
-            <div class="label">ค้นหาสถานที่ (Forward geocode)</div>
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <input id="placeQuery" class="field" placeholder="เช่น CentralWorld Bangkok" style="flex:1" />
-              <button class="btn" id="btnSearchPlace">ค้นหา</button>
-            </div>
+          <div class="grid2">
+            <input id="placeQuery" class="field" placeholder="ค้นหาสถานที่ เช่น CentralWorld" />
+            <button class="btn" id="btnSearchPlace">ค้นหา</button>
           </div>
 
-          <div id="mapWrap">
-            <div id="map"></div>
-            <div style="display:flex; gap:10px; padding:10px; flex-wrap:wrap;">
-              <button class="btn primary" id="btnConfirmMap" style="flex:1">ยืนยันพิกัดนี้</button>
-              <button class="btn danger" id="btnCloseMap" style="flex:1">ปิดแผนที่</button>
-            </div>
-          </div>
-
-          <div class="mini" id="locStatus">-</div>
+          <div class="mini" id="locStatus">ปิดใช้งานตำแหน่ง</div>
         </div>
 
         <div class="card">
-          <div class="label">5) Download (Default)</div>
-          <div class="grid3">
-            <div>
-              <div class="label">ชนิดไฟล์เริ่มต้น</div>
-              <select id="defaultFormat" class="field">
-                <option value="image/jpeg" selected>JPG</option>
-                <option value="image/png">PNG</option>
-              </select>
-            </div>
-            <div>
-              <div class="label">JPG Quality</div>
-              <input id="jpgQuality" class="field" type="number" min="0.5" max="1" step="0.01" value="0.95" />
-            </div>
-            <div>
-              <div class="label">ชื่อไฟล์</div>
-              <select id="namePattern" class="field">
-                <option value="pt_now_index" selected>PT_YYYYMMDD_HHMMSS_<index></option>
-                <option value="pt_capture_index">PT_(captureTime)_<index></option>
-              </select>
-              <div class="mini">Download All จะใช้เวลาเดียวกันทั้งชุด</div>
-            </div>
-          </div>
-
+          <div class="label">Log panel</div>
+          <label class="switch">
+            <input id="enableLogPanel" type="checkbox" />
+            <span>เปิดแสดง Log</span>
+          </label>
           <div class="grid2">
-            <label class="switch">
-              <div class="left">
-                <input id="preferFolderSave" type="checkbox" checked />
-                <span>Download All แบบไม่ zip (โฟลเดอร์)</span>
-              </div>
-              <span class="mini">Chrome แนะนำ</span>
-            </label>
-            <label class="switch">
-              <div class="left">
-                <input id="zipFallback" type="checkbox" checked />
-                <span>Fallback เป็น ZIP ถ้าบันทึกโฟลเดอร์ไม่ได้</span>
-              </div>
-              <span class="mini">ใช้ JSZip</span>
-            </label>
+            <button class="btn" id="btnCopyLog">Copy Log</button>
+            <button class="btn danger" id="btnClearLog">Clear Log</button>
           </div>
+          <pre id="logPre"></pre>
+          <div class="mini">ถ้ากล้อง/โหลดรูปมีปัญหา ให้เปิด Log แล้วส่งข้อความในนี้</div>
+        </div>
 
-          <div class="mini">
-            • “โฟลเดอร์” ต้องใช้ File System Access API (Chrome/Android มักรองรับ)<br>
-            • ถ้าไม่รองรับ → ZIP → ถ้ายังไม่ได้ จะ fallback เป็นดาวน์โหลดทีละไฟล์
+        <div class="card">
+          <div class="label">Danger zone</div>
+          <div class="grid2">
+            <button class="btn danger" id="btnResetSettings">Reset Settings</button>
+            <button class="btn danger" id="btnDeleteAllInSettings">Delete All Photos</button>
           </div>
+          <div class="mini">Delete All จะลบรูปออกจริง ๆ (และ Download All จะไม่นับรูปที่ลบแล้ว)</div>
         </div>
       </div>
 
       <div class="modalFooter">
-        <button class="btn" id="btnResetSettings">รีเซ็ตค่า</button>
-        <button class="btn primary" id="btnApplySettings">Apply/Save</button>
+        <button class="btn" id="btnCloseSettings2">Close</button>
+        <button class="btn primary" id="btnSaveSettings">Apply / Save</button>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
-
-  <div class="busy" id="busy">
-    <div class="busyCard">
-      <div class="busyTitle" id="busyTitle">กำลังทำงาน...</div>
-      <div class="mini" id="busyText">-</div>
-      <div class="bar"><div id="busyBar"></div></div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <button class="btn danger" id="btnBusyClose" style="flex:1">ปิด</button>
+  <!-- Map Modal -->
+  <div class="backdrop" id="mapBackdrop" aria-hidden="true">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="hTitle">Map (Tap to pick)</div>
+        <button class="iconBtn" id="btnCloseMap" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4z"/></svg>
+        </button>
+      </div>
+      <div class="modalBody">
+        <div id="map"></div>
+        <div class="grid2">
+          <button class="btn primary" id="btnConfirmMap">Confirm</button>
+          <button class="btn danger" id="btnCancelMap">Cancel</button>
+        </div>
+        <div class="mini" id="mapHint">แตะบนแผนที่เพื่อเลือกพิกัด</div>
       </div>
     </div>
   </div>
@@ -1152,7 +959,7 @@
   "use strict";
 
   /* =========================
-     Storage
+     Storage (คง key เดิม)
   ========================== */
   const SETTINGS_KEY = "PT_TS_SETTINGS_V2_4";
 
@@ -1160,23 +967,16 @@
     // time
     useNow: true,
     customTime: "",
-    timeFormat: "thai_verbose",
-    timeLines: "two",
+    timeFormat: "thaiVerboseGmt",
 
     // output
     outputMode: "preset",
-    outputSize: "1440x1920", // <-- เปลี่ยนเป็นแนวตั้ง default
+    outputSize: "1080x2340",
     fitMode: "contain",
 
     // overlay
     overlayPos: "tr",
-    overlayBoxEnable: false,
-    overlayStrokeEnable: true,
-    overlayMarginScale: 100,
-    overlayPadScale: 100,
-    liveOverlayEnable: true,
-
-    // font
+    overlayPad: 24,
     fontAuto: true,
     fontScale: 100,
     fontPx: 32,
@@ -1189,81 +989,62 @@
     lng: "",
     placeQuery: "",
 
-    // download
-    defaultFormat: "image/jpeg",
-    jpgQuality: 0.95,
-    namePattern: "pt_now_index",
-    preferFolderSave: true,
-    zipFallback: true,
-
-    // camera prefs
-    preferredFacing: "environment",
-    preferredDeviceId: "",
-    torchOn: false
+    // log
+    enableLogPanel: false,
   };
 
   /* =========================
-     Elements
+     DOM
   ========================== */
   const camVideo = document.getElementById("camVideo");
-  const dotCam = document.getElementById("dotCam");
+  const vfHint = document.getElementById("vfHint");
 
   const btnTorch = document.getElementById("btnTorch");
   const btnImport = document.getElementById("btnImport");
   const btnDownloadAll = document.getElementById("btnDownloadAll");
   const btnSettings = document.getElementById("btnSettings");
-  const btnSwitchCam = document.getElementById("btnSwitchCam");
-
-  const btnLatest = document.getElementById("btnLatest");
-  const latestImg = document.getElementById("latestImg");
-  const latestPlaceholder = document.getElementById("latestPlaceholder");
-  const countBadge = document.getElementById("countBadge");
+  const btnLog = document.getElementById("btnLog");
 
   const btnShutter = document.getElementById("btnShutter");
-
-  const filmstrip = document.getElementById("filmstrip");
+  const btnSwitchCam = document.getElementById("btnSwitchCam");
   const btnDeleteAll = document.getElementById("btnDeleteAll");
-
-  const liveOverlay = document.getElementById("liveOverlay");
-  const liveOverlayText = document.getElementById("liveOverlayText");
 
   const fileInput = document.getElementById("fileInput");
 
-  // Main time HUD
-  const btnMainNow = document.getElementById("btnMainNow");
-  const btnMainPick = document.getElementById("btnMainPick");
-  const mainTimeInput = document.getElementById("mainTimeInput");
+  const gallery = document.getElementById("gallery");
+  const photoCountPill = document.getElementById("photoCountPill");
 
-  // Preview modal
+  const useNowMain = document.getElementById("useNowMain");
+  const customTimeMain = document.getElementById("customTimeMain");
+  const timeSummary = document.getElementById("timeSummary");
+  const locSummary = document.getElementById("locSummary");
+
+  const toast = document.getElementById("toast");
+
+  // Preview
   const previewBackdrop = document.getElementById("previewBackdrop");
   const btnClosePreview = document.getElementById("btnClosePreview");
-  const previewImg = document.getElementById("previewImg");
-  const previewMeta = document.getElementById("previewMeta");
-  const dlFormat = document.getElementById("dlFormat");
+  const previewCanvas = document.getElementById("previewCanvas");
+  const previewTitle = document.getElementById("previewTitle");
+  const photoTimeNow = document.getElementById("photoTimeNow");
+  const photoTimeCustom = document.getElementById("photoTimeCustom");
+  const photoCustomTime = document.getElementById("photoCustomTime");
+  const dlType = document.getElementById("dlType");
   const dlQuality = document.getElementById("dlQuality");
-  const btnDownloadPhoto = document.getElementById("btnDownloadPhoto");
-  const btnDeletePhoto = document.getElementById("btnDeletePhoto");
-  const btnPrevPhoto = document.getElementById("btnPrevPhoto");
-  const btnNextPhoto = document.getElementById("btnNextPhoto");
-  const btnReRender = document.getElementById("btnReRender");
+  const btnDownloadOne = document.getElementById("btnDownloadOne");
+  const btnDeleteOne = document.getElementById("btnDeleteOne");
+  const previewStatus = document.getElementById("previewStatus");
 
-  // Per-photo time UI
-  const photoUseCustomTime = document.getElementById("photoUseCustomTime");
-  const photoTimeInput = document.getElementById("photoTimeInput");
-  const btnCopyMainTime = document.getElementById("btnCopyMainTime");
-
-  // Settings modal
+  // Settings
   const settingsBackdrop = document.getElementById("settingsBackdrop");
   const btnCloseSettings = document.getElementById("btnCloseSettings");
-  const btnApplySettings = document.getElementById("btnApplySettings");
-  const btnResetSettings = document.getElementById("btnResetSettings");
+  const btnCloseSettings2 = document.getElementById("btnCloseSettings2");
+  const btnSaveSettings = document.getElementById("btnSaveSettings");
 
   const useNow = document.getElementById("useNow");
   const customTime = document.getElementById("customTime");
+  const timeStatus = document.getElementById("timeStatus");
   const timeFormat = document.getElementById("timeFormat");
-  const timeLines = document.getElementById("timeLines");
-  const btnSetNow = document.getElementById("btnSetNow");
-  const timeMini = document.getElementById("timeMini");
 
   const outputMode = document.getElementById("outputMode");
   const outputSize = document.getElementById("outputSize");
@@ -1271,627 +1052,403 @@
   const outStatus = document.getElementById("outStatus");
 
   const overlayPos = document.getElementById("overlayPos");
-  const overlayBoxEnable = document.getElementById("overlayBoxEnable");
-  const overlayStrokeEnable = document.getElementById("overlayStrokeEnable");
-  const overlayMarginScale = document.getElementById("overlayMarginScale");
-  const overlayPadScale = document.getElementById("overlayPadScale");
-  const liveOverlayEnable = document.getElementById("liveOverlayEnable");
-
-  const fontAuto = document.getElementById("fontAuto");
+  const overlayPad = document.getElementById("overlayPad");
   const fontScale = document.getElementById("fontScale");
   const fontPx = document.getElementById("fontPx");
+  const fontAuto = document.getElementById("fontAuto");
 
   const enableLocation = document.getElementById("enableLocation");
   const showLatLng = document.getElementById("showLatLng");
   const showAddress = document.getElementById("showAddress");
   const btnUseGPS = document.getElementById("btnUseGPS");
-  const btnPickOnMap = document.getElementById("btnPickOnMap");
-  const btnConfirmMap = document.getElementById("btnConfirmMap");
-  const btnCloseMap = document.getElementById("btnCloseMap");
-  const mapWrap = document.getElementById("mapWrap");
-  const locStatus = document.getElementById("locStatus");
-  const locMini = document.getElementById("locMini");
-
+  const btnOpenMap = document.getElementById("btnOpenMap");
   const latEl = document.getElementById("lat");
   const lngEl = document.getElementById("lng");
   const placeQuery = document.getElementById("placeQuery");
   const btnSearchPlace = document.getElementById("btnSearchPlace");
+  const locStatus = document.getElementById("locStatus");
 
-  const defaultFormat = document.getElementById("defaultFormat");
-  const jpgQuality = document.getElementById("jpgQuality");
-  const namePattern = document.getElementById("namePattern");
-  const preferFolderSave = document.getElementById("preferFolderSave");
-  const zipFallback = document.getElementById("zipFallback");
+  const enableLogPanel = document.getElementById("enableLogPanel");
+  const logPre = document.getElementById("logPre");
+  const btnCopyLog = document.getElementById("btnCopyLog");
+  const btnClearLog = document.getElementById("btnClearLog");
 
-  const toast = document.getElementById("toast");
-  const busy = document.getElementById("busy");
-  const busyTitle = document.getElementById("busyTitle");
-  const busyText = document.getElementById("busyText");
-  const busyBar = document.getElementById("busyBar");
-  const btnBusyClose = document.getElementById("btnBusyClose");
+  const btnResetSettings = document.getElementById("btnResetSettings");
+  const btnDeleteAllInSettings = document.getElementById("btnDeleteAllInSettings");
+
+  // Map modal
+  const mapBackdrop = document.getElementById("mapBackdrop");
+  const btnCloseMap = document.getElementById("btnCloseMap");
+  const btnConfirmMap = document.getElementById("btnConfirmMap");
+  const btnCancelMap = document.getElementById("btnCancelMap");
+  const mapHint = document.getElementById("mapHint");
 
   /* =========================
      Utils
   ========================== */
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-  const toNumberOrNull = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  };
+  const pad2 = (n) => String(n).padStart(2,"0");
+  const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+  const logs = [];
+  function ts(){
+    const d = new Date();
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+  function addLog(line){
+    const msg = `[${ts()}] ${line}`;
+    logs.push(msg);
+    if (logs.length > 350) logs.shift();
+    if (enableLogPanel.checked) logPre.textContent = logs.join("\n");
+  }
+  window.addEventListener("error", (e) => addLog(`ERR: ${e.message || "unknown"} @ ${e.filename || ""}:${e.lineno || ""}`));
+  window.addEventListener("unhandledrejection", (e) => addLog(`PROMISE: ${String(e.reason || "unknown")}`));
 
   let toastTimer = null;
-  function showToast(msg, ms=1600){
+  function showToast(msg){
     toast.textContent = msg;
     toast.style.display = "block";
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.style.display = "none"; }, ms);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.style.display = "none"; }, 1400);
   }
 
-  function setBusy(on, title="กำลังทำงาน...", text="-", pct=null){
-    busy.style.display = on ? "flex" : "none";
-    busyTitle.textContent = title;
-    busyText.textContent = text;
-    if (pct === null) busyBar.style.width = "0%";
-    else busyBar.style.width = `${clamp(pct,0,100)}%`;
+  function openBackdrop(el){
+    el.style.display = "flex";
+    el.setAttribute("aria-hidden","false");
+  }
+  function closeBackdrop(el){
+    el.style.display = "none";
+    el.setAttribute("aria-hidden","true");
   }
 
-  function showModal(backdropEl, on){
-    backdropEl.style.display = on ? "flex" : "none";
-    backdropEl.setAttribute("aria-hidden", on ? "false" : "true");
+  function parseSize(v){
+    const m = String(v||"").match(/^(\d+)\s*x\s*(\d+)$/i);
+    if (!m) return {w:1080,h:2340};
+    const w = Number(m[1]), h = Number(m[2]);
+    return (Number.isFinite(w) && Number.isFinite(h) && w>0 && h>0) ? {w,h} : {w:1080,h:2340};
   }
 
-  /* =========================
-     Settings
-  ========================== */
-  let settings = readSettings();
-
-  function readSettings(){
-    try{
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return { ...DEFAULT_SETTINGS };
-      const obj = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...(obj || {}) };
-    } catch {
-      return { ...DEFAULT_SETTINGS };
-    }
-  }
-  function writeSettings(next){
-    settings = { ...settings, ...(next || {}) };
-    try{
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {}
-    applySettingsToUI();
+  function buildFileStamp(d){
+    const yyyy = d.getFullYear();
+    const MM = pad2(d.getMonth()+1);
+    const dd = pad2(d.getDate());
+    const HH = pad2(d.getHours());
+    const mm = pad2(d.getMinutes());
+    const ss = pad2(d.getSeconds());
+    return `${yyyy}${MM}${dd}_${HH}${mm}${ss}`;
   }
 
-  let saveTimer = null;
-  function scheduleSave(){
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try{
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(collectSettingsFromUI()));
-        settings = readSettings();
-      } catch {}
-      applySettingsToUI();
-    }, 220);
-  }
-
-  function applySettingsToInputs(){
-    useNow.checked = !!settings.useNow;
-    customTime.value = settings.customTime || "";
-    timeFormat.value = settings.timeFormat || "thai_verbose";
-    timeLines.value = settings.timeLines || "two";
-
-    outputMode.value = settings.outputMode || "preset";
-    outputSize.value = settings.outputSize || "1440x1920";
-    fitMode.value = settings.fitMode || "contain";
-
-    overlayPos.value = settings.overlayPos || "tr";
-    overlayBoxEnable.checked = !!settings.overlayBoxEnable;
-    overlayStrokeEnable.checked = (settings.overlayStrokeEnable ?? true);
-    overlayMarginScale.value = String(settings.overlayMarginScale ?? 100);
-    overlayPadScale.value = String(settings.overlayPadScale ?? 100);
-    liveOverlayEnable.checked = (settings.liveOverlayEnable ?? true);
-
-    fontAuto.checked = !!settings.fontAuto;
-    fontScale.value = String(settings.fontScale ?? 100);
-    fontPx.value = String(settings.fontPx ?? 32);
-
-    enableLocation.checked = !!settings.enableLocation;
-    showLatLng.checked = (settings.showLatLng ?? true);
-    showAddress.checked = (settings.showAddress ?? true);
-    latEl.value = settings.lat ?? "";
-    lngEl.value = settings.lng ?? "";
-    placeQuery.value = settings.placeQuery ?? "";
-
-    defaultFormat.value = settings.defaultFormat || "image/jpeg";
-    jpgQuality.value = String(settings.jpgQuality ?? 0.95);
-    namePattern.value = settings.namePattern || "pt_now_index";
-    preferFolderSave.checked = (settings.preferFolderSave ?? true);
-    zipFallback.checked = (settings.zipFallback ?? true);
-
-    // Preview defaults
-    dlFormat.value = settings.defaultFormat || "image/jpeg";
-    dlQuality.value = String(settings.jpgQuality ?? 0.95);
-
-    updateOutputUI();
-    updateFontUI();
-    updateTimeMini();
-    refreshLocMini();
-    syncMainTimeHUDFromSettings();
-    updateLiveOverlay();
-    updateDownloadAllState();
-  }
-
-  function collectSettingsFromUI(){
-    return {
-      useNow: useNow.checked,
-      customTime: customTime.value || "",
-      timeFormat: timeFormat.value,
-      timeLines: timeLines.value,
-
-      outputMode: outputMode.value,
-      outputSize: outputSize.value,
-      fitMode: fitMode.value,
-
-      overlayPos: overlayPos.value,
-      overlayBoxEnable: overlayBoxEnable.checked,
-      overlayStrokeEnable: overlayStrokeEnable.checked,
-      overlayMarginScale: Number(overlayMarginScale.value) || 100,
-      overlayPadScale: Number(overlayPadScale.value) || 100,
-      liveOverlayEnable: liveOverlayEnable.checked,
-
-      fontAuto: fontAuto.checked,
-      fontScale: Number(fontScale.value) || 100,
-      fontPx: Number(fontPx.value) || 32,
-
-      enableLocation: enableLocation.checked,
-      showLatLng: showLatLng.checked,
-      showAddress: showAddress.checked,
-      lat: latEl.value || "",
-      lng: lngEl.value || "",
-      placeQuery: placeQuery.value || "",
-
-      defaultFormat: defaultFormat.value,
-      jpgQuality: clamp(Number(jpgQuality.value) || 0.95, 0.5, 1),
-      namePattern: namePattern.value,
-      preferFolderSave: preferFolderSave.checked,
-      zipFallback: zipFallback.checked,
-
-      preferredFacing: settings.preferredFacing || "environment",
-      preferredDeviceId: settings.preferredDeviceId || "",
-      torchOn: settings.torchOn || false
-    };
-  }
-
-  function applySettingsToUI(){
-    applySettingsToInputs();
-  }
-
-  /* =========================
-     Time formatting
-  ========================== */
-  function parseDatetimeLocalToDate(v){
-    if (!v) return null;
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return null;
-    return d;
-  }
-
-  function getGlobalDate(){
-    if (useNow.checked) return new Date();
-    const d = parseDatetimeLocalToDate(customTime.value);
-    return d;
-  }
-
-  function formatThaiVerbose(date){
+  function formatThaiVerboseGmt(date){
+    // ตัวอย่าง: 13 ม.ค. 2026 19 นาฬิกา 42 นาที 50 วินาที GMT+07:00
     const d = date.getDate();
     const m = date.toLocaleString("th-TH", { month: "short" });
     const y = date.getFullYear();
-    const hh = date.getHours();
+    const HH = date.getHours();
     const mm = date.getMinutes();
     const ss = date.getSeconds();
-    const tz = "GMT+07:00";
-    return `${d} ${m}. ${y} ${hh} นาฬิกา ${mm} นาที ${ss} วินาที ${tz}`;
+
+    // timezone offset
+    const offMin = -date.getTimezoneOffset();
+    const sign = offMin >= 0 ? "+" : "-";
+    const abs = Math.abs(offMin);
+    const oh = pad2(Math.floor(abs/60));
+    const om = pad2(abs%60);
+    const tz = `GMT${sign}${oh}:${om}`;
+    return `${d} ${m}. ${y} ${HH} นาฬิกา ${mm} นาที ${ss} วินาที ${tz}`;
   }
-  function formatDDMMYYYY(date){
-    const dd = pad2(date.getDate());
-    const MM = pad2(date.getMonth()+1);
+
+  function formatIsoLike(date){
     const yyyy = date.getFullYear();
-    const HH = pad2(date.getHours());
-    const mm = pad2(date.getMinutes());
-    const ss = pad2(date.getSeconds());
-    return `${dd}/${MM}/${yyyy} ${HH}:${mm}:${ss}`;
-  }
-  function formatYYYYMMDD(date){
-    const dd = pad2(date.getDate());
     const MM = pad2(date.getMonth()+1);
-    const yyyy = date.getFullYear();
+    const dd = pad2(date.getDate());
     const HH = pad2(date.getHours());
     const mm = pad2(date.getMinutes());
     const ss = pad2(date.getSeconds());
     return `${yyyy}-${MM}-${dd} ${HH}:${mm}:${ss}`;
   }
-  function formatTimestamp(date){
-    switch (timeFormat.value){
-      case "ddmmyyyy_hms": return formatDDMMYYYY(date);
-      case "yyyymmdd_hms": return formatYYYYMMDD(date);
-      case "iso": return date.toISOString();
-      case "thai_verbose":
-      default: return formatThaiVerbose(date);
-    }
+
+  function formatBySetting(date){
+    const fmt = state.settings.timeFormat || "thaiVerboseGmt";
+    if (fmt === "isoLike") return formatIsoLike(date);
+    return formatThaiVerboseGmt(date);
   }
-  function buildTimeLines(date){
-    const t = formatTimestamp(date);
-    if ((timeLines.value || "two") === "one") return [`Timestamp: ${t}`];
-    return [`Network: ${t}`, `Local: ${t}`];
+
+  function toNumberOrNull(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
   }
-  function updateTimeMini(){
-    const d = getGlobalDate();
-    timeMini.textContent = d ? formatTimestamp(d) : "กรุณาเลือกเวลา";
+  function hasValidLatLng(){
+    const la = toNumberOrNull(latEl.value);
+    const ln = toNumberOrNull(lngEl.value);
+    if (la===null || ln===null) return false;
+    return la>=-90 && la<=90 && ln>=-180 && ln<=180;
   }
 
   /* =========================
-     Main Time HUD (หน้าหลัก)
+     State
   ========================== */
-  function dateToDatetimeLocalValue(date){
-    const yyyy = date.getFullYear();
-    const MM = pad2(date.getMonth()+1);
-    const dd = pad2(date.getDate());
-    const HH = pad2(date.getHours());
-    const mm = pad2(date.getMinutes());
-    return `${yyyy}-${MM}-${dd}T${HH}:${mm}`;
+  const state = {
+    settings: readSettings(),
+    photos: [], // {id, baseBlob, w, h, thumbUrl, createdAtISO, timeMode:"now"|"custom", timeValueISO}
+    selectedId: null,
+
+    cam: {
+      stream: null,
+      devices: [],
+      deviceIndex: 0,
+      facingMode: "environment",
+      torchSupported: false,
+      torchOn: false,
+    },
+
+    addressText: "",
+    map: null,
+    marker: null,
+    pendingPick: null,
+  };
+
+  /* =========================
+     Settings read/write
+  ========================== */
+  function readSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return {...DEFAULT_SETTINGS};
+      const obj = JSON.parse(raw);
+      return {...DEFAULT_SETTINGS, ...(obj||{})};
+    } catch {
+      return {...DEFAULT_SETTINGS};
+    }
   }
 
-  function syncMainTimeHUDFromSettings(){
-    btnMainNow.classList.toggle("on", useNow.checked);
-    btnMainNow.textContent = useNow.checked ? "NOW" : "SET";
-
-    const d = getGlobalDate() || new Date();
-    const label = (timeFormat.value === "thai_verbose")
-      ? formatDDMMYYYY(d)
-      : formatTimestamp(d);
-
-    btnMainPick.textContent = label;
-  }
-
-  btnMainNow.addEventListener("click", () => {
-    useNow.checked = !useNow.checked;
-    if (useNow.checked){
-      syncMainTimeHUDFromSettings();
-      scheduleSave();
-      updateLiveOverlay();
-      showToast("ใช้เวลาปัจจุบัน");
-    } else {
-      if (!customTime.value){
-        customTime.value = dateToDatetimeLocalValue(new Date());
+  let saveTimer = null;
+  function scheduleSaveSettings(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try{
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+        addLog("saved settings");
+      } catch (e){
+        addLog("save settings failed: " + String(e?.message||e));
       }
-      syncMainTimeHUDFromSettings();
-      scheduleSave();
-      updateLiveOverlay();
-      setTimeout(() => { mainTimeInput.value = customTime.value; mainTimeInput.click(); }, 50);
-    }
-  });
+    }, 220);
+  }
 
-  btnMainPick.addEventListener("click", () => {
-    useNow.checked = false;
-    if (!customTime.value){
-      customTime.value = dateToDatetimeLocalValue(new Date());
-    }
-    mainTimeInput.value = customTime.value;
-    syncMainTimeHUDFromSettings();
-    scheduleSave();
-    updateLiveOverlay();
-    mainTimeInput.click();
-  });
+  function applySettingsToUI(){
+    // settings modal
+    useNow.checked = !!state.settings.useNow;
+    customTime.value = state.settings.customTime || "";
+    timeFormat.value = state.settings.timeFormat || "thaiVerboseGmt";
 
-  mainTimeInput.addEventListener("change", () => {
-    if (!mainTimeInput.value) return;
-    useNow.checked = false;
-    customTime.value = mainTimeInput.value;
-    syncMainTimeHUDFromSettings();
-    updateTimeMini();
-    scheduleSave();
-    updateLiveOverlay();
-    showToast("ตั้งเวลาแล้ว");
-  });
+    outputMode.value = state.settings.outputMode || "preset";
+    outputSize.value = state.settings.outputSize || "1080x2340";
+    fitMode.value = state.settings.fitMode || "contain";
 
-  setInterval(() => {
-    if (useNow.checked){
-      syncMainTimeHUDFromSettings();
-      updateLiveOverlay();
-    }
-  }, 1000);
+    overlayPos.value = state.settings.overlayPos || "tr";
+    overlayPad.value = String(state.settings.overlayPad ?? 24);
+    fontAuto.checked = !!state.settings.fontAuto;
+    fontScale.value = String(state.settings.fontScale ?? 100);
+    fontPx.value = String(state.settings.fontPx ?? 32);
 
-  /* =========================
-     Output + Font
-  ========================== */
-  function parseOutputSize(){
-    const v = (outputSize.value || "1440x1920").toLowerCase().trim();
-    const m = v.match(/^(\d+)\s*x\s*(\d+)$/);
-    if (!m) return { w: 1440, h: 1920 };
-    const w = Number(m[1]);
-    const h = Number(m[2]);
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) return { w: 1440, h: 1920 };
-    return { w, h };
+    enableLocation.checked = !!state.settings.enableLocation;
+    showLatLng.checked = (state.settings.showLatLng ?? true);
+    showAddress.checked = (state.settings.showAddress ?? true);
+    latEl.value = state.settings.lat ?? "";
+    lngEl.value = state.settings.lng ?? "";
+    placeQuery.value = state.settings.placeQuery ?? "";
+
+    enableLogPanel.checked = !!state.settings.enableLogPanel;
+    logPre.textContent = enableLogPanel.checked ? logs.join("\n") : "";
+
+    // main UI sync
+    useNowMain.checked = !!state.settings.useNow;
+    customTimeMain.value = state.settings.customTime || "";
+
+    updateTimeUI();
+    updateOutputUI();
+    updateOverlayUI();
+    refreshLocSummary();
+    updateLogUI();
+  }
+
+  function updateLogUI(){
+    logPre.style.display = enableLogPanel.checked ? "block" : "none";
+    if (enableLogPanel.checked) logPre.textContent = logs.join("\n");
   }
 
   function updateOutputUI(){
-    const mode = outputMode.value;
+    const mode = state.settings.outputMode;
     outputSize.disabled = (mode !== "preset");
     fitMode.disabled = (mode !== "preset");
     if (mode === "original"){
-      outStatus.textContent = "Output = ขนาดรูปเดิม (ตามภาพจริง)";
+      outStatus.textContent = "Output = ขนาดรูปเดิม (Original)";
     } else {
-      const { w, h } = parseOutputSize();
-      outStatus.textContent = `Output = ${w}×${h} • Fit = ${fitMode.value === "contain" ? "Contain" : "Cover"}`;
+      const s = parseSize(state.settings.outputSize);
+      outStatus.textContent = `Output = ${s.w}×${s.h} • Fit = ${state.settings.fitMode === "cover" ? "Cover" : "Contain"}`;
     }
   }
 
-  function updateFontUI(){
-    const auto = fontAuto.checked;
-    fontScale.disabled = !auto;
-    fontPx.disabled = auto;
+  function updateOverlayUI(){
+    fontScale.disabled = !fontAuto.checked;
+    fontPx.disabled = fontAuto.checked;
   }
 
-  function computeFontSizePx(outW, outH){
-    if (!fontAuto.checked){
-      const px = Number(fontPx.value);
-      return clamp(Number.isFinite(px) ? px : 32, 10, 200);
+  function updateTimeUI(){
+    // show/hide custom time input on main + settings
+    customTimeMain.style.display = state.settings.useNow ? "none" : "block";
+    customTime.style.display = state.settings.useNow ? "none" : "block";
+
+    // summary text
+    if (state.settings.useNow){
+      timeSummary.textContent = "ใช้เวลาปัจจุบัน (บันทึกเวลา ณ ตอนถ่าย/นำเข้า)";
+      timeStatus.textContent = "โหมด: เวลาปัจจุบัน — รูปใหม่จะถูกบันทึก timestamp ตอนถ่าย/นำเข้า";
+    } else {
+      const v = state.settings.customTime;
+      timeSummary.textContent = v ? `เลือกเวลาเอง: ${v.replace("T"," ")}` : "เลือกเวลาเอง (ยังไม่ตั้งค่า)";
+      timeStatus.textContent = v ? `เวลาที่จะใช้เป็นค่าเริ่มต้นของรูปใหม่: ${v.replace("T"," ")}` : "กรุณาเลือกเวลา (datetime-local)";
     }
-    const base = Math.min(outW, outH);
-    const autoPx = clamp(Math.round(base * 0.022), 12, 220);
-    const scalePct = clamp(Number(fontScale.value) || 100, 50, 250);
-    return clamp(Math.round(autoPx * (scalePct / 100)), 10, 240);
   }
 
   /* =========================
-     Location + Geocode
+     Camera
   ========================== */
-  function hasValidLatLng(){
-    const lat = toNumberOrNull(latEl.value);
-    const lng = toNumberOrNull(lngEl.value);
-    if (lat === null || lng === null) return false;
-    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  }
-
-  let addressText = "";
-  let addressCacheKey = "";
-  let lastGeoFetchAt = 0;
-
-  async function reverseGeocode(lat, lng){
-    const now = Date.now();
-    if (now - lastGeoFetchAt < 1100){
-      await new Promise(r => setTimeout(r, 1100 - (now - lastGeoFetchAt)));
-    }
-    lastGeoFetchAt = Date.now();
-
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
-    const res = await fetch(url, {
-      headers: { "Accept":"application/json", "Accept-Language":"th-TH,th;q=0.9,en;q=0.7" }
-    });
-    if (!res.ok) throw new Error("Reverse geocode failed");
-    const data = await res.json();
-    return data?.display_name || "";
-  }
-
-  async function forwardGeocode(q){
-    const now = Date.now();
-    if (now - lastGeoFetchAt < 1100){
-      await new Promise(r => setTimeout(r, 1100 - (now - lastGeoFetchAt)));
-    }
-    lastGeoFetchAt = Date.now();
-
-    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
-    const res = await fetch(url, {
-      headers: { "Accept":"application/json", "Accept-Language":"th-TH,th;q=0.9,en;q=0.7" }
-    });
-    if (!res.ok) throw new Error("Search place failed");
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
-    return { lat: Number(data[0].lat), lng: Number(data[0].lon), display_name: data[0].display_name || "" };
-  }
-
-  async function refreshAddressIfNeeded(){
-    addressText = "";
-    addressCacheKey = "";
-
-    if (!enableLocation.checked){
-      locStatus.textContent = "ปิดใช้งานตำแหน่ง";
-      refreshLocMini();
-      updateLiveOverlay();
-      return;
-    }
-    if (!hasValidLatLng()){
-      locStatus.textContent = "เปิดใช้งานตำแหน่ง แต่ยังไม่มี Lat/Lng ที่ถูกต้อง";
-      refreshLocMini();
-      updateLiveOverlay();
-      return;
-    }
-
-    const lat = Number(latEl.value);
-    const lng = Number(lngEl.value);
-    const key = `${lat.toFixed(6)},${lng.toFixed(6)}|${showAddress.checked ? "addr" : "noaddr"}`;
-    addressCacheKey = key;
-
-    let msg = `Lat/Lng: ${lat.toFixed(6)}, ${lng.toFixed(6)}\n`;
-
-    if (showAddress.checked){
-      locStatus.textContent = msg + "กำลังดึงที่อยู่จาก Nominatim...";
-      try{
-        addressText = await reverseGeocode(lat, lng);
-        msg += `Address: ${addressText || "(ไม่พบที่อยู่)"}`;
-      } catch {
-        msg += "Address: (ดึงที่อยู่ไม่ได้ — แนะนำเปิดผ่าน https)";
-      }
-    } else {
-      msg += "Address: (ปิดการแสดงที่อยู่)";
-    }
-
-    locStatus.textContent = msg;
-    refreshLocMini();
-    updateLiveOverlay();
-  }
-
-  function refreshLocMini(){
-    if (!enableLocation.checked){
-      locMini.textContent = "ปิดใช้งาน";
-      return;
-    }
-    if (hasValidLatLng()){
-      locMini.textContent = `ON • ${Number(latEl.value).toFixed(4)}, ${Number(lngEl.value).toFixed(4)}`;
-    } else {
-      locMini.textContent = "ON • ยังไม่มีพิกัด";
-    }
-  }
-
-  async function ensureAddressLazy(){
-    if (!enableLocation.checked) return;
-    if (!hasValidLatLng()) return;
-    if (!showAddress.checked) return;
-    if (addressText) return;
-
-    const lat = Number(latEl.value);
-    const lng = Number(lngEl.value);
-    const key = `${lat.toFixed(6)},${lng.toFixed(6)}|addr`;
-    if (addressCacheKey === key && addressText) return;
-
+  async function stopCamera(){
     try{
-      addressText = await reverseGeocode(lat, lng);
-      addressCacheKey = key;
-    } catch {}
-  }
-
-  /* =========================
-     Overlay lines + Drawing
-  ========================== */
-  function buildOverlayLines(date){
-    const lines = [];
-    lines.push(...buildTimeLines(date));
-
-    if (enableLocation.checked && hasValidLatLng()){
-      const lat = Number(latEl.value);
-      const lng = Number(lngEl.value);
-      if (showLatLng.checked) lines.push(`📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-      if (showAddress.checked) lines.push(addressText ? addressText : "(ที่อยู่ยังไม่พร้อม)");
-    }
-    return lines;
-  }
-
-  function roundRect(ctx, x, y, w, h, r){
-    const rr = Math.min(r, w/2, h/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr, y);
-    ctx.arcTo(x+w, y, x+w, y+h, rr);
-    ctx.arcTo(x+w, y+h, x, y+h, rr);
-    ctx.arcTo(x, y+h, x, y, rr);
-    ctx.arcTo(x, y, x+w, y, rr);
-    ctx.closePath();
-  }
-
-  function drawOverlayOnCanvas(ctx, lines, outW, outH){
-    if (!lines || lines.length === 0) return;
-
-    const fontSize = computeFontSizePx(outW, outH);
-    const lineGap = Math.round(fontSize * 1.18);
-    const marginScalePct = clamp(Number(overlayMarginScale.value) || 100, 50, 200);
-    const padScalePct = clamp(Number(overlayPadScale.value) || 100, 50, 200);
-
-    const margin = Math.round(Math.min(outW, outH) * 0.018 * (marginScalePct/100));
-    const pad = Math.round(fontSize * 0.55 * (padScalePct/100));
-
-    const pos = overlayPos.value || "tr";
-    const isTop = (pos === "tl" || pos === "tr");
-    const isLeft = (pos === "tl" || pos === "bl");
-
-    ctx.save();
-    ctx.font = `900 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif`;
-    ctx.textBaseline = "top";
-    ctx.textAlign = isLeft ? "left" : "right";
-
-    let maxW = 0;
-    for (const line of lines){
-      const w = ctx.measureText(line).width;
-      if (w > maxW) maxW = w;
-    }
-    const boxW = Math.round(maxW + pad*2);
-    const boxH = Math.round(lines.length * lineGap + pad*2 - (lineGap - fontSize));
-
-    const x = isLeft ? margin : (outW - margin);
-    const y = isTop ? margin : (outH - margin - boxH);
-    const boxX = isLeft ? x : (x - boxW);
-
-    if (overlayBoxEnable.checked){
-      ctx.fillStyle = "rgba(0,0,0,.45)";
-      ctx.strokeStyle = "rgba(255,255,255,.12)";
-      ctx.lineWidth = Math.max(1, Math.round(fontSize * 0.06));
-      roundRect(ctx, boxX, y, boxW, boxH, Math.round(fontSize * 0.6));
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    if (overlayStrokeEnable.checked){
-      ctx.shadowColor = "rgba(0,0,0,.85)";
-      ctx.shadowBlur = Math.round(fontSize * 0.45);
-    } else {
-      ctx.shadowBlur = 0;
-    }
-
-    ctx.fillStyle = "#fff";
-    const textX = isLeft ? (boxX + pad) : (boxX + boxW - pad);
-    let ty = y + pad;
-
-    for (const line of lines){
-      if (overlayStrokeEnable.checked){
-        ctx.save();
-        ctx.lineWidth = Math.max(2, Math.round(fontSize * 0.12));
-        ctx.strokeStyle = "rgba(0,0,0,.70)";
-        ctx.strokeText(line, textX, ty);
-        ctx.restore();
+      if (state.cam.stream){
+        state.cam.stream.getTracks().forEach(t => t.stop());
       }
-      ctx.fillText(line, textX, ty);
-      ty += lineGap;
-    }
-
-    ctx.restore();
+    } catch {}
+    state.cam.stream = null;
+    camVideo.srcObject = null;
+    state.cam.torchSupported = false;
+    state.cam.torchOn = false;
+    btnTorch.disabled = true;
+    btnSwitchCam.disabled = true;
   }
 
-  function updateLiveOverlay(){
-    if (!liveOverlayEnable.checked){
-      liveOverlayText.style.display = "none";
-      return;
+  async function enumerateVideoDevices(){
+    try{
+      const list = await navigator.mediaDevices.enumerateDevices();
+      state.cam.devices = list.filter(d => d.kind === "videoinput");
+      addLog(`devices: ${state.cam.devices.length} videoinput`);
+    } catch (e){
+      addLog("enumerateDevices failed: " + String(e?.message||e));
+      state.cam.devices = [];
     }
-    const d = getGlobalDate();
-    if (!d){
-      liveOverlayText.style.display = "none";
-      return;
-    }
-    const lines = buildOverlayLines(d);
-    if (!lines.length){
-      liveOverlayText.style.display = "none";
-      return;
-    }
+  }
 
-    const pos = overlayPos.value || "tr";
-    const isTop = (pos === "tl" || pos === "tr");
-    const isLeft = (pos === "tl" || pos === "bl");
-    liveOverlay.style.alignItems = isTop ? "flex-start" : "flex-end";
-    liveOverlay.style.justifyContent = isLeft ? "flex-start" : "flex-end";
+  function updateMirrorClass(){
+    const isFront = (state.cam.facingMode === "user");
+    camVideo.classList.toggle("mirror", isFront);
+  }
 
-    liveOverlayText.style.display = "block";
-    liveOverlayText.textContent = lines.join("\n");
+  async function startCamera({deviceId=null, facingMode=null} = {}){
+    vfHint.textContent = "กำลังเปิดกล้อง…";
+    try{
+      if (!navigator.mediaDevices?.getUserMedia){
+        vfHint.textContent = "เบราว์เซอร์นี้ไม่รองรับกล้อง (ใช้ Import รูปแทนได้)";
+        showToast("กล้องไม่รองรับ");
+        return;
+      }
+
+      await stopCamera();
+
+      if (facingMode) state.cam.facingMode = facingMode;
+
+      const constraints = {
+        video: {
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+          ...(deviceId ? {} : { facingMode: { ideal: state.cam.facingMode } }),
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      state.cam.stream = stream;
+      camVideo.srcObject = stream;
+
+      updateMirrorClass();
+      vfHint.textContent = "";
+      showToast("กล้องพร้อมใช้งาน");
+
+      await enumerateVideoDevices();
+      btnSwitchCam.disabled = (state.cam.devices.length < 2);
+
+      // Torch capability
+      const track = stream.getVideoTracks()?.[0];
+      if (track && track.getCapabilities){
+        const caps = track.getCapabilities();
+        state.cam.torchSupported = !!caps.torch;
+        btnTorch.disabled = !state.cam.torchSupported;
+      } else {
+        state.cam.torchSupported = false;
+        btnTorch.disabled = true;
+      }
+
+      addLog(`camera started: facing=${state.cam.facingMode} torch=${state.cam.torchSupported}`);
+    } catch (e){
+      vfHint.textContent = "เปิดกล้องไม่สำเร็จ (ต้องอนุญาตกล้อง + ใช้ HTTPS / GitHub Pages) — ยังสามารถ Import รูปได้";
+      showToast("เปิดกล้องไม่สำเร็จ");
+      addLog("camera start failed: " + String(e?.message||e));
+      await stopCamera();
+      // still usable via import
+    }
+  }
+
+  async function switchCamera(){
+    try{
+      if (state.cam.devices.length >= 2){
+        // cycle deviceId
+        state.cam.deviceIndex = (state.cam.deviceIndex + 1) % state.cam.devices.length;
+        const next = state.cam.devices[state.cam.deviceIndex];
+        // best effort detect front/back by label
+        const label = (next.label || "").toLowerCase();
+        if (label.includes("front") || label.includes("user")) state.cam.facingMode = "user";
+        else if (label.includes("back") || label.includes("rear") || label.includes("environment")) state.cam.facingMode = "environment";
+        await startCamera({deviceId: next.deviceId, facingMode: state.cam.facingMode});
+        updateMirrorClass();
+        return;
+      }
+
+      // fallback: toggle facingMode
+      state.cam.facingMode = (state.cam.facingMode === "environment") ? "user" : "environment";
+      await startCamera({facingMode: state.cam.facingMode});
+      updateMirrorClass();
+    } catch (e){
+      addLog("switchCamera failed: " + String(e?.message||e));
+      showToast("สลับกล้องไม่สำเร็จ");
+    }
+  }
+
+  async function toggleTorch(){
+    try{
+      if (!state.cam.stream) return;
+      const track = state.cam.stream.getVideoTracks()?.[0];
+      if (!track || !track.applyConstraints) return;
+
+      state.cam.torchOn = !state.cam.torchOn;
+      await track.applyConstraints({ advanced: [{ torch: state.cam.torchOn }] });
+      showToast(state.cam.torchOn ? "Torch: ON" : "Torch: OFF");
+      addLog("torch: " + (state.cam.torchOn ? "on" : "off"));
+    } catch (e){
+      state.cam.torchOn = false;
+      showToast("Torch ไม่รองรับ");
+      addLog("torch failed: " + String(e?.message||e));
+    }
   }
 
   /* =========================
-     EXIF orientation fix
+     EXIF orientation fix (จากโค้ดเดิม)
   ========================== */
   async function getExifOrientation(file){
     try{
       if (!file || !file.type || !file.type.toLowerCase().includes("jpeg")) return 1;
       const buf = await file.arrayBuffer();
       const view = new DataView(buf);
-
       if (view.getUint16(0, false) !== 0xFFD8) return 1;
+
       let offset = 2;
       const length = view.byteLength;
 
@@ -1943,855 +1500,904 @@
         }
       }
       return 1;
-    } catch {
+    } catch (e){
+      addLog("getExifOrientation fallback: " + String(e?.message||e));
       return 1;
     }
   }
 
-  async function blobToImage(blob){
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
-      const im = new Image();
-      im.onload = () => resolve({ im, url });
-      im.onerror = () => { try{ URL.revokeObjectURL(url);}catch{}; reject(new Error("Image onerror(blobUrl)")); };
-      im.src = url;
-    });
-  }
-
-  function drawWithOrientationToCanvas(img, orientation){
+  function drawWithOrientation(img, orientation){
     const w = img.naturalWidth;
     const h = img.naturalHeight;
-
     const c = document.createElement("canvas");
-    const cctx = c.getContext("2d");
+    const ctx = c.getContext("2d");
 
-    if ([5,6,7,8].includes(orientation)){ c.width = h; c.height = w; }
-    else { c.width = w; c.height = h; }
+    if ([5,6,7,8].includes(orientation)){
+      c.width = h; c.height = w;
+    } else {
+      c.width = w; c.height = h;
+    }
 
-    cctx.save();
+    ctx.save();
     switch (orientation){
-      case 2: cctx.translate(w, 0); cctx.scale(-1, 1); break;
-      case 3: cctx.translate(w, h); cctx.rotate(Math.PI); break;
-      case 4: cctx.translate(0, h); cctx.scale(1, -1); break;
-      case 5: cctx.rotate(0.5*Math.PI); cctx.scale(1, -1); break;
-      case 6: cctx.translate(h, 0); cctx.rotate(0.5*Math.PI); break;
-      case 7: cctx.translate(h, 0); cctx.rotate(0.5*Math.PI); cctx.scale(-1, 1); break;
-      case 8: cctx.translate(0, w); cctx.rotate(-0.5*Math.PI); break;
+      case 2: ctx.translate(w, 0); ctx.scale(-1, 1); break;
+      case 3: ctx.translate(w, h); ctx.rotate(Math.PI); break;
+      case 4: ctx.translate(0, h); ctx.scale(1, -1); break;
+      case 5: ctx.rotate(0.5*Math.PI); ctx.scale(1, -1); break;
+      case 6: ctx.translate(h, 0); ctx.rotate(0.5*Math.PI); break;
+      case 7: ctx.translate(h, 0); ctx.rotate(0.5*Math.PI); ctx.scale(-1, 1); break;
+      case 8: ctx.translate(0, w); ctx.rotate(-0.5*Math.PI); break;
       default: break;
     }
-    cctx.drawImage(img, 0, 0);
-    cctx.restore();
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+
     return c;
   }
 
-  function drawContain(ctx, src, outW, outH){
-    ctx.clearRect(0,0,outW,outH);
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0,0,outW,outH);
-
-    const sw = src.width, sh = src.height;
-    const scale = Math.min(outW / sw, outH / sh);
-    const dw = Math.round(sw * scale);
-    const dh = Math.round(sh * scale);
-    const dx = Math.round((outW - dw) / 2);
-    const dy = Math.round((outH - dh) / 2);
-    ctx.drawImage(src, 0,0, sw,sh, dx,dy, dw,dh);
-  }
-
-  function drawCover(ctx, src, outW, outH){
-    ctx.clearRect(0,0,outW,outH);
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0,0,outW,outH);
-
-    const sw = src.width, sh = src.height;
-    const scale = Math.max(outW / sw, outH / sh);
-    const dw = Math.round(sw * scale);
-    const dh = Math.round(sh * scale);
-    const dx = Math.round((outW - dw) / 2);
-    const dy = Math.round((outH - dh) / 2);
-    ctx.drawImage(src, 0,0, sw,sh, dx,dy, dw,dh);
+  async function loadImageFromFile(file){
+    const blobUrl = URL.createObjectURL(file);
+    try{
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("Image onerror(blobUrl)"));
+        im.src = blobUrl;
+      });
+      return img;
+    } finally {
+      setTimeout(() => { try{ URL.revokeObjectURL(blobUrl); }catch{} }, 1200);
+    }
   }
 
   /* =========================
-     Session Gallery
-     IMPORTANT: ลบรูป = ลบจริง (ถูกตัดออกจาก photos array)
+     Photos: add / delete / render
   ========================== */
-  const photos = []; // {id, blob, type, fromCamera, capturedAt, exifOrientation, thumbUrl, correctedCacheCanvas, lastPreviewUrl, stampMode, stampTime}
-  let activePhotoId = null;
-
-  function updateDownloadAllState(){
-    btnDownloadAll.disabled = photos.length === 0;
-    btnDeleteAll.style.display = photos.length > 0 ? "inline-flex" : "none";
-    btnLatest.disabled = photos.length === 0;
-    countBadge.style.display = photos.length > 0 ? "block" : "none";
-    countBadge.textContent = String(photos.length);
+  function getDefaultPhotoTime(){
+    // ✅ ปรับให้เป็นแนวกล้อง: ถ้าใช้เวลาปัจจุบัน => บันทึกเวลาตอนถ่าย/นำเข้า (คงที่ต่อรูป)
+    if (state.settings.useNow){
+      return { mode: "now", iso: new Date().toISOString() };
+    }
+    // custom
+    const v = state.settings.customTime;
+    if (v){
+      // datetime-local => interpret as local time
+      const d = new Date(v);
+      return { mode: "custom", iso: d.toISOString() };
+    }
+    // fallback
+    return { mode: "now", iso: new Date().toISOString() };
   }
 
-  function updateLatestThumb(){
-    if (photos.length === 0){
-      latestImg.style.display = "none";
-      latestPlaceholder.style.display = "block";
-      btnLatest.disabled = true;
-      updateDownloadAllState();
-      return;
-    }
-    const p = photos[photos.length - 1];
-    if (p.thumbUrl){
-      latestImg.src = p.thumbUrl;
-      latestImg.style.display = "block";
-      latestPlaceholder.style.display = "none";
-      btnLatest.disabled = false;
-    } else {
-      latestImg.style.display = "none";
-      latestPlaceholder.style.display = "block";
-    }
-    updateDownloadAllState();
-  }
-
-  function renderFilmstrip(){
-    filmstrip.innerHTML = "";
-    if (photos.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "emptyPill";
-      empty.textContent = "ยังไม่มีรูป — ถ่าย หรือ Import";
-      filmstrip.appendChild(empty);
-      updateLatestThumb();
-      return;
-    }
-
-    photos.forEach((p, idx) => {
-      const div = document.createElement("div");
-      div.className = "thumb" + (p.id === activePhotoId ? " active" : "");
-      div.dataset.id = p.id;
-
-      const img = document.createElement("img");
-      img.alt = `thumb ${idx+1}`;
-      img.src = p.thumbUrl || "";
-      div.appendChild(img);
-
-      const num = document.createElement("div");
-      num.className = "num";
-      num.textContent = String(idx+1);
-      div.appendChild(num);
-
-      const del = document.createElement("div");
-      del.className = "del";
-      del.textContent = "×";
-      del.title = "ลบรูปนี้";
-      del.addEventListener("click", (e) => {
-        e.stopPropagation();
-        removePhotoById(p.id);
-      });
-      div.appendChild(del);
-
-      div.addEventListener("click", () => openPreview(p.id));
-      filmstrip.appendChild(div);
+  async function canvasToBlob(canvas, type="image/jpeg", quality=0.95){
+    return new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), type, quality);
     });
-
-    updateLatestThumb();
   }
 
-  async function generateThumbnailForPhoto(p){
-    try{
-      const { im, url } = await blobToImage(p.blob);
-      const orient = p.fromCamera ? 1 : (p.exifOrientation || 1);
-      const corrected = (orient === 1) ? (() => {
-        const c = document.createElement("canvas");
-        c.width = im.naturalWidth;
-        c.height = im.naturalHeight;
-        c.getContext("2d").drawImage(im, 0, 0);
-        return c;
-      })() : drawWithOrientationToCanvas(im, orient);
-
-      p.correctedCacheCanvas = corrected;
-      try { URL.revokeObjectURL(url); } catch {}
-
-      const maxSide = 260;
-      const tw = corrected.width;
-      const th = corrected.height;
-      const scale = Math.min(1, maxSide / Math.max(tw, th));
-      const cw = Math.max(1, Math.round(tw * scale));
-      const ch = Math.max(1, Math.round(th * scale));
-      const tcan = document.createElement("canvas");
-      tcan.width = cw;
-      tcan.height = ch;
-      tcan.getContext("2d").drawImage(corrected, 0,0, tw,th, 0,0, cw,ch);
-
-      p.thumbUrl = tcan.toDataURL("image/jpeg", 0.85);
-    } catch {
-      p.thumbUrl = "";
-    }
-    renderFilmstrip();
+  async function createThumbUrlFromBlob(blob){
+    const url = URL.createObjectURL(blob);
+    return url;
   }
 
-  async function addPhotoFromBlob(blob, {fromCamera=false, capturedAt=null, exifOrientation=1} = {}){
-    const id = `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  async function addPhotoFromBaseCanvas(baseCanvas, {sourceName="camera", fromFrontMirror=false} = {}){
+    // baseCanvas already "final base pixels" (for front mirror, already mirrored to match preview)
+    const baseBlob = await canvasToBlob(baseCanvas, "image/jpeg", 0.95); // strips EXIF
+    const t = getDefaultPhotoTime();
     const p = {
-      id,
-      blob,
-      type: blob.type || "image/jpeg",
-      fromCamera: !!fromCamera,
-      capturedAt: capturedAt || new Date(),
-      exifOrientation,
-      thumbUrl: "",
-      correctedCacheCanvas: null,
-      lastPreviewUrl: "",
-      stampMode: "global",
-      stampTime: ""
+      id: uid(),
+      baseBlob,
+      w: baseCanvas.width,
+      h: baseCanvas.height,
+      thumbUrl: await createThumbUrlFromBlob(baseBlob),
+      createdAtISO: new Date().toISOString(),
+      timeMode: t.mode, // "now" or "custom" (both are fixed per photo)
+      timeValueISO: t.iso,
+      sourceName,
+      fromFrontMirror: !!fromFrontMirror
     };
-    photos.push(p);
-    activePhotoId = id;
-    renderFilmstrip();
-    await generateThumbnailForPhoto(p);
-    showToast(fromCamera ? "ถ่ายแล้ว" : "นำเข้าแล้ว");
-    renderFilmstrip();
+    state.photos.push(p);
+    updateGallery();
+    updateButtons();
+    showToast("เพิ่มรูปแล้ว");
+    addLog(`photo added: ${p.id} ${p.w}x${p.h} ${sourceName}`);
   }
 
-  async function addPhotosFromFiles(fileList){
-    const files = Array.from(fileList || []).filter(Boolean);
-    if (files.length === 0) return;
-
-    setBusy(true, "กำลังนำเข้ารูป...", `0 / ${files.length}`, 0);
-
-    for (let i=0;i<files.length;i++){
-      const f = files[i];
+  async function addPhotosFromFiles(files){
+    if (!files || !files.length) return;
+    showToast("กำลังนำเข้ารูป…");
+    for (const f of files){
       try{
+        const img = await loadImageFromFile(f);
         const orient = await getExifOrientation(f);
-        await addPhotoFromBlob(f, { fromCamera:false, capturedAt:new Date(), exifOrientation: orient });
-      } catch {}
-      const pct = Math.round(((i+1)/files.length)*100);
-      setBusy(true, "กำลังนำเข้ารูป...", `${i+1} / ${files.length}`, pct);
+        const corrected = drawWithOrientation(img, orient);
+        // convert corrected canvas => base blob (no EXIF)
+        await addPhotoFromBaseCanvas(corrected, {sourceName: f.name || "file"});
+      } catch (e){
+        addLog("import failed: " + String(e?.message||e));
+      }
     }
-    setBusy(false);
+    refreshLocSummary();
   }
 
-  function findPhotoIndexById(id){
-    return photos.findIndex(p => p.id === id);
-  }
-  function getActivePhoto(){
-    if (!activePhotoId) return null;
-    return photos.find(p => p.id === activePhotoId) || null;
-  }
-
-  function removePhotoById(id){
-    const idx = findPhotoIndexById(id);
+  function deletePhoto(id){
+    const idx = state.photos.findIndex(p => p.id === id);
     if (idx < 0) return;
-    const p = photos[idx];
-    try{ if (p.lastPreviewUrl) URL.revokeObjectURL(p.lastPreviewUrl); } catch {}
-    photos.splice(idx, 1); // <-- ลบจริง
-
-    if (photos.length === 0){
-      activePhotoId = null;
-      showToast("ลบรูปแล้ว");
-      closePreview();
-    } else {
-      const nextIdx = Math.min(idx, photos.length-1);
-      activePhotoId = photos[nextIdx].id;
-      showToast("ลบรูปแล้ว");
-      if (previewBackdrop.style.display === "flex") renderPreview();
-    }
-
-    renderFilmstrip();
+    // revoke thumb URL
+    try{ URL.revokeObjectURL(state.photos[idx].thumbUrl); } catch {}
+    state.photos.splice(idx, 1);
+    if (state.selectedId === id) state.selectedId = null;
+    updateGallery();
+    updateButtons();
+    showToast("ลบรูปแล้ว");
+    addLog("photo deleted: " + id);
   }
 
   function deleteAllPhotos(){
-    if (photos.length === 0) return;
-    const ok = confirm(`ลบทั้งหมด ${photos.length} รูป?\n(ยกเลิกได้ด้วย Cancel)`);
-    if (!ok) return;
-
-    for (const p of photos){
-      try{ if (p.lastPreviewUrl) URL.revokeObjectURL(p.lastPreviewUrl); } catch {}
+    for (const p of state.photos){
+      try{ URL.revokeObjectURL(p.thumbUrl); } catch {}
     }
-    photos.length = 0;
-    activePhotoId = null;
-    renderFilmstrip();
-    closePreview();
+    state.photos = [];
+    state.selectedId = null;
+    updateGallery();
+    updateButtons();
     showToast("ลบทั้งหมดแล้ว");
+    addLog("photos cleared");
   }
 
-  /* =========================
-     Per-photo time helpers
-  ========================== */
-  function getStampDateForPhoto(p){
-    if (p?.stampMode === "custom"){
-      const d = parseDatetimeLocalToDate(p.stampTime);
-      if (d) return d;
-    }
-    return getGlobalDate();
+  function updateButtons(){
+    const has = state.photos.length > 0;
+    btnDownloadAll.disabled = !has;
+    btnDeleteAll.disabled = !has;
+    btnDeleteAllInSettings.disabled = !has;
+    photoCountPill.textContent = `${state.photos.length} รูป`;
   }
 
-  function applyPhotoTimeUI(p){
-    if (!p) return;
-    const isCustom = (p.stampMode === "custom");
-    photoUseCustomTime.checked = isCustom;
-    photoTimeInput.disabled = !isCustom;
-
-    if (isCustom){
-      if (!p.stampTime){
-        const gd = getGlobalDate() || new Date();
-        p.stampTime = dateToDatetimeLocalValue(gd);
-      }
-      photoTimeInput.value = p.stampTime;
-    } else {
-      photoTimeInput.value = "";
-    }
-  }
-
-  /* =========================
-     Render per photo
-  ========================== */
-  async function getCorrectedCanvasForPhoto(p){
-    if (p.correctedCacheCanvas) return p.correctedCacheCanvas;
-
-    const { im, url } = await blobToImage(p.blob);
-    try{
-      const orient = p.fromCamera ? 1 : (p.exifOrientation || 1);
-      const corrected = (orient === 1) ? (() => {
-        const c = document.createElement("canvas");
-        c.width = im.naturalWidth;
-        c.height = im.naturalHeight;
-        c.getContext("2d").drawImage(im, 0, 0);
-        return c;
-      })() : drawWithOrientationToCanvas(im, orient);
-
-      p.correctedCacheCanvas = corrected;
-      return corrected;
-    } finally {
-      try{ URL.revokeObjectURL(url); } catch {}
-    }
-  }
-
-  function getOutputDims(srcW, srcH){
-    if (outputMode.value === "original"){
-      return { outW: srcW, outH: srcH, mode: "original" };
-    }
-    const { w, h } = parseOutputSize();
-    return { outW: w, outH: h, mode: "preset" };
-  }
-
-  async function renderPhotoToBlob(p, { mime=null, quality=null } = {}){
-    const d = getStampDateForPhoto(p);
-    if (!d) throw new Error("กรุณาเลือกเวลา (NOW หรือ เลือกเอง)");
-
-    await ensureAddressLazy();
-
-    const src = await getCorrectedCanvasForPhoto(p);
-    const sw = src.width;
-    const sh = src.height;
-
-    const { outW, outH } = getOutputDims(sw, sh);
-    const outCanvas = document.createElement("canvas");
-    outCanvas.width = outW;
-    outCanvas.height = outH;
-    const ctx = outCanvas.getContext("2d", { alpha:false });
-
-    if (outputMode.value === "original"){
-      ctx.drawImage(src, 0,0, sw,sh, 0,0, outW,outH);
-    } else {
-      if (fitMode.value === "cover") drawCover(ctx, src, outW, outH);
-      else drawContain(ctx, src, outW, outH);
-    }
-
-    const lines = buildOverlayLines(d);
-    drawOverlayOnCanvas(ctx, lines, outW, outH);
-
-    const finalMime = mime || defaultFormat.value || "image/jpeg";
-    let q = quality;
-    if (q == null) q = clamp(Number(jpgQuality.value) || 0.95, 0.5, 1);
-
-    const blob = await new Promise((resolve, reject) => {
-      outCanvas.toBlob((b) => {
-        if (!b) return reject(new Error("toBlob failed"));
-        resolve(b);
-      }, finalMime, finalMime === "image/jpeg" ? q : undefined);
-    });
-
-    return { blob, outW, outH, linesCount: lines.length, mime: finalMime, quality: finalMime === "image/jpeg" ? q : null };
-  }
-
-  function buildFilename(baseDate, index1, ext, p){
-    const yyyy = baseDate.getFullYear();
-    const MM = pad2(baseDate.getMonth()+1);
-    const dd = pad2(baseDate.getDate());
-    const HH = pad2(baseDate.getHours());
-    const mm = pad2(baseDate.getMinutes());
-    const ss = pad2(baseDate.getSeconds());
-
-    const idx = String(index1).padStart(2, "0");
-    const stampNow = `${yyyy}${MM}${dd}_${HH}${mm}${ss}`;
-
-    if (namePattern.value === "pt_capture_index" && p?.capturedAt){
-      const cd = p.capturedAt;
-      const cy = cd.getFullYear();
-      const cM = pad2(cd.getMonth()+1);
-      const cD = pad2(cd.getDate());
-      const cH = pad2(cd.getHours());
-      const cm = pad2(cd.getMinutes());
-      const cs = pad2(cd.getSeconds());
-      return `PT_${cy}${cM}${cD}_${cH}${cm}${cs}_${idx}.${ext}`;
-    }
-    return `PT_${stampNow}_${idx}.${ext}`;
-  }
-
-  function triggerDownload(blob, filename){
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => { try{ URL.revokeObjectURL(url);}catch{} }, 1200);
-  }
-
-  /* =========================
-     Preview flow
-  ========================== */
-  function openPreview(id){
-    activePhotoId = id;
-    renderFilmstrip();
-    showModal(previewBackdrop, true);
-    const p = getActivePhoto();
-    applyPhotoTimeUI(p);
-    renderPreview();
-  }
-
-  function closePreview(){
-    showModal(previewBackdrop, false);
-  }
-
-  async function renderPreview(){
-    const p = getActivePhoto();
-    if (!p){
-      previewMeta.textContent = "ไม่มีรูป";
+  function updateGallery(){
+    gallery.innerHTML = "";
+    if (state.photos.length === 0){
+      const empty = document.createElement("div");
+      empty.className = "pill";
+      empty.style.marginLeft = "2px";
+      empty.textContent = "ยังไม่มีรูป — ถ่ายหรือ Import เพื่อเริ่ม";
+      gallery.appendChild(empty);
       return;
     }
 
-    btnDownloadPhoto.disabled = true;
-    btnDeletePhoto.disabled = true;
-    btnReRender.disabled = true;
+    state.photos.forEach((p, i) => {
+      const t = document.createElement("div");
+      t.className = "thumb";
+      t.dataset.id = p.id;
 
-    previewMeta.textContent = "กำลัง render...";
-    previewImg.src = "";
+      const img = document.createElement("img");
+      img.src = p.thumbUrl;
+      img.alt = `thumb-${i+1}`;
 
-    try{
-      setBusy(true, "กำลัง render preview...", "โปรดรอสักครู่", null);
+      const idx = document.createElement("div");
+      idx.className = "idx";
+      idx.textContent = String(i+1);
 
-      const mime = dlFormat.value || "image/jpeg";
-      const q = clamp(Number(dlQuality.value) || 0.95, 0.5, 1);
+      const del = document.createElement("div");
+      del.className = "del";
+      del.title = "Delete";
+      del.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4z"/></svg>`;
 
-      const r = await renderPhotoToBlob(p, { mime, quality: q });
-      const url = URL.createObjectURL(r.blob);
-
-      try{ if (p.lastPreviewUrl) URL.revokeObjectURL(p.lastPreviewUrl); } catch {}
-      p.lastPreviewUrl = url;
-
-      previewImg.src = url;
-
-      const idx = findPhotoIndexById(p.id);
-      const ext = (mime === "image/png") ? "png" : "jpg";
-      const filename = buildFilename(new Date(), idx+1, ext, p);
-
-      const usedDate = getStampDateForPhoto(p);
-      const usedStr = usedDate ? formatDDMMYYYY(usedDate) : "-";
-      const modeStr = (p.stampMode === "custom") ? "custom (per-photo)" : "global";
-
-      previewMeta.textContent =
-        `#${idx+1}\n` +
-        `StampTime: ${modeStr} • ${usedStr}\n` +
-        `Source: ${p.fromCamera ? "Camera" : "File"} • EXIF: ${p.fromCamera ? "-" : (p.exifOrientation || 1)}\n` +
-        `Output: ${r.outW}×${r.outH} • Lines: ${r.linesCount}\n` +
-        `Format: ${mime === "image/png" ? "PNG" : `JPG (q=${r.quality})`}\n` +
-        `Filename: ${filename}`;
-
-      btnDownloadPhoto.disabled = false;
-      btnDeletePhoto.disabled = false;
-      btnReRender.disabled = false;
-
-      setBusy(false);
-      updateLiveOverlay();
-    } catch (e){
-      setBusy(false);
-      previewMeta.textContent = `Render ไม่สำเร็จ: ${String(e.message || e)}`;
-      showToast("Render ไม่สำเร็จ");
-      btnDeletePhoto.disabled = false;
-      btnReRender.disabled = false;
-    }
-  }
-
-  /* =========================
-     Download All
-     IMPORTANT: จะดาวน์โหลดเฉพาะ “ที่เหลืออยู่จริง” ใน photos[]
-  ========================== */
-  async function downloadAll(){
-    if (photos.length === 0) return;
-
-    const mime = defaultFormat.value || "image/jpeg";
-    const ext = (mime === "image/png") ? "png" : "jpg";
-    const q = clamp(Number(jpgQuality.value) || 0.95, 0.5, 1);
-
-    const batchDate = new Date();
-    const canFS = !!window.showDirectoryPicker;
-
-    try{
-      setBusy(true, "Download All", "กำลังเตรียม...", 0);
-
-      if (preferFolderSave.checked && canFS){
-        const dir = await window.showDirectoryPicker({ mode: "readwrite" });
-
-        for (let i=0;i<photos.length;i++){
-          const p = photos[i];
-          setBusy(true, "Download All", `กำลัง render: ${i+1} / ${photos.length}`, Math.round((i/photos.length)*100));
-
-          const r = await renderPhotoToBlob(p, { mime, quality: q });
-          const filename = buildFilename(batchDate, i+1, ext, p);
-
-          const handle = await dir.getFileHandle(filename, { create:true });
-          const writable = await handle.createWritable();
-          await writable.write(r.blob);
-          await writable.close();
-
-          setBusy(true, "Download All", `บันทึกแล้ว: ${i+1} / ${photos.length}`, Math.round(((i+1)/photos.length)*100));
-        }
-
-        setBusy(false);
-        showToast("Download All เสร็จแล้ว (โฟลเดอร์)");
-        return;
-      }
-
-      if (zipFallback.checked && window.JSZip){
-        const zip = new window.JSZip();
-        for (let i=0;i<photos.length;i++){
-          const p = photos[i];
-          setBusy(true, "Download All (ZIP)", `กำลัง render: ${i+1} / ${photos.length}`, Math.round((i/photos.length)*100));
-
-          const r = await renderPhotoToBlob(p, { mime, quality: q });
-          const filename = buildFilename(batchDate, i+1, ext, p);
-          zip.file(filename, r.blob);
-        }
-
-        setBusy(true, "Download All (ZIP)", "กำลังสร้าง ZIP...", 96);
-        const zipBlob = await zip.generateAsync({ type: "blob" }, (meta) => {
-          const pct = clamp(Math.round(meta.percent), 0, 100);
-          setBusy(true, "Download All (ZIP)", `กำลังสร้าง ZIP... ${pct}%`, pct);
-        });
-
-        const zipName = `PT_${batchDate.getFullYear()}${pad2(batchDate.getMonth()+1)}${pad2(batchDate.getDate())}_${pad2(batchDate.getHours())}${pad2(batchDate.getMinutes())}${pad2(batchDate.getSeconds())}.zip`;
-        triggerDownload(zipBlob, zipName);
-        setBusy(false);
-        showToast("Download All เสร็จแล้ว (ZIP)");
-        return;
-      }
-
-      for (let i=0;i<photos.length;i++){
-        const p = photos[i];
-        setBusy(true, "Download All (fallback)", `กำลัง render: ${i+1} / ${photos.length}`, Math.round((i/photos.length)*100));
-        const r = await renderPhotoToBlob(p, { mime, quality: q });
-        const filename = buildFilename(batchDate, i+1, ext, p);
-        triggerDownload(r.blob, filename);
-        await new Promise(r => setTimeout(r, 180));
-      }
-
-      setBusy(false);
-      showToast("Download All เสร็จแล้ว");
-    } catch (e){
-      setBusy(false);
-      showToast("Download All ไม่สำเร็จ");
-    }
-  }
-
-  /* =========================
-     Camera
-  ========================== */
-  let camStream = null;
-  let currentFacing = "environment";
-  let videoDevices = [];
-  let selectedDeviceId = "";
-
-  function setCamIndicator(ok){
-    dotCam.className = "dot " + (ok ? "ok" : "err");
-  }
-
-  function isUserFacingNow(){
-    return (currentFacing === "user");
-  }
-
-  function applyMirrorClass(){
-    camVideo.classList.toggle("mirror", isUserFacingNow());
-  }
-
-  async function stopCamera(){
-    try{
-      if (camStream) camStream.getTracks().forEach(t => t.stop());
-    } catch {}
-    camStream = null;
-    camVideo.srcObject = null;
-    btnTorch.disabled = true;
-    btnTorch.classList.remove("on");
-    setCamIndicator(false);
-  }
-
-  async function refreshDevices(){
-    if (!navigator.mediaDevices?.enumerateDevices) return [];
-    const all = await navigator.mediaDevices.enumerateDevices();
-    videoDevices = all.filter(d => d.kind === "videoinput");
-    return videoDevices;
-  }
-
-  function getVideoTrack(){
-    try{ return camStream?.getVideoTracks?.()[0] || null; }
-    catch { return null; }
-  }
-
-  async function refreshTorchSupport(){
-    const track = getVideoTrack();
-    if (!track){
-      btnTorch.disabled = true;
-      btnTorch.classList.remove("on");
-      return;
-    }
-    const caps = track.getCapabilities ? track.getCapabilities() : null;
-    const supported = !!(caps && "torch" in caps);
-    btnTorch.disabled = !supported;
-    if (!supported){
-      btnTorch.classList.remove("on");
-      settings.torchOn = false;
-      return;
-    }
-    btnTorch.classList.toggle("on", !!settings.torchOn);
-  }
-
-  async function setTorch(on){
-    const track = getVideoTrack();
-    if (!track || !track.applyConstraints) throw new Error("torch not supported");
-    await track.applyConstraints({ advanced: [{ torch: !!on }] });
-    settings.torchOn = !!on;
-    btnTorch.classList.toggle("on", !!on);
-    writeSettings({ torchOn: !!on });
-  }
-
-  async function startCamera({ forceFacing=null, forceDeviceId=null } = {}){
-    if (!navigator.mediaDevices?.getUserMedia){
-      setCamIndicator(false);
-      showToast("เบราว์เซอร์นี้ไม่รองรับกล้อง");
-      return;
-    }
-
-    try{
-      await stopCamera();
-
-      currentFacing = forceFacing || settings.preferredFacing || "environment";
-      selectedDeviceId = forceDeviceId || settings.preferredDeviceId || "";
-
-      const constraints = {
-        video: { width:{ideal:1920}, height:{ideal:1080} },
-        audio: false
-      };
-
-      if (selectedDeviceId) constraints.video.deviceId = { exact: selectedDeviceId };
-      else constraints.video.facingMode = { ideal: currentFacing };
-
-      camStream = await navigator.mediaDevices.getUserMedia(constraints);
-      camVideo.srcObject = camStream;
-      try { await camVideo.play(); } catch {}
-
-      setCamIndicator(true);
-      applyMirrorClass();
-
-      try{ await refreshDevices(); } catch {}
-      await refreshTorchSupport();
-
-      writeSettings({
-        preferredFacing: currentFacing,
-        preferredDeviceId: selectedDeviceId || ""
+      del.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        deletePhoto(p.id);
       });
 
-      updateLiveOverlay();
-    } catch {
-      setCamIndicator(false);
-      showToast("เปิดกล้องไม่สำเร็จ (ต้องเป็น https + อนุญาตกล้อง)");
-    }
+      t.addEventListener("click", () => openPreview(p.id));
+
+      t.appendChild(img);
+      t.appendChild(idx);
+      t.appendChild(del);
+      gallery.appendChild(t);
+    });
   }
 
-  async function switchCamera(){
-    try{ await refreshDevices(); } catch {}
+  /* =========================
+     Overlay + Render
+     - ไม่มีพื้นหลังดำ (ใช้ stroke/shadow)
+     - 2 บรรทัด: Network + Local (ตามที่คุณเลือก "2")
+  ========================== */
+  function computeFontSize(outW, outH){
+    if (!state.settings.fontAuto){
+      const px = Number(state.settings.fontPx) || 32;
+      return clamp(px, 10, 220);
+    }
+    const base = Math.min(outW, outH);
+    const autoPx = clamp(Math.round(base * 0.022), 12, 220);
+    const scalePct = clamp(Number(state.settings.fontScale) || 100, 50, 250);
+    return clamp(Math.round(autoPx * (scalePct/100)), 10, 220);
+  }
 
-    if (videoDevices.length >= 2){
-      let idx = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
-      idx = (idx < 0) ? 0 : idx;
-      const next = videoDevices[(idx + 1) % videoDevices.length];
-      selectedDeviceId = next.deviceId;
+  function buildOverlayLines(date){
+    const lines = [];
+    const s = formatBySetting(date);
 
-      const label = (next.label || "").toLowerCase();
-      const likelyFront = label.includes("front") || label.includes("user") || label.includes("facetime");
-      currentFacing = likelyFront ? "user" : "environment";
+    // ✅ ตามตัวเลือก 2: มี label Network/Local 2 บรรทัด
+    lines.push(`Network: ${s}`);
+    lines.push(`Local: ${s}`);
 
-      await startCamera({ forceFacing: currentFacing, forceDeviceId: selectedDeviceId });
-      showToast("สลับกล้อง");
+    if (state.settings.enableLocation && hasValidLatLng()){
+      const lat = Number(latEl.value);
+      const lng = Number(lngEl.value);
+
+      if (state.settings.showLatLng){
+        lines.push(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      }
+      if (state.settings.showAddress){
+        lines.push(state.addressText ? state.addressText : "(ที่อยู่ยังไม่พร้อม)");
+      }
+    }
+    return lines;
+  }
+
+  function drawOverlayText(ctx, lines, outW, outH){
+    const fontSize = computeFontSize(outW, outH);
+    const pad = clamp(Number(state.settings.overlayPad) || 24, 8, 120);
+    const lineGap = Math.round(fontSize * 1.18);
+
+    const pos = state.settings.overlayPos || "tr";
+    const isTop = (pos === "tr" || pos === "tl");
+    const isRight = (pos === "tr" || pos === "br");
+
+    ctx.save();
+    ctx.font = `900 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif`;
+    ctx.textAlign = isRight ? "right" : "left";
+    ctx.textBaseline = isTop ? "top" : "bottom";
+
+    // shadow + stroke (no background bar)
+    ctx.shadowColor = "rgba(0,0,0,.85)";
+    ctx.shadowBlur = Math.round(fontSize * 0.35);
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+
+    const x = isRight ? (outW - pad) : pad;
+    let y = isTop ? pad : (outH - pad);
+
+    ctx.strokeStyle = "rgba(0,0,0,.92)";
+    ctx.lineWidth = Math.max(3, Math.round(fontSize * 0.14));
+    ctx.fillStyle = "rgba(255,255,255,.96)";
+
+    if (isTop){
+      for (const line of lines){
+        ctx.strokeText(line, x, y);
+        ctx.fillText(line, x, y);
+        y += lineGap;
+      }
+    } else {
+      // bottom: draw from bottom up
+      for (let i = lines.length - 1; i >= 0; i--){
+        const line = lines[i];
+        ctx.strokeText(line, x, y);
+        ctx.fillText(line, x, y);
+        y -= lineGap;
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawContain(ctx, srcW, srcH, outW, outH, drawFn){
+    ctx.clearRect(0,0,outW,outH);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,outW,outH);
+
+    const scale = Math.min(outW/srcW, outH/srcH);
+    const dw = Math.round(srcW*scale);
+    const dh = Math.round(srcH*scale);
+    const dx = Math.round((outW-dw)/2);
+    const dy = Math.round((outH-dh)/2);
+    drawFn(dx, dy, dw, dh);
+  }
+
+  function drawCover(ctx, srcW, srcH, outW, outH, drawFn){
+    ctx.clearRect(0,0,outW,outH);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,outW,outH);
+
+    const scale = Math.max(outW/srcW, outH/srcH);
+    const dw = Math.round(srcW*scale);
+    const dh = Math.round(srcH*scale);
+    const dx = Math.round((outW-dw)/2);
+    const dy = Math.round((outH-dh)/2);
+    drawFn(dx, dy, dw, dh);
+  }
+
+  async function renderPhotoToCanvas(photo, canvas, {forPreview=false} = {}){
+    const ctx = canvas.getContext("2d", { alpha:false });
+
+    // decide time for this photo
+    let date = new Date(photo.timeValueISO || photo.createdAtISO || Date.now());
+    if (!(date instanceof Date) || isNaN(date.getTime())) date = new Date();
+
+    // ensure address (lazy)
+    if (state.settings.enableLocation && hasValidLatLng() && state.settings.showAddress && !state.addressText){
+      try{
+        state.addressText = await reverseGeocode(Number(latEl.value), Number(lngEl.value));
+      } catch (e){
+        addLog("reverseGeocode failed (lazy): " + String(e?.message||e));
+      }
+    }
+
+    const baseBmp = await createImageBitmap(photo.baseBlob);
+    const sw = baseBmp.width;
+    const sh = baseBmp.height;
+
+    let outW, outH;
+    if (state.settings.outputMode === "original"){
+      outW = sw; outH = sh;
+    } else {
+      const s = parseSize(state.settings.outputSize);
+      outW = s.w; outH = s.h;
+    }
+
+    // for preview: limit size to keep smooth
+    if (forPreview){
+      const maxW = 1280;
+      if (outW > maxW){
+        const ratio = maxW / outW;
+        outW = Math.round(outW * ratio);
+        outH = Math.round(outH * ratio);
+      }
+    }
+
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const drawFn = (dx,dy,dw,dh) => {
+      ctx.drawImage(baseBmp, 0,0, sw,sh, dx,dy,dw,dh);
+    };
+
+    if (state.settings.outputMode === "original"){
+      ctx.clearRect(0,0,outW,outH);
+      ctx.drawImage(baseBmp, 0,0, sw,sh, 0,0, outW,outH);
+    } else {
+      if (state.settings.fitMode === "cover"){
+        drawCover(ctx, sw, sh, outW, outH, drawFn);
+      } else {
+        drawContain(ctx, sw, sh, outW, outH, drawFn);
+      }
+    }
+
+    const lines = buildOverlayLines(date);
+    drawOverlayText(ctx, lines, outW, outH);
+
+    baseBmp.close?.();
+    return { outW, outH, lines: lines.length };
+  }
+
+  /* =========================
+     Capture (สำคัญ: mirror saved = เหมือน preview)
+  ========================== */
+  async function captureFromCamera(){
+    if (!state.cam.stream){
+      showToast("ยังไม่มีกล้อง — ใช้ Import แทนได้");
       return;
     }
 
-    currentFacing = (currentFacing === "environment") ? "user" : "environment";
-    selectedDeviceId = "";
-    await startCamera({ forceFacing: currentFacing, forceDeviceId: "" });
-    showToast("สลับกล้อง");
-  }
-
-  async function snapPhoto(){
-    if (!camStream || !camVideo.videoWidth || !camVideo.videoHeight){
-      showToast("ยังไม่พร้อมถ่าย");
-      await startCamera({ forceFacing: currentFacing || "environment" });
-      return;
-    }
-
-    const vw = camVideo.videoWidth;
-    const vh = camVideo.videoHeight;
+    const vw = camVideo.videoWidth || 1280;
+    const vh = camVideo.videoHeight || 720;
 
     const c = document.createElement("canvas");
     c.width = vw;
     c.height = vh;
-    const cctx = c.getContext("2d", { alpha:false });
+    const ctx = c.getContext("2d", { alpha:false });
 
-    // Front camera: บันทึกแบบ mirror เหมือนพรีวิว
-    if (isUserFacingNow()){
-      cctx.save();
-      cctx.translate(vw, 0);
-      cctx.scale(-1, 1);
-      cctx.drawImage(camVideo, 0, 0, vw, vh);
-      cctx.restore();
-    } else {
-      cctx.drawImage(camVideo, 0, 0, vw, vh);
+    const isFront = (state.cam.facingMode === "user");
+
+    // ✅ ถ้ากล้องหน้า: mirror saved result ให้เหมือน preview (วาดแบบ flip แนวนอนก่อน)
+    ctx.save();
+    if (isFront){
+      ctx.translate(vw, 0);
+      ctx.scale(-1, 1);
     }
+    ctx.drawImage(camVideo, 0, 0, vw, vh);
+    ctx.restore();
 
-    const rawBlob = await new Promise((resolve, reject) => {
-      c.toBlob((b) => {
-        if (!b) return reject(new Error("capture toBlob failed"));
-        resolve(b);
-      }, "image/jpeg", 0.95);
-    });
-
-    await addPhotoFromBlob(rawBlob, { fromCamera:true, capturedAt:new Date(), exifOrientation: 1 });
+    await addPhotoFromBaseCanvas(c, { sourceName: isFront ? "camera(front)" : "camera(back)", fromFrontMirror: isFront });
   }
 
   /* =========================
-     Leaflet map
+     Preview Modal (per photo time)
   ========================== */
-  let map = null;
-  let mapMarker = null;
+  function getSelectedPhoto(){
+    return state.photos.find(p => p.id === state.selectedId) || null;
+  }
 
-  function openMap(){
-    if (!window.L){
-      locStatus.textContent = "แผนที่โหลดไม่สำเร็จ (Leaflet) — ตรวจเน็ต/เปิดผ่าน https";
-      mapWrap.style.display = "none";
+  async function openPreview(id){
+    state.selectedId = id;
+    const p = getSelectedPhoto();
+    if (!p) return;
+
+    previewTitle.textContent = `Photo #${state.photos.findIndex(x => x.id === id)+1}`;
+    // init per-photo time controls
+    if (p.timeMode === "now"){
+      photoTimeNow.classList.add("on");
+      photoTimeCustom.classList.remove("on");
+      photoCustomTime.disabled = true;
+    } else {
+      photoTimeCustom.classList.add("on");
+      photoTimeNow.classList.remove("on");
+      photoCustomTime.disabled = false;
+    }
+
+    // show datetime-local if custom
+    const dt = new Date(p.timeValueISO || Date.now());
+    const v = `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+    photoCustomTime.value = v;
+
+    previewStatus.textContent = "กำลังเรนเดอร์…";
+    openBackdrop(previewBackdrop);
+    await renderPreview();
+  }
+
+  async function renderPreview(){
+    const p = getSelectedPhoto();
+    if (!p) return;
+
+    try{
+      const r = await renderPhotoToCanvas(p, previewCanvas, { forPreview: true });
+      previewStatus.textContent = `Preview: ${r.outW}×${r.outH} • Overlay ${r.lines} บรรทัด`;
+    } catch (e){
+      previewStatus.textContent = "เรนเดอร์ไม่สำเร็จ";
+      addLog("renderPreview failed: " + String(e?.message||e));
+    }
+  }
+
+  function closePreview(){
+    closeBackdrop(previewBackdrop);
+    state.selectedId = null;
+  }
+
+  function setPhotoTimeMode(mode){
+    const p = getSelectedPhoto();
+    if (!p) return;
+
+    if (mode === "now"){
+      p.timeMode = "now";
+      p.timeValueISO = new Date().toISOString(); // lock to now at moment you choose
+      photoTimeNow.classList.add("on");
+      photoTimeCustom.classList.remove("on");
+      photoCustomTime.disabled = true;
+      showToast("ตั้งเวลาเป็นปัจจุบัน (ต่อรูปนี้)");
+    } else {
+      p.timeMode = "custom";
+      const v = photoCustomTime.value;
+      const d = v ? new Date(v) : new Date();
+      p.timeValueISO = d.toISOString();
+      photoTimeCustom.classList.add("on");
+      photoTimeNow.classList.remove("on");
+      photoCustomTime.disabled = false;
+      showToast("ตั้งเวลาเอง (ต่อรูปนี้)");
+    }
+    renderPreview();
+  }
+
+  /* =========================
+     Download
+  ========================== */
+  async function downloadPhoto(photo){
+    const type = dlType.value || "image/jpeg";
+    const q = clamp(Number(dlQuality.value) || 0.95, 0.7, 1);
+
+    const outCanvas = document.createElement("canvas");
+    const r = await renderPhotoToCanvas(photo, outCanvas, { forPreview:false });
+
+    const blob = await canvasToBlob(outCanvas, type, q);
+    const ext = (type === "image/png") ? "png" : "jpg";
+    const stamp = buildFileStamp(new Date());
+    const idx = state.photos.findIndex(p => p.id === photo.id) + 1;
+    const name = `PT_${stamp}_${idx}.${ext}`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => { try{ URL.revokeObjectURL(url); }catch{} }, 1200);
+
+    showToast("ดาวน์โหลดแล้ว");
+    addLog(`download one: ${name} (${r.outW}x${r.outH})`);
+  }
+
+  async function downloadAll(){
+    if (state.photos.length === 0) return;
+
+    const type = "image/jpeg";
+    const q = 0.95;
+    const ext = "jpg";
+    const stamp = buildFileStamp(new Date());
+
+    // ✅ Primary: File System Access API (Chrome)
+    if (window.showDirectoryPicker){
+      try{
+        const dir = await window.showDirectoryPicker({ mode: "readwrite" });
+        showToast("กำลังเขียนไฟล์…");
+
+        for (let i=0;i<state.photos.length;i++){
+          const p = state.photos[i];
+          const outCanvas = document.createElement("canvas");
+          await renderPhotoToCanvas(p, outCanvas, { forPreview:false });
+          const blob = await canvasToBlob(outCanvas, type, q);
+
+          const name = `PT_${stamp}_${i+1}.${ext}`;
+          const fileHandle = await dir.getFileHandle(name, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        }
+
+        showToast("Download All สำเร็จ");
+        addLog(`downloadAll: wrote ${state.photos.length} files via DirectoryPicker`);
+        return;
+      } catch (e){
+        addLog("DirectoryPicker failed: " + String(e?.message||e));
+        showToast("DirectoryPicker ใช้ไม่ได้ — ใช้ fallback");
+      }
+    }
+
+    // Fallback 1: ZIP via JSZip (ถ้ามี)
+    if (window.JSZip){
+      try{
+        showToast("กำลังทำ ZIP…");
+        const zip = new JSZip();
+
+        for (let i=0;i<state.photos.length;i++){
+          const p = state.photos[i];
+          const outCanvas = document.createElement("canvas");
+          await renderPhotoToCanvas(p, outCanvas, { forPreview:false });
+          const blob = await canvasToBlob(outCanvas, type, q);
+
+          const name = `PT_${stamp}_${i+1}.${ext}`;
+          zip.file(name, blob);
+        }
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `PT_${stamp}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => { try{ URL.revokeObjectURL(url); }catch{} }, 1500);
+
+        showToast("ดาวน์โหลด ZIP แล้ว");
+        addLog("downloadAll: zip fallback");
+        return;
+      } catch (e){
+        addLog("JSZip failed: " + String(e?.message||e));
+      }
+    }
+
+    // Fallback 2: Sequential downloads (บางเครื่องจะ block ถ้าหลายไฟล์)
+    showToast("กำลังดาวน์โหลดทีละไฟล์…");
+    for (let i=0;i<state.photos.length;i++){
+      const p = state.photos[i];
+      const outCanvas = document.createElement("canvas");
+      await renderPhotoToCanvas(p, outCanvas, { forPreview:false });
+      const blob = await canvasToBlob(outCanvas, type, q);
+      const name = `PT_${stamp}_${i+1}.${ext}`;
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => { try{ URL.revokeObjectURL(url); }catch{} }, 1200);
+
+      await new Promise(r => setTimeout(r, 260));
+    }
+    addLog("downloadAll: sequential fallback");
+  }
+
+  /* =========================
+     Location (Nominatim)
+  ========================== */
+  async function reverseGeocode(lat, lng){
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        "Accept":"application/json",
+        "Accept-Language":"th-TH,th;q=0.9,en;q=0.7"
+      }
+    });
+    if (!res.ok) throw new Error("Reverse geocode failed");
+    const data = await res.json();
+    return data?.display_name || "";
+  }
+
+  async function forwardGeocode(q){
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        "Accept":"application/json",
+        "Accept-Language":"th-TH,th;q=0.9,en;q=0.7"
+      }
+    });
+    if (!res.ok) throw new Error("Search place failed");
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: Number(data[0].lat), lng: Number(data[0].lon), display_name: data[0].display_name || "" };
+  }
+
+  async function refreshAddressIfNeeded(){
+    state.addressText = "";
+    if (!state.settings.enableLocation){
+      locStatus.textContent = "ปิดใช้งานตำแหน่ง";
+      refreshLocSummary();
+      return;
+    }
+    if (!hasValidLatLng()){
+      locStatus.textContent = "เปิดใช้งานตำแหน่ง แต่ยังไม่มี Lat/Lng ที่ถูกต้อง";
+      refreshLocSummary();
       return;
     }
 
-    mapWrap.style.display = "block";
-    const lat = hasValidLatLng() ? Number(latEl.value) : 13.7563;
-    const lng = hasValidLatLng() ? Number(lngEl.value) : 100.5018;
+    const lat = Number(latEl.value);
+    const lng = Number(lngEl.value);
+    let msg = `Lat/Lng: ${lat.toFixed(6)}, ${lng.toFixed(6)} `;
 
-    if (!map){
-      map = L.map('map', { zoomControl: true }).setView([lat, lng], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
-
-      mapMarker = L.marker([lat, lng]).addTo(map);
-
-      map.on('click', async (e) => {
-        latEl.value = e.latlng.lat;
-        lngEl.value = e.latlng.lng;
-        mapMarker.setLatLng(e.latlng);
-        addressText = "";
-        if (!enableLocation.checked) enableLocation.checked = true;
-        await refreshAddressIfNeeded();
-        scheduleSave();
-      });
+    if (state.settings.showAddress){
+      locStatus.textContent = msg + "กำลังดึงที่อยู่…";
+      try{
+        state.addressText = await reverseGeocode(lat, lng);
+        msg += `\nAddress: ${state.addressText || "(ไม่พบที่อยู่)"}`;
+      } catch (e){
+        msg += `\nAddress: (ดึงไม่ได้ — แนะนำเปิดผ่าน https)`;
+        addLog("reverseGeocode failed: " + String(e?.message||e));
+      }
     } else {
-      map.setView([lat, lng], 15);
-      if (mapMarker) mapMarker.setLatLng([lat, lng]);
+      msg += "\nAddress: (ปิด)";
     }
-    setTimeout(() => map.invalidateSize(), 120);
+
+    locStatus.textContent = msg;
+    refreshLocSummary();
   }
 
-  function closeMap(){ mapWrap.style.display = "none"; }
+  function refreshLocSummary(){
+    if (!state.settings.enableLocation){
+      locSummary.textContent = "ปิดใช้งานตำแหน่ง";
+      return;
+    }
+    if (!hasValidLatLng()){
+      locSummary.textContent = "เปิดตำแหน่ง แต่ยังไม่มี Lat/Lng";
+      return;
+    }
+    const lat = Number(latEl.value);
+    const lng = Number(lngEl.value);
+    if (state.settings.showAddress){
+      locSummary.textContent = state.addressText ? state.addressText : `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } else {
+      locSummary.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+  }
 
   /* =========================
-     Wire events
+     Map (Leaflet)
   ========================== */
-  btnBusyClose.addEventListener("click", () => setBusy(false));
+  function openMap(){
+    if (!window.L){
+      showToast("Leaflet โหลดไม่สำเร็จ");
+      addLog("Leaflet not available");
+      return;
+    }
+    openBackdrop(mapBackdrop);
 
-  btnSettings.addEventListener("click", () => {
-    applySettingsToInputs();
-    showModal(settingsBackdrop, true);
-  });
-  btnCloseSettings.addEventListener("click", () => showModal(settingsBackdrop, false));
+    const lat = hasValidLatLng() ? Number(latEl.value) : 13.7563;
+    const lng = hasValidLatLng() ? Number(lngEl.value) : 100.5018;
+    state.pendingPick = { lat, lng };
 
-  btnApplySettings.addEventListener("click", async () => {
-    writeSettings(collectSettingsFromUI());
-    showModal(settingsBackdrop, false);
-    syncMainTimeHUDFromSettings();
-    updateLiveOverlay();
+    if (!state.map){
+      state.map = L.map("map", { zoomControl:true }).setView([lat, lng], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(state.map);
+      state.marker = L.marker([lat, lng]).addTo(state.map);
+
+      state.map.on("click", (e) => {
+        state.pendingPick = { lat: e.latlng.lat, lng: e.latlng.lng };
+        state.marker.setLatLng([state.pendingPick.lat, state.pendingPick.lng]);
+        mapHint.textContent = `เลือก: ${state.pendingPick.lat.toFixed(6)}, ${state.pendingPick.lng.toFixed(6)}`;
+      });
+    } else {
+      state.map.setView([lat,lng], 15);
+      state.marker.setLatLng([lat,lng]);
+    }
+
+    setTimeout(() => state.map.invalidateSize(), 80);
+    mapHint.textContent = "แตะบนแผนที่เพื่อเลือกพิกัด";
+  }
+
+  function closeMap(){
+    closeBackdrop(mapBackdrop);
+  }
+
+  async function confirmMap(){
+    if (!state.pendingPick) return;
+    latEl.value = state.pendingPick.lat;
+    lngEl.value = state.pendingPick.lng;
+    state.settings.lat = latEl.value;
+    state.settings.lng = lngEl.value;
+    scheduleSaveSettings();
+
+    closeMap();
     await refreshAddressIfNeeded();
+  }
+
+  /* =========================
+     Events
+  ========================== */
+  btnTorch.addEventListener("click", toggleTorch);
+  btnImport.addEventListener("click", () => { fileInput.value = ""; fileInput.click(); });
+  fileInput.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    addPhotosFromFiles(files);
+  });
+
+  btnShutter.addEventListener("click", captureFromCamera);
+
+  btnSwitchCam.addEventListener("click", switchCamera);
+
+  btnDeleteAll.addEventListener("click", () => {
+    if (state.photos.length === 0) return;
+    if (confirm("ลบรูปทั้งหมดใน session นี้?")) deleteAllPhotos();
+  });
+
+  btnDownloadAll.addEventListener("click", () => downloadAll());
+
+  btnSettings.addEventListener("click", () => openBackdrop(settingsBackdrop));
+  btnCloseSettings.addEventListener("click", () => closeBackdrop(settingsBackdrop));
+  btnCloseSettings2.addEventListener("click", () => closeBackdrop(settingsBackdrop));
+  btnSaveSettings.addEventListener("click", () => {
+    // already live-binding; just close
+    scheduleSaveSettings();
+    closeBackdrop(settingsBackdrop);
     showToast("บันทึกแล้ว");
   });
 
-  btnResetSettings.addEventListener("click", async () => {
-    writeSettings({ ...DEFAULT_SETTINGS, preferredFacing: settings.preferredFacing, preferredDeviceId: settings.preferredDeviceId, torchOn: false });
-    showToast("รีเซ็ตค่าแล้ว");
-    await refreshAddressIfNeeded();
+  btnLog.addEventListener("click", () => {
+    openBackdrop(settingsBackdrop);
+    enableLogPanel.checked = true;
+    state.settings.enableLogPanel = true;
+    updateLogUI();
+    scheduleSaveSettings();
+    showToast("เปิด Log");
   });
 
-  const bindSave = (el, evt="change") => el.addEventListener(evt, () => {
+  // Main time controls
+  useNowMain.addEventListener("change", () => {
+    state.settings.useNow = useNowMain.checked;
+    useNow.checked = state.settings.useNow;
+    updateTimeUI();
+    scheduleSaveSettings();
+  });
+  customTimeMain.addEventListener("input", () => {
+    state.settings.customTime = customTimeMain.value || "";
+    customTime.value = state.settings.customTime;
+    updateTimeUI();
+    scheduleSaveSettings();
+  });
+
+  // Settings time controls (sync back to main)
+  useNow.addEventListener("change", () => {
+    state.settings.useNow = useNow.checked;
+    useNowMain.checked = state.settings.useNow;
+    updateTimeUI();
+    scheduleSaveSettings();
+  });
+  customTime.addEventListener("input", () => {
+    state.settings.customTime = customTime.value || "";
+    customTimeMain.value = state.settings.customTime;
+    updateTimeUI();
+    scheduleSaveSettings();
+  });
+
+  timeFormat.addEventListener("change", () => {
+    state.settings.timeFormat = timeFormat.value;
+    scheduleSaveSettings();
+    // update preview if open
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+
+  // Output
+  outputMode.addEventListener("change", () => {
+    state.settings.outputMode = outputMode.value;
     updateOutputUI();
-    updateFontUI();
-    updateTimeMini();
-    refreshLocMini();
-    syncMainTimeHUDFromSettings();
-    updateLiveOverlay();
-    scheduleSave();
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  outputSize.addEventListener("change", () => {
+    state.settings.outputSize = outputSize.value;
+    updateOutputUI();
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  fitMode.addEventListener("change", () => {
+    state.settings.fitMode = fitMode.value;
+    updateOutputUI();
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
   });
 
-  bindSave(useNow, "change");
-  bindSave(customTime, "input");
-  bindSave(timeFormat, "change");
-  bindSave(timeLines, "change");
-
-  btnSetNow.addEventListener("click", () => {
-    const now = new Date();
-    customTime.value = dateToDatetimeLocalValue(now);
-    useNow.checked = true;
-    updateTimeMini();
-    syncMainTimeHUDFromSettings();
-    updateLiveOverlay();
-    scheduleSave();
+  // Overlay controls
+  overlayPos.addEventListener("change", () => {
+    state.settings.overlayPos = overlayPos.value;
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  overlayPad.addEventListener("input", () => {
+    state.settings.overlayPad = Number(overlayPad.value) || 24;
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  fontAuto.addEventListener("change", () => {
+    state.settings.fontAuto = fontAuto.checked;
+    updateOverlayUI();
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  fontScale.addEventListener("input", () => {
+    state.settings.fontScale = Number(fontScale.value) || 100;
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  fontPx.addEventListener("input", () => {
+    state.settings.fontPx = Number(fontPx.value) || 32;
+    scheduleSaveSettings();
+    if (previewBackdrop.style.display === "flex") renderPreview();
   });
 
-  bindSave(outputMode, "change");
-  bindSave(outputSize, "change");
-  bindSave(fitMode, "change");
+  // Location controls
+  enableLocation.addEventListener("change", async () => {
+    state.settings.enableLocation = enableLocation.checked;
+    scheduleSaveSettings();
+    await refreshAddressIfNeeded();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  showLatLng.addEventListener("change", async () => {
+    state.settings.showLatLng = showLatLng.checked;
+    scheduleSaveSettings();
+    await refreshAddressIfNeeded();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  showAddress.addEventListener("change", async () => {
+    state.settings.showAddress = showAddress.checked;
+    scheduleSaveSettings();
+    await refreshAddressIfNeeded();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
 
-  bindSave(overlayPos, "change");
-  bindSave(overlayBoxEnable, "change");
-  bindSave(overlayStrokeEnable, "change");
-  bindSave(overlayMarginScale, "input");
-  bindSave(overlayPadScale, "input");
-  bindSave(liveOverlayEnable, "change");
-
-  bindSave(fontAuto, "change");
-  bindSave(fontScale, "input");
-  bindSave(fontPx, "input");
-
-  enableLocation.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSave(); });
-  showLatLng.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSave(); });
-  showAddress.addEventListener("change", async () => { await refreshAddressIfNeeded(); scheduleSave(); });
-  latEl.addEventListener("input", async () => { addressText=""; await refreshAddressIfNeeded(); scheduleSave(); });
-  lngEl.addEventListener("input", async () => { addressText=""; await refreshAddressIfNeeded(); scheduleSave(); });
+  latEl.addEventListener("input", async () => {
+    state.settings.lat = latEl.value || "";
+    state.addressText = "";
+    scheduleSaveSettings();
+    await refreshAddressIfNeeded();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  lngEl.addEventListener("input", async () => {
+    state.settings.lng = lngEl.value || "";
+    state.addressText = "";
+    scheduleSaveSettings();
+    await refreshAddressIfNeeded();
+    if (previewBackdrop.style.display === "flex") renderPreview();
+  });
+  placeQuery.addEventListener("input", () => {
+    state.settings.placeQuery = placeQuery.value || "";
+    scheduleSaveSettings();
+  });
 
   btnUseGPS.addEventListener("click", async () => {
-    if (!enableLocation.checked) enableLocation.checked = true;
-    scheduleSave();
+    state.settings.enableLocation = true;
+    enableLocation.checked = true;
+    scheduleSaveSettings();
 
     if (!navigator.geolocation){
       locStatus.textContent = "อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ GPS";
@@ -2799,44 +2405,39 @@
       return;
     }
 
-    locStatus.textContent = "กำลังขอพิกัดจาก GPS...";
+    locStatus.textContent = "กำลังขอพิกัดจาก GPS…";
     navigator.geolocation.getCurrentPosition(async (pos) => {
       latEl.value = pos.coords.latitude;
       lngEl.value = pos.coords.longitude;
-      addressText = "";
+      state.settings.lat = latEl.value;
+      state.settings.lng = lngEl.value;
+      state.addressText = "";
+      scheduleSaveSettings();
       await refreshAddressIfNeeded();
-      scheduleSave();
-      showToast("ได้พิกัดแล้ว");
+      if (previewBackdrop.style.display === "flex") renderPreview();
     }, (err) => {
-      locStatus.textContent = "ขอพิกัดไม่ได้: " + (err?.message || "unknown error");
-      showToast("ขอพิกัดไม่ได้");
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+      locStatus.textContent = "ขอพิกัดไม่ได้: " + (err?.message || "unknown");
+      showToast("ขอ GPS ไม่สำเร็จ");
+      addLog("geolocation error: " + String(err?.message||err));
+    }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
   });
 
-  btnPickOnMap.addEventListener("click", () => {
-    if (!enableLocation.checked) enableLocation.checked = true;
-    scheduleSave();
+  btnOpenMap.addEventListener("click", () => {
+    state.settings.enableLocation = true;
+    enableLocation.checked = true;
+    scheduleSaveSettings();
     openMap();
   });
-
-  btnConfirmMap.addEventListener("click", async () => {
-    if (!hasValidLatLng()){
-      locStatus.textContent = "ยังไม่มีพิกัดที่ถูกต้อง";
-      return;
-    }
-    closeMap();
-    await refreshAddressIfNeeded();
-    scheduleSave();
-    showToast("ยืนยันพิกัดแล้ว");
-  });
-  btnCloseMap.addEventListener("click", closeMap);
 
   btnSearchPlace.addEventListener("click", async () => {
     const q = (placeQuery.value || "").trim();
     if (!q) return;
-    if (!enableLocation.checked) enableLocation.checked = true;
 
-    locStatus.textContent = "กำลังค้นหาสถานที่...";
+    state.settings.enableLocation = true;
+    enableLocation.checked = true;
+    scheduleSaveSettings();
+
+    locStatus.textContent = "กำลังค้นหาสถานที่…";
     try{
       const r = await forwardGeocode(q);
       if (!r){
@@ -2846,191 +2447,150 @@
       }
       latEl.value = r.lat;
       lngEl.value = r.lng;
-      addressText = r.display_name || "";
+      state.settings.lat = latEl.value;
+      state.settings.lng = lngEl.value;
+      state.addressText = r.display_name || "";
+      scheduleSaveSettings();
       await refreshAddressIfNeeded();
-      scheduleSave();
 
-      if (map && window.L){
-        map.setView([r.lat, r.lng], 17);
-        if (!mapMarker) mapMarker = L.marker([r.lat, r.lng]).addTo(map);
-        mapMarker.setLatLng([r.lat, r.lng]);
+      // update map if exists
+      if (state.map && window.L){
+        state.map.setView([r.lat, r.lng], 17);
+        state.marker?.setLatLng([r.lat, r.lng]);
       }
-      showToast("พบสถานที่แล้ว");
-    } catch {
+      if (previewBackdrop.style.display === "flex") renderPreview();
+    } catch (e){
       locStatus.textContent = "ค้นหาไม่สำเร็จ (แนะนำเปิดผ่าน https)";
       showToast("ค้นหาไม่สำเร็จ");
+      addLog("forwardGeocode failed: " + String(e?.message||e));
     }
   });
 
-  bindSave(defaultFormat, "change");
-  bindSave(jpgQuality, "input");
-  bindSave(namePattern, "change");
-  bindSave(preferFolderSave, "change");
-  bindSave(zipFallback, "change");
+  // Map modal
+  btnCloseMap.addEventListener("click", closeMap);
+  btnCancelMap.addEventListener("click", closeMap);
+  btnConfirmMap.addEventListener("click", confirmMap);
 
-  btnTorch.addEventListener("click", async () => {
-    if (btnTorch.disabled){
-      showToast("Torch ไม่รองรับ");
-      return;
-    }
-    try{
-      const next = !btnTorch.classList.contains("on");
-      await setTorch(next);
-      showToast(next ? "Torch ON" : "Torch OFF");
-    } catch {
-      showToast("Torch ใช้ไม่ได้");
-    }
-  });
-
-  btnImport.addEventListener("click", () => {
-    fileInput.value = "";
-    fileInput.click();
-  });
-
-  fileInput.addEventListener("change", async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    await addPhotosFromFiles(files);
-  });
-
-  btnDownloadAll.addEventListener("click", downloadAll);
-
-  btnSwitchCam.addEventListener("click", switchCamera);
-  btnShutter.addEventListener("click", snapPhoto);
-
-  btnLatest.addEventListener("click", () => {
-    if (photos.length === 0) return;
-    const last = photos[photos.length - 1];
-    openPreview(last.id);
-  });
-
-  btnDeleteAll.addEventListener("click", deleteAllPhotos);
-
+  // Preview modal events
   btnClosePreview.addEventListener("click", closePreview);
   previewBackdrop.addEventListener("click", (e) => { if (e.target === previewBackdrop) closePreview(); });
 
-  btnReRender.addEventListener("click", renderPreview);
-
-  btnPrevPhoto.addEventListener("click", () => {
-    const p = getActivePhoto();
+  photoTimeNow.addEventListener("click", () => setPhotoTimeMode("now"));
+  photoTimeCustom.addEventListener("click", () => setPhotoTimeMode("custom"));
+  photoCustomTime.addEventListener("input", () => {
+    const p = getSelectedPhoto();
     if (!p) return;
-    const idx = findPhotoIndexById(p.id);
-    if (idx <= 0) return;
-    openPreview(photos[idx-1].id);
+    if (p.timeMode !== "custom") return;
+    const v = photoCustomTime.value;
+    const d = v ? new Date(v) : new Date();
+    p.timeValueISO = d.toISOString();
+    renderPreview();
   });
 
-  btnNextPhoto.addEventListener("click", () => {
-    const p = getActivePhoto();
-    if (!p) return;
-    const idx = findPhotoIndexById(p.id);
-    if (idx >= photos.length-1) return;
-    openPreview(photos[idx+1].id);
+  dlType.addEventListener("change", () => {
+    const isPng = dlType.value === "image/png";
+    dlQuality.disabled = isPng;
   });
 
-  btnDeletePhoto.addEventListener("click", () => {
-    const p = getActivePhoto();
+  btnDownloadOne.addEventListener("click", async () => {
+    const p = getSelectedPhoto();
     if (!p) return;
-    removePhotoById(p.id);
+    await downloadPhoto(p);
   });
 
-  btnDownloadPhoto.addEventListener("click", async () => {
-    const p = getActivePhoto();
+  btnDeleteOne.addEventListener("click", () => {
+    const p = getSelectedPhoto();
     if (!p) return;
+    if (confirm("ลบรูปนี้?")){
+      const id = p.id;
+      closePreview();
+      deletePhoto(id);
+    }
+  });
 
+  // Log
+  enableLogPanel.addEventListener("change", () => {
+    state.settings.enableLogPanel = enableLogPanel.checked;
+    updateLogUI();
+    scheduleSaveSettings();
+  });
+  btnClearLog.addEventListener("click", () => {
+    logs.length = 0;
+    if (enableLogPanel.checked) logPre.textContent = "";
+    addLog("log cleared");
+    showToast("ล้าง Log แล้ว");
+  });
+  btnCopyLog.addEventListener("click", async () => {
     try{
-      const idx = findPhotoIndexById(p.id);
-      const mime = dlFormat.value || "image/jpeg";
-      const ext = (mime === "image/png") ? "png" : "jpg";
-      const q = clamp(Number(dlQuality.value) || 0.95, 0.5, 1);
-
-      setBusy(true, "กำลังดาวน์โหลด...", "กำลัง render ไฟล์", null);
-      const r = await renderPhotoToBlob(p, { mime, quality: q });
-      const filename = buildFilename(new Date(), idx+1, ext, p);
-      triggerDownload(r.blob, filename);
-      setBusy(false);
-
-      showToast("ดาวน์โหลดแล้ว");
-    } catch (e){
-      setBusy(false);
-      showToast("ดาวน์โหลดไม่สำเร็จ");
+      await navigator.clipboard.writeText(logs.join("\n"));
+      showToast("Copy Log แล้ว");
+    } catch {
+      showToast("Copy ไม่ได้");
     }
   });
 
-  photoUseCustomTime.addEventListener("change", () => {
-    const p = getActivePhoto();
-    if (!p) return;
-
-    p.stampMode = photoUseCustomTime.checked ? "custom" : "global";
-    photoTimeInput.disabled = !photoUseCustomTime.checked;
-
-    if (photoUseCustomTime.checked){
-      if (!p.stampTime){
-        const gd = getGlobalDate() || new Date();
-        p.stampTime = dateToDatetimeLocalValue(gd);
-      }
-      photoTimeInput.value = p.stampTime;
-    } else {
-      photoTimeInput.value = "";
-    }
-    renderPreview();
+  btnResetSettings.addEventListener("click", () => {
+    if (!confirm("Reset Settings?")) return;
+    state.settings = {...DEFAULT_SETTINGS};
+    applySettingsToUI();
+    scheduleSaveSettings();
+    showToast("Reset แล้ว");
   });
 
-  photoTimeInput.addEventListener("change", () => {
-    const p = getActivePhoto();
-    if (!p) return;
-    if (!photoTimeInput.value) return;
-
-    p.stampMode = "custom";
-    p.stampTime = photoTimeInput.value;
-    photoUseCustomTime.checked = true;
-    photoTimeInput.disabled = false;
-    renderPreview();
+  btnDeleteAllInSettings.addEventListener("click", () => {
+    if (state.photos.length === 0) return;
+    if (confirm("ลบรูปทั้งหมดใน session นี้?")) deleteAllPhotos();
   });
 
-  btnCopyMainTime.addEventListener("click", () => {
-    const p = getActivePhoto();
-    if (!p) return;
+  // Close settings when clicking outside modal
+  settingsBackdrop.addEventListener("click", (e) => { if (e.target === settingsBackdrop) closeBackdrop(settingsBackdrop); });
+  mapBackdrop.addEventListener("click", (e) => { if (e.target === mapBackdrop) closeMap(); });
 
-    const gd = getGlobalDate() || new Date();
-    p.stampMode = "custom";
-    p.stampTime = dateToDatetimeLocalValue(gd);
-
-    photoUseCustomTime.checked = true;
-    photoTimeInput.disabled = false;
-    photoTimeInput.value = p.stampTime;
-
-    renderPreview();
-    showToast("คัดลอกเวลาหน้าหลักแล้ว");
-  });
-
-  settingsBackdrop.addEventListener("click", (e) => {
-    if (e.target === settingsBackdrop) showModal(settingsBackdrop, false);
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape"){
-      if (settingsBackdrop.style.display === "flex") showModal(settingsBackdrop, false);
-      if (previewBackdrop.style.display === "flex") closePreview();
-    }
-  });
-
-  window.addEventListener("beforeunload", () => { try{ stopCamera(); } catch {} });
+  window.addEventListener("beforeunload", () => { try{ stopCamera(); }catch{} });
 
   /* =========================
      Boot
   ========================== */
-  function boot(){
-    applySettingsToUI();
-    renderFilmstrip();
-    refreshLocMini();
-    updateTimeMini();
-    syncMainTimeHUDFromSettings();
-    updateLiveOverlay();
-    startCamera({ forceFacing: settings.preferredFacing || "environment", forceDeviceId: settings.preferredDeviceId || "" });
-  }
+  addLog("boot camera-first");
+  applySettingsToUI();
+  updateGallery();
+  updateButtons();
 
-  boot();
+  // Apply defaults: timeFormat should default to thaiVerboseGmt (already)
+  // Ensure dlQuality disabled if PNG
+  dlQuality.disabled = (dlType.value === "image/png");
+
+  // Start camera immediately (Camera-first)
+  startCamera({ facingMode: state.cam.facingMode }).then(() => {
+    // after permission, devices may change
+  });
+
+  // Ensure location summary
+  refreshAddressIfNeeded().catch(() => {});
 })();
 </script>
+
+<!--
+========================================================
+ใช้งานบนมือถือ (Chrome / GitHub Pages)
+========================================================
+1) เปิดหน้า Timestamp.html บน https (GitHub Pages) → จะเห็น “กล้องทันที”
+2) กด Shutter เพื่อถ่ายหลายรูป → thumbnail จะขึ้นด้านล่าง (กดดูพรีวิวได้)
+3) Import รูปจากเครื่องได้ (รองรับหลายไฟล์) → ระบบแก้ EXIF orientation และลบ metadata โดย export ผ่าน canvas
+4) เวลาหน้าหลัก: เลือก “ใช้เวลาปัจจุบัน” หรือ “เลือกเวลาเอง” (ยังมีใน Settings)
+5) ในพรีวิวของ “แต่ละรูป” สามารถตั้งเวลาแยกได้ (Use now / Custom)
+
+Mirror camera ทำงานยังไง
+- เมื่อสลับเป็นกล้องหน้า: preview จะ mirror (CSS scaleX(-1))
+- ตอนกด Shutter: ระบบวาด video ลง canvas แบบ flip แนวนอนก่อน (ทำให้ไฟล์ที่บันทึก/ดาวน์โหลด “เหมือนที่เห็น”)
+- จากนั้นจึงวาดตัวหนังสือ overlay แบบปกติ (ตัวอักษรไม่กลับด้าน)
+
+ข้อจำกัด/สิ่งที่อาจเจอ
+- ต้องเปิดผ่าน HTTPS เพื่อใช้กล้อง/ตำแหน่ง (GitHub Pages ใช้ได้)
+- Torch/Flash ใช้ได้เฉพาะเครื่องที่รองรับ (บางรุ่น/บางเบราว์เซอร์จะไม่มี)
+- Download All:
+  - Chrome Android รองรับ File System Access API → เลือกโฟลเดอร์แล้วบันทึกหลายไฟล์ได้ “ไม่ต้อง ZIP”
+  - ถ้าไม่รองรับ → fallback เป็น ZIP (JSZip) หรือดาวน์โหลดทีละไฟล์ (บางเครื่องอาจ block หลายไฟล์)
+-->
 </body>
 </html>
