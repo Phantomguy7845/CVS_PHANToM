@@ -1,0 +1,1831 @@
+<!--
+  File: Selfie_TimeLogger_MintLight.html
+  Single-file web app (HTML/CSS/JS) — Selfie + Time Logger (Mint Light style)
+  Works on GitHub Pages (no backend). Uses IndexedDB (Dexie via CDN) to persist images + metadata.
+
+  ✅ Key Features
+  - Persist photos (Blob) in IndexedDB (Dexie preferred; native IndexedDB fallback)
+  - Auto tagging IN/OUT sequence: IN-1, OUT-1, IN-2, OUT-2, ... (continues beyond 20 if you keep adding)
+  - Pending / Downloaded split, downloadable file name = TAG.jpg, download repeatable
+  - Per-photo delete (real delete from IndexedDB)
+  - 9:10 timer lock (persists) unlock when downloaded >= 40 or reset
+  - Alarm-style notifications triggered after each download (IN=15m, OUT=25m), resets on new download
+  - Best-effort notifications (works reliably while app open; catch-up when reopen)
+-->
+
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#dff7ef" />
+  <title>Selfie + Time Logger (Mint Light)</title>
+
+  <!-- Optional: Noto Sans Thai -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Dexie via CDN (preferred) -->
+  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f6fffb;
+      --card:#ffffff;
+      --line:#d7efe7;
+      --text:#0e2a23;
+      --muted:#557c72;
+      --muted2:#7aa39a;
+      --accent:#1fbf9a;
+      --soft:#e7fbf4;
+      --warn:#ffb020;
+      --danger:#ff4d4f;
+      --shadow:0 10px 28px rgba(14,42,35,.10);
+      --radius:18px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: 92px; /* space for sticky bar */
+    }
+
+    a{ color:inherit; }
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px 14px 24px;
+    }
+
+    header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 6px 2px 14px;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .title h1{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: .2px;
+      line-height:1.15;
+    }
+    .title .muted{ font-size: 12px; }
+
+    .mini{ font-size: 12px; color: var(--muted2); }
+    .muted{ color: var(--muted); }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin: 12px 0;
+    }
+    .card h2{
+      margin:0 0 10px;
+      font-size: 14px;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .label{
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .grid3{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 720px){
+      .grid2{ grid-template-columns: 1fr 1fr; }
+      .grid3{ grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .row.spread{ justify-content:space-between; }
+
+    .field{
+      width:100%;
+      border:1px solid var(--line);
+      background: #fbfffd;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline:none;
+    }
+
+    .btn{
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor:pointer;
+      box-shadow: 0 8px 18px rgba(14,42,35,.10);
+      user-select:none;
+      touch-action: manipulation;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height: 44px;
+      width: 100%;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+
+    .btn.primary{
+      background: linear-gradient(180deg, #26d7ae, #17b892);
+      border-color: rgba(0,0,0,.0);
+      color: #062a22;
+    }
+    .btn.soft{
+      background: var(--soft);
+      border-color: #c8efe3;
+    }
+    .btn.danger{
+      background: #fff1f1;
+      border-color: #ffd1d1;
+      color: #7c1313;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      white-space: nowrap;
+    }
+    .badge.ok{ background: #e7fbf4; border-color:#bfeee0; color:#0b5f4a; }
+    .badge.wait{ background: #fff7e6; border-color:#ffe2ad; color:#7a4e00; }
+    .badge.err{ background: #fff1f1; border-color:#ffd1d1; color:#7c1313; }
+
+    .switch{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      padding: 10px 12px;
+      border-radius: 14px;
+    }
+    .switch input{ width: 22px; height: 22px; }
+
+    .progressWrap{
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: #eaf8f2;
+      border: 1px solid #cfeee4;
+      overflow:hidden;
+    }
+    .progressBar{
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #26d7ae, #17b892);
+      border-radius: 999px;
+      transition: width .25s ease;
+    }
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .photoItem{
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      border-radius: 16px;
+    }
+    .thumb{
+      width: 92px;
+      height: 92px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      object-fit: cover;
+      background: #0b1d18;
+    }
+    .info{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-width:0;
+    }
+    .metaTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .metaLine{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .timeText{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+    .actions .btn{ padding: 10px 12px; min-height: 40px; font-size: 13px; }
+
+    .stickyBar{
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(246,255,251,.92);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--line);
+      z-index: 50;
+    }
+    .stickyInner{
+      max-width: 980px;
+      margin: 0 auto;
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:10px;
+    }
+    .stickyInner .btn{ min-height: 46px; }
+
+    .modalBackdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 34, 28, .45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 80;
+    }
+    .modalBackdrop.show{ display:flex; }
+    .modal{
+      width: 100%;
+      max-width: 680px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding: 12px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfffd;
+    }
+    .modalHeader .row{ flex-wrap:nowrap; }
+    .modalBody{ padding: 12px 14px 14px; }
+
+    /* Camera viewfinder (portrait 4:3 => aspect ratio 3/4) */
+    .viewfinderWrap{
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #061a15;
+      overflow:hidden;
+      position: relative;
+      aspect-ratio: 3 / 4; /* portrait 4:3 */
+    }
+    video#camVideo{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      transform: none;
+    }
+    video#camVideo.mirror{
+      transform: scaleX(-1); /* mirror preview (UI text unaffected) */
+    }
+    .vfOverlay{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .spin{
+      width: 14px; height:14px;
+      border: 2px solid #cfeee4;
+      border-top-color: #1fbf9a;
+      border-radius: 999px;
+      display:inline-block;
+      animation: spin 1s linear infinite;
+      vertical-align:-2px;
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    .alarmBanner{
+      position: fixed;
+      left: 10px; right: 10px;
+      top: 10px;
+      z-index: 120;
+      display:none;
+    }
+    .alarmBanner.show{ display:block; }
+    .alarmCard{
+      background: #fff1f1;
+      border: 1px solid #ffd1d1;
+      color: #7c1313;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 12px 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .alarmText{
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+    .alarmSub{ font-size: 12px; font-weight: 600; opacity:.9; margin-top: 4px; }
+    .alarmCard .btn{
+      width:auto;
+      min-height: 40px;
+      padding: 10px 12px;
+      box-shadow:none;
+      border-color:#ffd1d1;
+      background:#fff7f7;
+    }
+
+    details.logPanel{
+      border: 1px dashed #cfeee4;
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: #fbfffd;
+    }
+    details.logPanel summary{
+      cursor:pointer;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    pre#logBox{
+      margin: 10px 0 0;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #1f4a3f;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="alarmBanner" id="alarmBanner">
+    <div class="alarmCard">
+      <div>
+        <div class="alarmText" id="alarmText">ครบเวลาแล้ว</div>
+        <div class="alarmSub" id="alarmSub">แตะเพื่อปิดการแจ้งเตือน</div>
+      </div>
+      <button class="btn" id="alarmDismissBtn">ปิด</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Selfie + Time Logger</h1>
+        <div class="muted mini">Mint Light • เก็บรูปถาวรในเครื่อง (IndexedDB) • ใช้บนมือถือ Chrome</div>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <span class="pill" id="dbBadge">DB: กำลังโหลด…</span>
+        <span class="pill" id="permBadge">🔔 Permission: ?</span>
+      </div>
+    </header>
+
+    <!-- A) Add Photo -->
+    <section class="card">
+      <h2>
+        <span>เพิ่มรูป</span>
+        <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
+      </h2>
+
+      <div class="grid2">
+        <button class="btn primary" id="openCameraBtn">📷 เปิดกล้องเซลฟี่</button>
+        <button class="btn soft" id="uploadBtn">🖼️ อัปโหลดจากแกลเลอรี่</button>
+      </div>
+
+      <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+
+      <div style="height:10px"></div>
+      <div class="row spread">
+        <div class="pill">Next slot: <b id="nextSlotText">-</b></div>
+        <div class="pill">สถานะ: <span id="statusText" class="muted">-</span></div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="row spread">
+        <button class="btn soft" id="requestNotifBtn">🔔 ขอสิทธิ์แจ้งเตือน</button>
+        <button class="btn" id="testBeepBtn">🔊 ทดสอบเสียง</button>
+      </div>
+    </section>
+
+    <!-- B) Progress -->
+    <section class="card">
+      <h2>
+        <span>Progress</span>
+        <span class="badge ok" id="goalBadge" style="display:none">ถึงเป้าหมายแล้ว ✅</span>
+      </h2>
+
+      <div class="grid3">
+        <div class="switch">
+          <input type="checkbox" id="mirrorHintToggle" checked />
+          <div>
+            <div style="font-weight:800;font-size:13px">กล้องหน้าแบบกระจก (Mirror)</div>
+            <div class="mini muted">พรีวิว & ภาพที่บันทึกจะเหมือนกัน (flip ซ้าย-ขวา)</div>
+          </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="logToggle" />
+          <div>
+            <div style="font-weight:800;font-size:13px">เปิด Log panel</div>
+            <div class="mini muted">ใช้ debug บนมือถือ</div>
+          </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="autoWakeToggle" checked />
+          <div>
+            <div style="font-weight:800;font-size:13px">Catch-up เมื่อกลับมาเปิด</div>
+            <div class="mini muted">ถ้าเลยเวลาแล้ว จะขึ้น “ครบเวลาแล้ว” ทันที</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="row spread">
+        <div class="pill">Total: <b id="totalCount">0</b> • Downloaded: <b id="downloadedCount">0</b> • Pending: <b id="pendingCount">0</b></div>
+        <div class="pill">เป้าหมาย: <b>40</b> รูป</div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
+
+      <div style="height:12px"></div>
+
+      <div class="grid2">
+        <div class="card" style="margin:0; box-shadow:none">
+          <div class="label">ตัวนับเวลา 9:10</div>
+          <div class="row spread">
+            <span class="badge" id="timerLockBadge">-</span>
+            <span class="pill" id="timerLeftPill">เหลือ: -</span>
+          </div>
+          <div style="height:8px"></div>
+          <div class="mini muted" id="timerMeta">startAt: - • targetAt: -</div>
+        </div>
+
+        <div class="card" style="margin:0; box-shadow:none">
+          <div class="label">Alarm หลังดาวน์โหลด</div>
+          <div class="row spread">
+            <span class="badge" id="alarmBadge">ยังไม่ตั้ง</span>
+            <span class="pill" id="alarmLeftPill">เหลือ: -</span>
+          </div>
+          <div style="height:8px"></div>
+          <div class="mini muted" id="alarmMeta">ล่าสุด: - • next: -</div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <details class="logPanel" id="logPanel" style="display:none">
+        <summary>Log panel (แตะเพื่อเปิด/ปิด)</summary>
+        <pre id="logBox"></pre>
+      </details>
+    </section>
+
+    <!-- C) Pending -->
+    <section class="card">
+      <h2>
+        <span>Pending (ยังไม่โหลด)</span>
+        <span class="badge wait" id="pendingBadge">0</span>
+      </h2>
+      <div class="list" id="pendingList"></div>
+      <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
+    </section>
+
+    <!-- D) Downloaded -->
+    <section class="card">
+      <h2>
+        <span>Downloaded (โหลดแล้ว)</span>
+        <span class="badge ok" id="downloadedBadge">0</span>
+      </h2>
+      <div class="list" id="downloadedList"></div>
+      <div class="mini muted" id="downloadedEmpty" style="display:none">ยังไม่มีรายการ Downloaded</div>
+    </section>
+  </div>
+
+  <!-- E) Sticky Bar -->
+  <div class="stickyBar">
+    <div class="stickyInner">
+      <button class="btn primary" id="start910Btn">⏱️ เริ่มนับเวลา 9:10</button>
+      <button class="btn soft" id="reset910Btn">🔓 รีเซ็ตเวลา</button>
+      <button class="btn danger" id="deleteAllBtn">🧨 ลบทั้งหมด</button>
+    </div>
+  </div>
+
+  <!-- Camera Modal -->
+  <div class="modalBackdrop" id="camModalBackdrop">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="row" style="gap:10px">
+          <span class="badge ok" id="camModeBadge">CAM</span>
+          <span class="pill" id="camFacingPill">facing: -</span>
+          <span class="pill" id="camMirrorPill">mirror: -</span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn soft" id="switchCamBtn" style="width:auto">🔄 สลับกล้อง</button>
+          <button class="btn" id="closeCamBtn" style="width:auto">✖ ปิด</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="viewfinderWrap">
+          <video id="camVideo" playsinline autoplay muted></video>
+          <div class="vfOverlay"></div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="grid2">
+          <button class="btn primary" id="captureBtn">📸 ถ่ายภาพ</button>
+          <button class="btn soft" id="fallbackUploadBtn">🖼️ ใช้อัปโหลดแทน</button>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="mini muted" id="camHint">
+          ถ้ากล้องหน้า: พรีวิวเป็นกระจก และภาพที่บันทึกจะ “เหมือนที่เห็น” • ถ้ากล้องใช้ไม่ได้ กดอัปโหลดแทน
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**********************************************************************
+     * (A) Utilities + Logger
+     **********************************************************************/
+    const $ = (id) => document.getElementById(id);
+
+    const LS = {
+      cursor: "stl_cursor_nextPos",     // next slot position (1-based, increments on add, not reduced on delete)
+      timer910: "stl_timer910_state",   // {locked, startAt, targetAt}
+      alarm: "stl_alarm_state",         // {dueAt, nextTag, lastDownloadedTag, lastDownloadedAt, firedDueAt}
+      ui: "stl_ui_state"                // {logEnabled, autoWake, mirrorPref}
+    };
+
+    const state = {
+      db: null,
+      dbType: "unknown",
+      photos: [],
+      thumbUrl: new Map(), // id -> objectURL
+      busy: { saving: false },
+      cam: {
+        stream: null,
+        facing: "user", // 'user' or 'environment'
+        mirror: true
+      },
+      timer910: { locked:false, startAt:null, targetAt:null },
+      alarm: { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null },
+      ui: { logEnabled:false, autoWake:true, mirrorPref:true },
+      tickInterval: null,
+      alarmTimeout: null
+    };
+
+    function now(){ return Date.now(); }
+
+    function fmtDT(ts){
+      if(!ts) return "-";
+      try{
+        return new Date(ts).toLocaleString("th-TH", {
+          year:"2-digit", month:"2-digit", day:"2-digit",
+          hour:"2-digit", minute:"2-digit", second:"2-digit"
+        });
+      }catch(_){
+        return new Date(ts).toString();
+      }
+    }
+
+    function fmtHMS(ms){
+      if(ms == null) return "-";
+      const sign = ms < 0 ? "-" : "";
+      ms = Math.abs(ms);
+      const s = Math.floor(ms/1000);
+      const hh = Math.floor(s/3600);
+      const mm = Math.floor((s%3600)/60);
+      const ss = s%60;
+      return `${sign}${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
+    }
+
+    function log(...args){
+      const line = `[${new Date().toLocaleTimeString("th-TH")}] ` + args.map(a=>{
+        if(typeof a === "string") return a;
+        try{ return JSON.stringify(a); }catch(_){ return String(a); }
+      }).join(" ");
+      if(state.ui.logEnabled){
+        const box = $("logBox");
+        box.textContent = (line + "\n" + box.textContent).slice(0, 12000);
+      }
+      // Always keep a minimal status text too
+      $("statusText").textContent = args.join(" ").slice(0, 120);
+      // console for dev
+      console.log(...args);
+    }
+
+    function loadJSON(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        return JSON.parse(raw);
+      }catch(_){
+        return fallback;
+      }
+    }
+
+    function saveJSON(key, obj){
+      try{
+        localStorage.setItem(key, JSON.stringify(obj));
+      }catch(_){}
+    }
+
+    function setSaveState(text, mode){
+      // mode: ok/wait/err
+      const b = $("saveStateBadge");
+      b.className = "badge " + (mode || "wait");
+      b.innerHTML = text;
+    }
+
+    /**********************************************************************
+     * (B) Tag generator (IN/OUT)
+     * - Uses a persistent cursor (nextPos) so deletion doesn't reuse tags.
+     * - nextPos = 1 => IN-1, 2 => OUT-1, 3 => IN-2, ...
+     **********************************************************************/
+    function getNextPos(){
+      const v = parseInt(localStorage.getItem(LS.cursor) || "1", 10);
+      return Number.isFinite(v) && v > 0 ? v : 1;
+    }
+    function setNextPos(v){
+      localStorage.setItem(LS.cursor, String(v));
+    }
+    function tagFromPos(pos){
+      const pairIndex = Math.ceil(pos / 2);
+      const kind = (pos % 2 === 1) ? "IN" : "OUT";
+      return { tag: `${kind}-${pairIndex}`, kind, idx: pairIndex };
+    }
+    function peekNextTag(){
+      return tagFromPos(getNextPos()).tag;
+    }
+
+    /**********************************************************************
+     * (C) IndexedDB schema (Dexie preferred, fallback native)
+     *
+     * Dexie schema:
+     *   photos: ++id, tag, kind, idx, createdAt, downloaded
+     *   (stores blob + metadata fields)
+     **********************************************************************/
+    async function initDB(){
+      // Detect Dexie availability
+      const hasDexie = typeof window.Dexie !== "undefined";
+      if(hasDexie){
+        try{
+          const db = new Dexie("SelfieTimeLoggerMintLight");
+          db.version(1).stores({
+            photos: "++id, tag, kind, idx, createdAt, downloaded"
+          });
+          await db.open();
+          state.dbType = "Dexie";
+          state.db = db;
+          $("dbBadge").textContent = "DB: Dexie ✅";
+          return;
+        }catch(e){
+          console.warn("Dexie open failed, fallback to native:", e);
+        }
+      }
+
+      // Native IndexedDB fallback (minimal operations we need)
+      state.dbType = "Native";
+      $("dbBadge").textContent = "DB: Native IndexedDB (fallback)";
+      state.db = await openNativeDB();
+    }
+
+    function openNativeDB(){
+      return new Promise((resolve, reject)=>{
+        const req = indexedDB.open("SelfieTimeLoggerMintLight_Native", 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          const store = db.createObjectStore("photos", { keyPath:"id", autoIncrement:true });
+          store.createIndex("createdAt", "createdAt", { unique:false });
+          store.createIndex("downloaded", "downloaded", { unique:false });
+          store.createIndex("tag", "tag", { unique:false });
+        };
+        req.onsuccess = () => {
+          const db = req.result;
+
+          const api = {
+            async addPhoto(obj){
+              return txWrap(db, "photos", "readwrite", store => store.add(obj));
+            },
+            async updatePhoto(id, changes){
+              return txWrap(db, "photos", "readwrite", async store => {
+                const existing = await reqWrap(store.get(id));
+                if(!existing) return null;
+                const merged = { ...existing, ...changes };
+                await reqWrap(store.put(merged));
+                return merged;
+              });
+            },
+            async deletePhoto(id){
+              return txWrap(db, "photos", "readwrite", store => store.delete(id));
+            },
+            async clearAll(){
+              return txWrap(db, "photos", "readwrite", store => store.clear());
+            },
+            async getAll(){
+              return txWrap(db, "photos", "readonly", async store => {
+                const idx = store.index("createdAt");
+                const all = await reqWrap(idx.getAll());
+                // getAll from index returns sorted by createdAt
+                return all;
+              });
+            }
+          };
+
+          resolve(api);
+        };
+        req.onerror = () => reject(req.error);
+      });
+
+      function txWrap(db, storeName, mode, fn){
+        return new Promise((resolve, reject)=>{
+          const tx = db.transaction(storeName, mode);
+          const store = tx.objectStore(storeName);
+          Promise.resolve(fn(store)).then(res=>{
+            tx.oncomplete = ()=> resolve(res);
+            tx.onerror = ()=> reject(tx.error);
+            tx.onabort = ()=> reject(tx.error);
+          }).catch(reject);
+        });
+      }
+      function reqWrap(req){
+        return new Promise((resolve, reject)=>{
+          req.onsuccess = ()=> resolve(req.result);
+          req.onerror = ()=> reject(req.error);
+        });
+      }
+    }
+
+    // DB abstraction (Dexie or Native) — methods we call below
+    async function dbAddPhoto(photo){
+      if(state.dbType === "Dexie"){
+        return state.db.photos.add(photo);
+      }
+      return state.db.addPhoto(photo);
+    }
+    async function dbUpdatePhoto(id, changes){
+      if(state.dbType === "Dexie"){
+        return state.db.photos.update(id, changes);
+      }
+      return state.db.updatePhoto(id, changes);
+    }
+    async function dbDeletePhoto(id){
+      if(state.dbType === "Dexie"){
+        return state.db.photos.delete(id);
+      }
+      return state.db.deletePhoto(id);
+    }
+    async function dbClearAll(){
+      if(state.dbType === "Dexie"){
+        return state.db.photos.clear();
+      }
+      return state.db.clearAll();
+    }
+    async function dbGetAll(){
+      if(state.dbType === "Dexie"){
+        return state.db.photos.orderBy("createdAt").toArray();
+      }
+      return state.db.getAll();
+    }
+
+    /**********************************************************************
+     * (D) Image processing
+     * - Re-encode via canvas (JPEG) to minimize metadata (removes EXIF)
+     * - Camera capture respects mirror preview for user-facing camera
+     **********************************************************************/
+    async function imageFileToCleanJpegBlob(file, targetMax = 1600){
+      // Load image
+      const url = URL.createObjectURL(file);
+      try{
+        const img = await loadImage(url);
+
+        // Resize with aspect preserved, limit longest side = targetMax
+        const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, targetMax);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { alpha:false });
+
+        // Draw (no mirror for uploads)
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const blob = await canvasToJpegBlob(canvas, 0.92);
+        return { blob, width:w, height:h, mime:"image/jpeg" };
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function fitWithin(w, h, maxSide){
+      if(!maxSide) return { w, h };
+      const max = Math.max(w, h);
+      if(max <= maxSide) return { w, h };
+      const scale = maxSide / max;
+      return { w: Math.round(w*scale), h: Math.round(h*scale) };
+    }
+
+    function loadImage(src){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.onload = ()=> resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function canvasToJpegBlob(canvas, quality=0.92){
+      return new Promise((resolve)=>{
+        canvas.toBlob((b)=> resolve(b), "image/jpeg", quality);
+      });
+    }
+
+    /**********************************************************************
+     * (E) Add photo (camera/upload) -> store to IndexedDB immediately
+     * - Auto tag creation
+     * - createdAt is the timestamp we store and sort by
+     **********************************************************************/
+    async function addPhotoFromBlob(blob, meta = {}){
+      const pos = getNextPos();
+      const { tag, kind, idx } = tagFromPos(pos);
+
+      const createdAt = now();
+      const record = {
+        tag, kind, idx,
+        createdAt,
+        downloaded: 0,           // 0 pending, 1 downloaded
+        mime: meta.mime || blob.type || "image/jpeg",
+        width: meta.width || null,
+        height: meta.height || null,
+        size: blob.size,
+        blob
+      };
+
+      setSaveState(`<span class="spin"></span> กำลังบันทึก…`, "wait");
+      state.busy.saving = true;
+      try{
+        const id = await dbAddPhoto(record);
+        setNextPos(pos + 1);
+        log("Saved", tag, "id=", id);
+      }finally{
+        state.busy.saving = false;
+        setSaveState("บันทึกแล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
+      }
+
+      await refresh();
+    }
+
+    /**********************************************************************
+     * (F) UI render + objectURL management
+     **********************************************************************/
+    function getThumbUrl(photo){
+      if(state.thumbUrl.has(photo.id)) return state.thumbUrl.get(photo.id);
+      const u = URL.createObjectURL(photo.blob);
+      state.thumbUrl.set(photo.id, u);
+      return u;
+    }
+    function revokeThumbUrl(id){
+      const u = state.thumbUrl.get(id);
+      if(u){
+        URL.revokeObjectURL(u);
+        state.thumbUrl.delete(id);
+      }
+    }
+    function revokeAllThumbs(){
+      for(const [id,u] of state.thumbUrl.entries()){
+        URL.revokeObjectURL(u);
+      }
+      state.thumbUrl.clear();
+    }
+
+    function setNotifBadge(){
+      const p = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
+      const el = $("permBadge");
+      if(p === "granted"){
+        el.className = "pill";
+        el.textContent = "🔔 Permission: granted";
+      }else if(p === "denied"){
+        el.className = "pill";
+        el.textContent = "🔔 Permission: denied";
+      }else if(p === "default"){
+        el.className = "pill";
+        el.textContent = "🔔 Permission: default";
+      }else{
+        el.className = "pill";
+        el.textContent = "🔔 Permission: unsupported";
+      }
+    }
+
+    function computeCounts(){
+      const total = state.photos.length;
+      const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
+      const pending = total - downloaded;
+      return { total, downloaded, pending };
+    }
+
+    function render(){
+      const { total, downloaded, pending } = computeCounts();
+
+      $("totalCount").textContent = total;
+      $("downloadedCount").textContent = downloaded;
+      $("pendingCount").textContent = pending;
+
+      $("pendingBadge").textContent = pending;
+      $("downloadedBadge").textContent = downloaded;
+
+      const prog = Math.min(40, total);
+      $("progressBar").style.width = `${(prog/40)*100}%`;
+
+      if(total >= 40){
+        $("goalBadge").style.display = "";
+        $("goalBadge").textContent = "ถึงเป้าหมายแล้ว ✅";
+      }else{
+        $("goalBadge").style.display = "none";
+      }
+
+      $("nextSlotText").textContent = peekNextTag();
+
+      // Timer 9:10 status
+      renderTimer910(downloaded);
+
+      // Alarm status
+      renderAlarm();
+
+      // Lists
+      renderList();
+    }
+
+    function renderList(){
+      const pendingList = $("pendingList");
+      const downloadedList = $("downloadedList");
+      pendingList.innerHTML = "";
+      downloadedList.innerHTML = "";
+
+      const pending = state.photos.filter(p=>p.downloaded === 0);
+      const downloaded = state.photos.filter(p=>p.downloaded === 1);
+
+      $("pendingEmpty").style.display = pending.length ? "none" : "";
+      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
+
+      for(const photo of pending){
+        pendingList.appendChild(renderPhotoItem(photo, false));
+      }
+      for(const photo of downloaded){
+        downloadedList.appendChild(renderPhotoItem(photo, true));
+      }
+    }
+
+    function renderPhotoItem(photo, isDownloaded){
+      const wrap = document.createElement("div");
+      wrap.className = "photoItem";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = getThumbUrl(photo);
+      img.alt = photo.tag;
+
+      const info = document.createElement("div");
+      info.className = "info";
+
+      const metaTop = document.createElement("div");
+      metaTop.className = "metaTop";
+
+      const left = document.createElement("div");
+      left.className = "metaLine";
+
+      const tagBadge = document.createElement("span");
+      tagBadge.className = "badge ok";
+      tagBadge.textContent = photo.tag;
+
+      const dlBadge = document.createElement("span");
+      dlBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
+      dlBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
+
+      left.appendChild(tagBadge);
+      left.appendChild(dlBadge);
+
+      const time = document.createElement("div");
+      time.className = "timeText";
+      time.textContent = fmtDT(photo.createdAt);
+
+      metaTop.appendChild(left);
+      metaTop.appendChild(time);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const dlBtn = document.createElement("button");
+      dlBtn.className = "btn primary";
+      dlBtn.textContent = "⬇ Download";
+      dlBtn.onclick = async () => {
+        dlBtn.disabled = true;
+        try{
+          await downloadPhoto(photo);
+        }finally{
+          dlBtn.disabled = false;
+        }
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn danger";
+      delBtn.textContent = "🗑 Delete";
+      delBtn.onclick = async () => {
+        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
+        if(!ok) return;
+        delBtn.disabled = true;
+        try{
+          await deletePhoto(photo.id, photo.tag);
+        }finally{
+          delBtn.disabled = false;
+        }
+      };
+
+      actions.appendChild(dlBtn);
+      actions.appendChild(delBtn);
+
+      info.appendChild(metaTop);
+      info.appendChild(actions);
+
+      wrap.appendChild(img);
+      wrap.appendChild(info);
+
+      return wrap;
+    }
+
+    /**********************************************************************
+     * (G) Download + mark downloaded + move list
+     *
+     * - Download file name = TAG.jpg (e.g., IN-7.jpg)
+     * - Mark downloaded=1 (keeps downloadable again)
+     * - Also triggers the "alarm timer" logic:
+     *     IN -> 15 minutes, OUT -> 25 minutes
+     *     If download again before due -> reset by latest download
+     **********************************************************************/
+    async function downloadPhoto(photo){
+      const ext = "jpg"; // we re-encode into JPEG for uploads/camera
+      const filename = `${photo.tag}.${ext}`;
+
+      // Download
+      const url = URL.createObjectURL(photo.blob);
+      try{
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+
+      // Mark downloaded (and keep it downloadable again)
+      if(photo.downloaded !== 1){
+        await dbUpdatePhoto(photo.id, { downloaded: 1 });
+        log("Marked downloaded:", photo.tag);
+      }else{
+        log("Downloaded again:", photo.tag);
+      }
+
+      // Alarm scheduling based on latest downloaded tag
+      scheduleAlarmFromDownloadedTag(photo.tag);
+
+      await refresh();
+    }
+
+    async function deletePhoto(id, tag){
+      await dbDeletePhoto(id);
+      revokeThumbUrl(id);
+      log("Deleted", tag, "id=", id);
+      await refresh();
+    }
+
+    /**********************************************************************
+     * (H) 9:10 Timer Lock (persist)
+     *
+     * - Press start -> locked, stores startAt and targetAt = startAt + 9h10m
+     * - Unlock condition:
+     *     downloadedCount >= 40 OR user presses "รีเซ็ตเวลา" (confirm)
+     * - State persists via localStorage
+     **********************************************************************/
+    const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
+
+    function loadTimer910(){
+      const t = loadJSON(LS.timer910, null);
+      if(t && typeof t === "object"){
+        state.timer910 = {
+          locked: !!t.locked,
+          startAt: t.startAt || null,
+          targetAt: t.targetAt || null
+        };
+      }else{
+        state.timer910 = { locked:false, startAt:null, targetAt:null };
+      }
+    }
+    function saveTimer910(){
+      saveJSON(LS.timer910, state.timer910);
+    }
+
+    function renderTimer910(downloadedCount){
+      // auto-unlock if downloaded >= 40
+      if(state.timer910.locked && downloadedCount >= 40){
+        state.timer910 = { locked:false, startAt:null, targetAt:null };
+        saveTimer910();
+        log("Auto unlock 9:10 (downloaded >= 40)");
+      }
+
+      const b = $("timerLockBadge");
+      if(state.timer910.locked){
+        b.className = "badge err";
+        b.textContent = "LOCKED";
+      }else{
+        b.className = "badge ok";
+        b.textContent = "UNLOCKED";
+      }
+
+      $("timerMeta").textContent =
+        `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
+
+      if(state.timer910.locked && state.timer910.targetAt){
+        const left = state.timer910.targetAt - now();
+        $("timerLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+      }else{
+        $("timerLeftPill").textContent = "เหลือ: -";
+      }
+
+      // Button states
+      $("start910Btn").disabled = state.timer910.locked;
+    }
+
+    async function start910(){
+      if(state.timer910.locked) return;
+      const startAt = now();
+      const targetAt = startAt + TIMER_910_MS;
+
+      state.timer910 = { locked:true, startAt, targetAt };
+      saveTimer910();
+      log("Start 9:10", fmtDT(startAt), "->", fmtDT(targetAt));
+      render();
+    }
+
+    async function reset910(){
+      const ok1 = confirm("ต้องการรีเซ็ตเวลา 9:10 ใช่ไหม?\n(จะปลดล็อกปุ่ม)");
+      if(!ok1) return;
+      const ok2 = confirm("ยืนยันอีกครั้ง: รีเซ็ตเวลา 9:10 (ปลดล็อก)\n*ไม่ลบรูป*");
+      if(!ok2) return;
+
+      state.timer910 = { locked:false, startAt:null, targetAt:null };
+      saveTimer910();
+      log("Reset 9:10");
+      render();
+    }
+
+    /**********************************************************************
+     * (I) Alarm / Notification system (IN 15m / OUT 25m)
+     *
+     * - Starts timing when user downloads a photo
+     * - IN -> 15 minutes, OUT -> 25 minutes
+     * - Download a new photo before due -> reset timer to latest
+     * - When due:
+     *     show Notification (if permission granted) + fallback banner + beep
+     * - Catch-up:
+     *     if app reopened after due (and autoWake enabled) -> show immediately
+     **********************************************************************/
+    function loadAlarmState(){
+      const a = loadJSON(LS.alarm, null);
+      if(a && typeof a === "object"){
+        state.alarm = {
+          dueAt: a.dueAt || null,
+          nextTag: a.nextTag || null,
+          lastDownloadedTag: a.lastDownloadedTag || null,
+          lastDownloadedAt: a.lastDownloadedAt || null,
+          firedDueAt: a.firedDueAt || null
+        };
+      }else{
+        state.alarm = { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null };
+      }
+    }
+    function saveAlarmState(){
+      saveJSON(LS.alarm, state.alarm);
+    }
+
+    function parseTag(tag){
+      const m = String(tag || "").match(/^(IN|OUT)-(\d+)$/);
+      if(!m) return null;
+      return { kind:m[1], idx: parseInt(m[2], 10) };
+    }
+
+    function nextTagFromDownloaded(tag){
+      const p = parseTag(tag);
+      if(!p) return null;
+      if(p.kind === "IN") return `OUT-${p.idx}`;
+      // OUT-k => IN-(k+1)
+      return `IN-${p.idx + 1}`;
+    }
+
+    function minutesForKind(kind){
+      return (kind === "IN") ? 15 : 25;
+    }
+
+    function scheduleAlarmFromDownloadedTag(downloadedTag){
+      const p = parseTag(downloadedTag);
+      if(!p) return;
+
+      const mins = minutesForKind(p.kind);
+      const dueAt = now() + mins*60*1000;
+      const nextTag = nextTagFromDownloaded(downloadedTag);
+
+      state.alarm = {
+        dueAt,
+        nextTag,
+        lastDownloadedTag: downloadedTag,
+        lastDownloadedAt: now(),
+        firedDueAt: null
+      };
+      saveAlarmState();
+
+      log("Alarm set", downloadedTag, `+${mins}m`, "dueAt=", fmtDT(dueAt), "next=", nextTag);
+      setupAlarmTimeout(); // while app open
+      render();
+    }
+
+    function renderAlarm(){
+      const b = $("alarmBadge");
+      const dueAt = state.alarm.dueAt;
+
+      if(dueAt){
+        const left = dueAt - now();
+        if(left <= 0){
+          b.className = "badge err";
+          b.textContent = "ครบเวลาแล้ว";
+          $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+        }else{
+          b.className = "badge wait";
+          b.textContent = "กำลังนับเวลา…";
+          $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+        }
+        $("alarmMeta").textContent =
+          `ล่าสุด: ${state.alarm.lastDownloadedTag || "-"} @ ${fmtDT(state.alarm.lastDownloadedAt)} • next: ${state.alarm.nextTag || "-"}`;
+      }else{
+        b.className = "badge";
+        b.textContent = "ยังไม่ตั้ง";
+        $("alarmLeftPill").textContent = "เหลือ: -";
+        $("alarmMeta").textContent = "ล่าสุด: - • next: -";
+      }
+    }
+
+    function setupAlarmTimeout(){
+      // Clear old timeout
+      if(state.alarmTimeout){
+        clearTimeout(state.alarmTimeout);
+        state.alarmTimeout = null;
+      }
+
+      const dueAt = state.alarm.dueAt;
+      if(!dueAt) return;
+
+      const delay = Math.max(0, dueAt - now());
+      // While app open: schedule
+      state.alarmTimeout = setTimeout(()=>{
+        fireAlarmIfNeeded(true);
+      }, delay + 30); // small cushion
+    }
+
+    function fireAlarmIfNeeded(fromTimeout){
+      const dueAt = state.alarm.dueAt;
+      if(!dueAt) return;
+
+      const shouldCatchUp = state.ui.autoWake;
+      const isPast = (dueAt - now()) <= 0;
+      if(!isPast){
+        // If called early, ignore
+        return;
+      }
+
+      // Only fire once per dueAt
+      if(state.alarm.firedDueAt === dueAt){
+        return;
+      }
+      if(!fromTimeout && !shouldCatchUp){
+        return;
+      }
+
+      state.alarm.firedDueAt = dueAt;
+      saveAlarmState();
+
+      const msg = (state.alarm.nextTag && state.alarm.nextTag.startsWith("OUT-"))
+        ? "ครบเวลา Check Out ได้แล้ว"
+        : "ครบเวลา Check In ได้แล้ว";
+
+      showInAppAlarm(msg, `Next: ${state.alarm.nextTag || "-"}`);
+      tryNotify(msg);
+      beepTriple();
+
+      log("ALARM FIRED:", msg, "dueAt=", fmtDT(dueAt));
+      render();
+    }
+
+    function tryNotify(body){
+      if(typeof Notification === "undefined") return;
+      if(Notification.permission !== "granted") return;
+
+      try{
+        // Note: without service worker, background delivery is not guaranteed.
+        new Notification("Selfie Time Logger", { body });
+      }catch(_){}
+    }
+
+    function showInAppAlarm(text, sub){
+      $("alarmText").textContent = text;
+      $("alarmSub").textContent = sub || "แตะเพื่อปิดการแจ้งเตือน";
+      $("alarmBanner").classList.add("show");
+    }
+    function hideInAppAlarm(){
+      $("alarmBanner").classList.remove("show");
+    }
+
+    function beepOnce(duration=0.16, freq=880){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+        o.connect(g);
+        g.connect(ctx.destination);
+        g.gain.value = 0.08;
+        o.start();
+        setTimeout(()=>{
+          o.stop();
+          ctx.close();
+        }, duration*1000);
+      }catch(_){}
+    }
+
+    function beepTriple(){
+      beepOnce(0.12, 880);
+      setTimeout(()=>beepOnce(0.12, 990), 180);
+      setTimeout(()=>beepOnce(0.14, 880), 360);
+    }
+
+    /**********************************************************************
+     * (J) Camera modal
+     * - getUserMedia
+     * - Mirror preview for user-facing camera (CSS transform)
+     * - Saved image matches preview (mirror applied at capture)
+     **********************************************************************/
+    async function openCamera(){
+      $("camModalBackdrop").classList.add("show");
+      $("camModeBadge").textContent = "CAM";
+      $("camModeBadge").className = "badge ok";
+      await startCameraStream();
+    }
+
+    function closeCamera(){
+      stopCameraStream();
+      $("camModalBackdrop").classList.remove("show");
+    }
+
+    async function startCameraStream(){
+      stopCameraStream();
+
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        $("camModeBadge").textContent = "NO CAMERA";
+        $("camModeBadge").className = "badge err";
+        log("Camera API not supported");
+        return;
+      }
+
+      const facing = state.cam.facing;
+      const useMirror = (facing === "user") && state.ui.mirrorPref;
+
+      $("camFacingPill").textContent = `facing: ${facing}`;
+      $("camMirrorPill").textContent = `mirror: ${useMirror ? "ON" : "OFF"}`;
+
+      try{
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        state.cam.stream = stream;
+
+        const video = $("camVideo");
+        video.srcObject = stream;
+        video.classList.toggle("mirror", useMirror);
+
+        await video.play();
+        log("Camera started", facing, "mirror=", useMirror);
+      }catch(e){
+        $("camModeBadge").textContent = "CAM ERROR";
+        $("camModeBadge").className = "badge err";
+        log("Camera error:", e && (e.name || e.message) ? (e.name || e.message) : e);
+      }
+    }
+
+    function stopCameraStream(){
+      const s = state.cam.stream;
+      if(s){
+        s.getTracks().forEach(t=>t.stop());
+      }
+      state.cam.stream = null;
+      const video = $("camVideo");
+      video.srcObject = null;
+    }
+
+    async function switchCamera(){
+      // toggle facing
+      state.cam.facing = (state.cam.facing === "user") ? "environment" : "user";
+      await startCameraStream();
+    }
+
+    async function captureFromCamera(){
+      const video = $("camVideo");
+      if(!video || !video.videoWidth){
+        log("Capture failed: video not ready");
+        return;
+      }
+
+      const facing = state.cam.facing;
+      const mirror = (facing === "user") && state.ui.mirrorPref;
+
+      // We want a portrait 4:3 output (w/h = 3/4)
+      const outAR = 3/4;
+
+      const srcW = video.videoWidth;
+      const srcH = video.videoHeight;
+      const srcAR = srcW/srcH;
+
+      // crop source to match outAR
+      let cropW, cropH, sx, sy;
+      if(srcAR > outAR){
+        // source wider -> crop width
+        cropH = srcH;
+        cropW = cropH * outAR;
+        sx = (srcW - cropW)/2;
+        sy = 0;
+      }else{
+        // source taller -> crop height
+        cropW = srcW;
+        cropH = cropW / outAR;
+        sx = 0;
+        sy = (srcH - cropH)/2;
+      }
+
+      // output size: keep within ~1600px height for performance
+      const maxH = 1600;
+      let outH = Math.min(maxH, Math.round(cropH));
+      let outW = Math.round(outH * outAR);
+
+      // if cropH already smaller than maxH, keep as-is
+      if(cropH < maxH){
+        outH = Math.round(cropH);
+        outW = Math.round(cropW);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d", { alpha:false });
+
+      // IMPORTANT: If mirror, we flip the drawing so the saved image matches preview.
+      if(mirror){
+        ctx.save();
+        ctx.translate(outW, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, outW, outH);
+        ctx.restore();
+      }else{
+        ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, outW, outH);
+      }
+
+      const blob = await canvasToJpegBlob(canvas, 0.92);
+      await addPhotoFromBlob(blob, { width: outW, height: outH, mime:"image/jpeg" });
+
+      // Optional: quick haptic (best-effort)
+      if(navigator.vibrate) navigator.vibrate(20);
+    }
+
+    /**********************************************************************
+     * (K) Upload handler
+     **********************************************************************/
+    async function handleFiles(files){
+      if(!files || !files.length) return;
+
+      setSaveState(`<span class="spin"></span> กำลังแปลงรูป…`, "wait");
+      state.busy.saving = true;
+
+      try{
+        // Process sequentially to keep tag order predictable
+        for(const file of files){
+          const clean = await imageFileToCleanJpegBlob(file, 1600);
+          await addPhotoFromBlob(clean.blob, clean);
+        }
+      }catch(e){
+        log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
+        setSaveState("บันทึกล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+      }finally{
+        state.busy.saving = false;
+      }
+    }
+
+    /**********************************************************************
+     * (L) Delete all (2-step confirm) + reset cursor + clear states
+     **********************************************************************/
+    async function deleteAll(){
+      const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
+      if(!ok1) return;
+      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด + รีเซ็ต slot IN/OUT\nการกระทำนี้ย้อนกลับไม่ได้");
+      if(!ok2) return;
+
+      setSaveState(`<span class="spin"></span> กำลังลบทั้งหมด…`, "wait");
+      try{
+        await dbClearAll();
+        revokeAllThumbs();
+        setNextPos(1);
+
+        // also clear timer/alarm (optional but practical)
+        state.timer910 = { locked:false, startAt:null, targetAt:null };
+        saveTimer910();
+        state.alarm = { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null };
+        saveAlarmState();
+        hideInAppAlarm();
+
+        log("Deleted ALL");
+      }finally{
+        setSaveState("ลบแล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
+      }
+
+      await refresh();
+    }
+
+    /**********************************************************************
+     * (M) Refresh: load all photos (sorted) and render
+     **********************************************************************/
+    async function refresh(){
+      const all = await dbGetAll();
+      // Ensure sorted by createdAt
+      all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+      state.photos = all;
+
+      // If timer locked, check auto-unlock logic on render
+      render();
+    }
+
+    /**********************************************************************
+     * (N) UI State (log toggle / mirror pref / autoWake)
+     **********************************************************************/
+    function loadUIState(){
+      const u = loadJSON(LS.ui, null);
+      if(u && typeof u === "object"){
+        state.ui.logEnabled = !!u.logEnabled;
+        state.ui.autoWake = (u.autoWake !== false);
+        state.ui.mirrorPref = (u.mirrorPref !== false);
+      }
+      $("logToggle").checked = state.ui.logEnabled;
+      $("autoWakeToggle").checked = state.ui.autoWake;
+      $("mirrorHintToggle").checked = state.ui.mirrorPref;
+
+      $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
+    }
+    function saveUIState(){
+      saveJSON(LS.ui, {
+        logEnabled: state.ui.logEnabled,
+        autoWake: state.ui.autoWake,
+        mirrorPref: state.ui.mirrorPref
+      });
+    }
+
+    /**********************************************************************
+     * (O) Notifications permission
+     **********************************************************************/
+    async function requestNotificationPermission(){
+      if(typeof Notification === "undefined"){
+        alert("อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ Notification");
+        return;
+      }
+      try{
+        const p = await Notification.requestPermission();
+        log("Notification permission:", p);
+        setNotifBadge();
+      }catch(e){
+        log("Permission request error:", e);
+      }
+    }
+
+    /**********************************************************************
+     * (P) Ticking UI (countdowns)
+     **********************************************************************/
+    function startTick(){
+      if(state.tickInterval) clearInterval(state.tickInterval);
+      state.tickInterval = setInterval(()=>{
+        // alarm catch-up check (while open)
+        if(state.alarm.dueAt){
+          fireAlarmIfNeeded(true); // safe: only fires once per dueAt
+        }
+        renderTimer910(computeCounts().downloaded);
+        renderAlarm();
+      }, 1000);
+    }
+
+    /**********************************************************************
+     * (Q) Init
+     **********************************************************************/
+    async function boot(){
+      // UI persisted switches
+      loadUIState();
+
+      // Timer & Alarm persisted
+      loadTimer910();
+      loadAlarmState();
+
+      // Notification badge
+      setNotifBadge();
+
+      // Init DB
+      await initDB();
+
+      // Load photos
+      await refresh();
+
+      // Catch-up alarm if overdue
+      setupAlarmTimeout();
+      if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
+        // Only show immediately if autoWake enabled
+        fireAlarmIfNeeded(false);
+      }
+
+      // Start ticking
+      startTick();
+
+      // Wire events
+      $("requestNotifBtn").onclick = requestNotificationPermission;
+      $("testBeepBtn").onclick = ()=> beepTriple();
+
+      $("uploadBtn").onclick = ()=> $("fileInput").click();
+      $("fallbackUploadBtn").onclick = ()=> $("fileInput").click();
+
+      $("fileInput").addEventListener("change", async (e)=>{
+        const files = Array.from(e.target.files || []);
+        e.target.value = ""; // allow re-select same files
+        await handleFiles(files);
+      });
+
+      $("openCameraBtn").onclick = async ()=>{
+        // If camera not available, fallback to upload
+        await openCamera();
+      };
+      $("closeCamBtn").onclick = closeCamera;
+      $("switchCamBtn").onclick = switchCamera;
+      $("captureBtn").onclick = captureFromCamera;
+
+      $("start910Btn").onclick = start910;
+      $("reset910Btn").onclick = reset910;
+      $("deleteAllBtn").onclick = deleteAll;
+
+      $("alarmDismissBtn").onclick = hideInAppAlarm;
+      $("alarmBanner").onclick = hideInAppAlarm;
+
+      $("logToggle").addEventListener("change", ()=>{
+        state.ui.logEnabled = $("logToggle").checked;
+        $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
+        saveUIState();
+        log("Log enabled:", state.ui.logEnabled);
+      });
+
+      $("autoWakeToggle").addEventListener("change", ()=>{
+        state.ui.autoWake = $("autoWakeToggle").checked;
+        saveUIState();
+        log("AutoWake:", state.ui.autoWake);
+      });
+
+      $("mirrorHintToggle").addEventListener("change", ()=>{
+        state.ui.mirrorPref = $("mirrorHintToggle").checked;
+        saveUIState();
+        // reflect in camera modal if open
+        const facing = state.cam.facing;
+        const mirror = (facing === "user") && state.ui.mirrorPref;
+        $("camVideo").classList.toggle("mirror", mirror);
+        $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
+        log("MirrorPref:", state.ui.mirrorPref);
+      });
+
+      // Close modal when tapping backdrop (optional)
+      $("camModalBackdrop").addEventListener("click", (e)=>{
+        if(e.target === $("camModalBackdrop")){
+          closeCamera();
+        }
+      });
+
+      // Basic status
+      $("statusText").textContent = "พร้อมใช้งาน";
+      setSaveState("พร้อมใช้งาน", "wait");
+
+      // Update "Next slot"
+      $("nextSlotText").textContent = peekNextTag();
+
+      log("BOOT OK", "dbType=", state.dbType, "next=", peekNextTag());
+    }
+
+    document.addEventListener("visibilitychange", ()=>{
+      // When user comes back, do catch-up if needed
+      if(!document.hidden){
+        if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
+          fireAlarmIfNeeded(false);
+        }
+      }
+    });
+
+    window.addEventListener("beforeunload", ()=>{
+      // Clean object URLs
+      revokeAllThumbs();
+    });
+
+    boot();
+  </script>
+</body>
+</html>
