@@ -579,6 +579,7 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
+      position:relative;
     }
     .rep-bar{
       height:var(--repBarH);
@@ -618,6 +619,28 @@
       border:0;
       background:#fff;
     }
+    .rep-loading{
+      position:absolute;
+      inset: var(--repBarH) 0 0 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,.92);
+      z-index:2;
+      flex-direction:column;
+      gap:10px;
+      color:#0b4b44;
+      font-weight:1000;
+      text-align:center;
+      padding:18px;
+    }
+    .rep-loading.show{ display:flex; }
+    .rep-loading .mini{
+      font-weight:900;
+      color:#3b6760;
+      font-size:12px;
+      max-width:720px;
+    }
   </style>
 </head>
 
@@ -633,8 +656,8 @@
 
     <div class="sb-section">เครื่องมือ</div>
 
-    <!-- ✅ เปิดหน้าเต็ม (ไม่เรียก popup) -->
-    <a class="sb-link" href="Tools/Report.html">
+    <!-- ✅ Sidebar must open FULL page -->
+    <a id="sbReportFull" class="sb-link" href="#">
       <div class="sb-ico">🧾</div>
       <div class="sb-text">
         Report Script
@@ -642,7 +665,7 @@
       </div>
     </a>
 
-    <a class="sb-link" href="Tools/Timestamp.html">
+    <a id="sbTimestampFull" class="sb-link" href="#">
       <div class="sb-ico">⏱️</div>
       <div class="sb-text">
         Timestamp Camera
@@ -736,25 +759,25 @@
       <div id="repSub" class="rep-sub">—</div>
       <button id="repClose" class="rep-close" type="button">ปิด</button>
     </div>
+
+    <div id="repLoading" class="rep-loading">
+      <div class="spinner" style="width:38px;height:38px;border-width:4px;"></div>
+      กำลังโหลด Report…
+      <div class="mini">ถ้าเป็นหน้าขาว/ไม่ขึ้น มักเกิดจาก path ไม่ตรงกับตำแหน่งไฟล์ — เวอร์ชันนี้แก้ให้คำนวณ base path อัตโนมัติแล้ว</div>
+    </div>
+
     <iframe id="repFrame" title="Report Popup" src=""></iframe>
   </div>
 </div>
 
 <script>
   /** =========================
-   *  CONFIG (แก้แค่จุดนี้)
+   *  CONFIG
    *  ========================= */
   const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec',
-
-    // ✅ path ของ Report.html (relative path → same-origin เพื่อคุม iframe ได้)
-    REPORT_PATH: 'Tools/Report.html'
-  };
-
-  // ✅ keys ของ Report.html (จากไฟล์ Report.html ที่คุณใช้)
-  const REPORT_KEYS = {
-    FORM: 'PT_REPORT_FORM_V1',
-    HISTORY: 'PT_REPORT_HISTORY_V1'
+    REPORT_PATH: 'Tools/Report.html',
+    TIMESTAMP_PATH: 'Tools/Timestamp.html'
   };
 
   function $(id){ return document.getElementById(id); }
@@ -799,6 +822,27 @@
   }
 
   /** =========================
+   *  ✅ Base path resolver (แก้ปัญหา iframe ขาว)
+   *  - GitHub Pages (project) มักเป็น /REPO/...
+   *  - ไม่ว่า index อยู่โฟลเดอร์ไหน ก็ resolve ไป /REPO/Tools/... ได้ถูก
+   *  ========================= */
+  function getRepoBasePath(){
+    var parts = String(location.pathname || '/').split('/').filter(Boolean);
+    // ex: /CVS_PHANToM/index.html -> ["CVS_PHANToM","index.html"] => base "/CVS_PHANToM/"
+    // ex: /CVS_PHANToM/some/dir/index.html -> base "/CVS_PHANToM/"
+    if(parts.length >= 1) return '/' + parts[0] + '/';
+    return '/';
+  }
+  var REPO_BASE = getRepoBasePath();
+
+  function resolveRepoUrl(path){
+    path = String(path || '');
+    if(/^https?:\/\//i.test(path)) return path;
+    path = path.replace(/^\/+/, ''); // remove leading slash
+    return REPO_BASE + path;
+  }
+
+  /** =========================
    *  ✅ SIDEBAR LOGIC
    *  ========================= */
   function openSidebar(){
@@ -830,21 +874,31 @@
     }
   });
 
-  // คลิกบนลิงก์ใน sidebar → ปิด sidebar (แล้วปล่อยให้เปลี่ยนหน้าเต็มตามปกติ)
-  (function(){
-    var links = $('sbOverlay').querySelectorAll('a.sb-link');
-    links.forEach(function(a){
-      a.addEventListener('click', function(){
-        closeSidebar();
-      });
-    });
-  })();
-
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && sidebarIsOpen()){
       closeSidebar();
     }
   });
+
+  // ✅ Sidebar links: เปิดหน้าเต็ม (ไม่เกี่ยวกับ popup)
+  (function initSidebarLinks(){
+    var reportUrl = resolveRepoUrl(CONFIG.REPORT_PATH);
+    var tsUrl = resolveRepoUrl(CONFIG.TIMESTAMP_PATH);
+
+    $('sbReportFull').setAttribute('href', reportUrl);
+    $('sbTimestampFull').setAttribute('href', tsUrl);
+
+    $('sbReportFull').addEventListener('click', function(){
+      closeSidebar();
+      // เปิดหน้าเต็มในแท็บเดิม (ถ้าต้องการ _blank บอกได้)
+      location.href = reportUrl;
+    });
+
+    $('sbTimestampFull').addEventListener('click', function(){
+      closeSidebar();
+      location.href = tsUrl;
+    });
+  })();
 
   /** =========================
    *  JSONP Helper
@@ -1008,7 +1062,7 @@
 
     if(q){
       arr = arr.filter(function(p){
-        var id = (p && p.id) ? String(p.id).toLowerCase() : '';
+        var id = (p && p.id) ? String(p.id) : '';
         var name = (p && p.name) ? String(p.name).toLowerCase() : '';
         return (id.indexOf(q) !== -1) || (name.indexOf(q) !== -1);
       });
@@ -1049,25 +1103,43 @@
    *  ========================= */
   var REPORT_CTX = null;
   var REPORT_FRAME_READY = false;
-  var REPORT_TRIMMED = false;
-
   var REPORT_EMBED_PATCHED = false;
-  var REPORT_COPY_HOOKED = false;
+  var REPORT_TRIMMED = false;
 
   function normText(s){
     return String(s || '').replace(/\s+/g,' ').trim().toLowerCase();
   }
 
+  // ✅ parse fallback จาก place.name (เช่น "JIFFY 34007 Nonthaburi - ...")
+  function parseAccountNumberNameFromText(text){
+    text = String(text || '').trim().replace(/\s+/g,' ');
+    if(!text) return { account:'', number:'', account_name:'' };
+
+    var parts = text.split(' ');
+    var idx = -1;
+    for(var i=0;i<parts.length;i++){
+      if(/\d/.test(parts[i])){ idx = i; break; }
+    }
+    if(idx <= 0){
+      // ไม่มีตัวเลขหรืออยู่ตัวแรก -> แยกไม่ได้
+      return { account:'', number:'', account_name:text };
+    }
+    return {
+      account: parts.slice(0, idx).join(' '),
+      number: parts[idx],
+      account_name: parts.slice(idx+1).join(' ')
+    };
+  }
+
   function openReport(place){
     REPORT_CTX = place || null;
 
-    // subtitle
+    var subtitle = '';
     if(place){
-      var subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
+      subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
       var a = place.account ? (' | ' + place.account) : '';
       var n = place.number ? (' | ' + place.number) : '';
-      var an = place.account_name ? (' | ' + place.account_name) : '';
-      $('repSub').textContent = subtitle + a + n + an;
+      $('repSub').textContent = subtitle + a + n;
     }else{
       $('repSub').textContent = '—';
     }
@@ -1076,29 +1148,22 @@
     $('repOverlay').setAttribute('aria-hidden','false');
     document.body.classList.add('rep-open');
 
-    var frame = $('repFrame');
+    $('repLoading').classList.add('show');
 
-    // โหลดครั้งแรก
-    if(!frame.src){
-      frame.src = CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
-      frame.onload = function(){
-        REPORT_FRAME_READY = true;
-        // ทำงานฝั่ง iframe: ตัด UI + patch storage + hook copy
-        tryTrimReportUI();
-        patchReportEmbedStorageOnce();
-        attachCopyHistoryHookOnce();
-        // เคลียร์ช่อง 3 ช่องก่อน แล้วค่อย prefill
-        clearRestrictedFieldsOnce();
-        startPrefillLoop();
-      };
-    }else{
-      // เปิดซ้ำ
-      tryTrimReportUI();
-      patchReportEmbedStorageOnce();
-      attachCopyHistoryHookOnce();
-      clearRestrictedFieldsOnce();
-      startPrefillLoop();
-    }
+    ensureReportFrameLoaded();
+    startPrefillLoop();
+
+    // fallback ถ้า iframe โหลดไม่ขึ้นจริง ๆ
+    setTimeout(function(){
+      if(!REPORT_FRAME_READY){
+        // ยังไม่ ready หลังรอ -> แสดงวิธีหนี: เปิดเต็มหน้า
+        showToast('Report popup ยังไม่โหลด (จะเปิดหน้าเต็มให้)');
+        try{
+          var full = resolveRepoUrl(CONFIG.REPORT_PATH);
+          window.open(full, '_blank');
+        }catch(e){}
+      }
+    }, 3500);
   }
 
   function closeReport(){
@@ -1125,36 +1190,63 @@
       return null;
     }
   }
-  function getReportWin(){
-    try{ return $('repFrame').contentWindow; }catch(e){ return null; }
+
+  function ensureReportFrameLoaded(){
+    var frame = $('repFrame');
+    var baseUrl = resolveRepoUrl(CONFIG.REPORT_PATH);
+
+    // embed=1 เพื่อบอกว่าอยู่ใน popup (แม้ Report.html จะไม่อ่านก็ไม่เป็นไร)
+    var src = baseUrl + (baseUrl.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
+
+    // ถ้า src เปลี่ยนหรือยังไม่เคยโหลด -> โหลดใหม่
+    if(frame.dataset.src !== src){
+      frame.dataset.src = src;
+      REPORT_FRAME_READY = false;
+      REPORT_EMBED_PATCHED = false;
+      REPORT_TRIMMED = false;
+
+      frame.onload = function(){
+        REPORT_FRAME_READY = true;
+        $('repLoading').classList.remove('show');
+        // ทำงานหลังโหลด
+        tryTrimReportUI();
+        patchReportLocalStorageOnce();
+        // prefill ทันที
+        prefillReportOnce();
+      };
+
+      frame.src = src;
+    }else{
+      // เคยโหลดแล้ว -> ซ่อน loading ได้
+      if(REPORT_FRAME_READY) $('repLoading').classList.remove('show');
+    }
   }
 
-  // ✅ ตัดปุ่ม "สรุปยอด" และซ่อนการ์ด "ประวัติ" เฉพาะ popup
+  // ✅ ตัดปุ่มสรุปยอด + ซ่อนการ์ดประวัติ เฉพาะ embed popup
   function tryTrimReportUI(){
     if(REPORT_TRIMMED) return;
     var doc = getReportDoc();
     if(!doc || !doc.body) return;
 
     try{
-      // 1) ซ่อนปุ่มสรุปยอดตาม id (ถ้ามี)
-      var btnSum = doc.getElementById('btnSummary');
-      if(btnSum) btnSum.style.display = 'none';
+      // ซ่อนปุ่มสรุปยอด by id (ชัวร์กว่าเดิม)
+      var btnSummary = doc.getElementById('btnSummary');
+      if(btnSummary) btnSummary.style.display = 'none';
 
-      // 2) ซ่อนการ์ดประวัติ: ถ้ามี histList ให้ซ่อน card ที่ครอบ
-      var histList = doc.getElementById('histList');
-      if(histList){
-        var card = histList.closest ? histList.closest('.card') : null;
+      // ปรับ layout sticky bar ให้เหลือปุ่มเดียวถ้ามี
+      var style = doc.createElement('style');
+      style.textContent = `
+        #btnSummary{display:none !important;}
+        .stickyBar .grid2{grid-template-columns: 1fr !important;}
+      `;
+      doc.head.appendChild(style);
+
+      // ซ่อนการ์ดประวัติ: หา element ที่เกี่ยวกับ history แล้วซ่อน .card ใกล้สุด
+      var hist = doc.getElementById('histList') || doc.getElementById('btnClearAll') || doc.getElementById('btnToggleAll');
+      if(hist){
+        var card = hist.closest ? hist.closest('.card') : null;
         if(card) card.style.display = 'none';
       }
-
-      // 3) fallback: ซ่อน element ที่มีข้อความ "สรุปยอด"
-      var btns = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
-      btns.forEach(function(el){
-        var t = normText(el.textContent || el.value || '');
-        if(t.indexOf('สรุปยอด') !== -1){
-          el.style.display = 'none';
-        }
-      });
 
       REPORT_TRIMMED = true;
     }catch(e){
@@ -1162,135 +1254,43 @@
     }
   }
 
-  // ✅ คุม LocalStorage ใน iframe เฉพาะ embed=1:
-  // - FORM (PT_REPORT_FORM_V1) จะถูก sanitize ให้ account/branchCode/branchName = '' เสมอ
-  // - HISTORY ยังเซฟได้ตามปกติ (เพราะคุณต้องใช้สรุปยอดใน Report.html เต็มหน้า)
-  function patchReportEmbedStorageOnce(){
+  // ✅ บล็อกการ save ของ account/branchCode/branchName ตอน embed
+  function patchReportLocalStorageOnce(){
     if(REPORT_EMBED_PATCHED) return;
-    var win = getReportWin();
+
+    var frame = $('repFrame');
+    var win = null;
+    try{ win = frame.contentWindow; }catch(e){ win = null; }
     if(!win || !win.localStorage) return;
 
     try{
       var LS = win.localStorage;
-      if(LS.__pt_embed_patched){
-        REPORT_EMBED_PATCHED = true;
-        return;
-      }
+      if(LS.__pt_embed_patched) { REPORT_EMBED_PATCHED = true; return; }
 
-      var origSet = LS.setItem.bind(LS);
-      var origGet = LS.getItem.bind(LS);
-
-      function sanitizeForm(raw){
-        try{
-          var obj = JSON.parse(String(raw || '{}'));
-          if(obj && typeof obj === 'object'){
-            obj.account = '';
-            obj.branchCode = '';
-            obj.branchName = '';
-            return JSON.stringify(obj);
-          }
-        }catch(e){}
-        return raw;
-      }
-
-      LS.getItem = function(k){
-        var v = origGet(k);
-        if(String(k) === REPORT_KEYS.FORM && v){
-          return sanitizeForm(v);
-        }
-        return v;
-      };
+      var orig = LS.setItem.bind(LS);
+      LS.__pt_embed_patched = true;
 
       LS.setItem = function(k, v){
         try{
-          if(String(k) === REPORT_KEYS.FORM){
-            v = sanitizeForm(v);
+          // Report.html ใช้ key นี้ตามโค้ดล่าสุดที่คุณให้
+          if(String(k) === 'PT_REPORT_FORM_V1'){
+            var obj = JSON.parse(String(v || '{}'));
+            if(obj && typeof obj === 'object'){
+              // ไม่ให้ 3 ช่องนี้ถูกบันทึก
+              delete obj.account;
+              delete obj.branchCode;
+              delete obj.branchName;
+              v = JSON.stringify(obj);
+            }
           }
         }catch(e){}
-        return origSet(k, v);
+        return orig(k, v);
       };
 
-      LS.__pt_embed_patched = true;
       REPORT_EMBED_PATCHED = true;
     }catch(e){
-      console.warn('patchReportEmbedStorageOnce failed', e);
+      console.warn('patch localStorage failed', e);
     }
-  }
-
-  // ✅ หา input แบบ "id ก่อน" แล้วค่อย semantic (กัน report.html เปลี่ยน class)
-  function findField(doc, ids, keywords){
-    doc = doc || getReportDoc();
-    if(!doc) return null;
-
-    // 0) id
-    if(Array.isArray(ids)){
-      for(var i=0;i<ids.length;i++){
-        var el0 = doc.getElementById(ids[i]);
-        if(el0) return el0;
-      }
-    }
-
-    // 1) label
-    keywords = (keywords || []).map(function(x){ return normText(x); }).filter(Boolean);
-
-    var labels = doc.querySelectorAll('label');
-    for(var a=0;a<labels.length;a++){
-      var lb = labels[a];
-      var lt = normText(lb.textContent || '');
-      if(!lt) continue;
-
-      var hit = keywords.some(function(k){ return lt.indexOf(k) !== -1; });
-      if(!hit) continue;
-
-      var forId = lb.getAttribute('for');
-      if(forId){
-        var el1 = doc.getElementById(forId);
-        if(el1) return el1;
-      }
-
-      var inside = lb.querySelector('input, textarea, select');
-      if(inside) return inside;
-
-      var near = lb.parentElement ? lb.parentElement.querySelector('input, textarea, select') : null;
-      if(near) return near;
-    }
-
-    // 2) placeholder / aria-label
-    var fields = doc.querySelectorAll('input, textarea, select');
-    for(var j=0;j<fields.length;j++){
-      var f = fields[j];
-      var meta = normText((f.getAttribute('placeholder')||'') + ' ' + (f.getAttribute('aria-label')||''));
-      if(!meta) continue;
-      var hit2 = keywords.some(function(k){ return meta.indexOf(k) !== -1; });
-      if(hit2) return f;
-    }
-
-    return null;
-  }
-
-  // ✅ เคลียร์ 3 ช่องทุกครั้งที่เปิด popup (กันค่าเก่าจาก full-page)
-  function clearRestrictedFieldsOnce(){
-    var doc = getReportDoc();
-    var win = getReportWin();
-    if(!doc || !win) return;
-
-    var accEl  = findField(doc, ['account'], ['แอคเคาท์','account']);
-    var numEl  = findField(doc, ['branchCode'], ['เลขสาขา','สาขา','branch','store no','number']);
-    var nameEl = findField(doc, ['branchName'], ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
-
-    [accEl, numEl, nameEl].forEach(function(el){
-      if(!el) return;
-      try{
-        el.removeAttribute('readonly');
-        el.removeAttribute('disabled');
-        el.style.pointerEvents = 'auto';
-      }catch(e){}
-      try{
-        el.value = '';
-        el.dispatchEvent(new win.Event('input', { bubbles:true }));
-        el.dispatchEvent(new win.Event('change', { bubbles:true }));
-      }catch(e){}
-    });
   }
 
   function prefillReportOnce(){
@@ -1300,20 +1300,29 @@
     var doc = getReportDoc();
     if(!doc || !doc.body) return false;
 
-    var win = getReportWin();
+    var frame = $('repFrame');
+    var win = null;
+    try{ win = frame.contentWindow; }catch(e){ win = null; }
     if(!win) return false;
 
-    // ค่าจากคอลัม F/G/H → place.account / place.number / place.account_name
-    var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
-    var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
-    var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
+    // ✅ ค่าหลักจากคอลัม F/G/H (เมื่อ API ส่งมา): account/number/account_name
+    // ✅ fallback parse จาก name เผื่อยังไม่ส่งมา
+    var parsed = parseAccountNumberNameFromText(place.name || '');
 
-    var accEl  = findField(doc, ['account'], ['แอคเคาท์','account']);
-    var numEl  = findField(doc, ['branchCode'], ['เลขสาขา','สาขา','branch','store no','number']);
-    var nameEl = findField(doc, ['branchName'], ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+    var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : (parsed.account || '');
+    var num = (place.number !== undefined && place.number !== null) ? String(place.number) : (parsed.number || '');
+    var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : (parsed.account_name || '');
+
+    // ✅ อ้างอิง id ตรง ๆ (ไม่เดา selector)
+    var accEl = doc.getElementById('account');
+    var numEl = doc.getElementById('branchCode');
+    var namEl = doc.getElementById('branchName');
 
     function setVal(el, val){
       if(!el) return false;
+
+      // ถ้าเป็น select: ถ้าไม่มี option ตรงค่า -> ปล่อยว่าง
+      var isSelect = (el && el.tagName && el.tagName.toLowerCase() === 'select');
       try{
         el.removeAttribute('readonly');
         el.removeAttribute('disabled');
@@ -1321,151 +1330,58 @@
       }catch(e){}
 
       try{
-        el.value = val || '';
+        if(isSelect){
+          var has = false;
+          for(var i=0;i<el.options.length;i++){
+            if(String(el.options[i].value) === String(val)){ has = true; break; }
+          }
+          el.value = has ? String(val) : '';
+        }else{
+          el.value = (val || '');
+        }
+
         el.dispatchEvent(new win.Event('input', { bubbles:true }));
         el.dispatchEvent(new win.Event('change', { bubbles:true }));
-      }catch(e){}
-      return true;
+        return true;
+      }catch(e){
+        return false;
+      }
     }
 
-    // ตัด UI + patch storage + hook copy
+    // ก่อน set: trim + patch save
     tryTrimReportUI();
-    patchReportEmbedStorageOnce();
-    attachCopyHistoryHookOnce();
+    patchReportLocalStorageOnce();
 
-    // เซ็ตค่า (ถ้าไม่มี/หาไม่เจอ → ปล่อยว่าง)
-    var okA = setVal(accEl, acc);
-    var okN = setVal(numEl, num);
-    var okS = setVal(nameEl, nam);
+    var okA = (acc && accEl) ? setVal(accEl, acc) : false;
+    var okN = (num && numEl) ? setVal(numEl, num) : false;
+    var okS = (nam && namEl) ? setVal(namEl, nam) : false;
 
-    return !!(okA || okN || okS);
+    // ถ้าฟิลด์ไหนไม่มี/ใส่ไม่ได้ -> ปล่อยว่างตามที่คุณต้องการ
+    if(accEl && !okA) setVal(accEl, '');
+    if(numEl && !okN) setVal(numEl, '');
+    if(namEl && !okS) setVal(namEl, '');
+
+    return !!(accEl || numEl || namEl);
   }
 
   function startPrefillLoop(){
     var tries = 0;
-    var maxTries = 50;        // ~50*120ms = 6s
+    var maxTries = 45;   // ~45*120ms = 5.4s
     var interval = 120;
 
     var t = setInterval(function(){
       tries++;
-
       tryTrimReportUI();
-      patchReportEmbedStorageOnce();
-      attachCopyHistoryHookOnce();
+      patchReportLocalStorageOnce();
 
       var ok = prefillReportOnce();
       if(ok || tries >= maxTries){
         clearInterval(t);
         if(!ok){
-          showToast('Prefill ไม่เจอช่องใน Report.html (ปล่อยว่างไว้)');
+          showToast('Prefill ไม่เจอ field ใน Report.html (ปล่อยว่างไว้)');
         }
       }
     }, interval);
-  }
-
-  // ✅ Hook: กด "COPY + เปิด LINE กลุ่ม" แล้วต้องมี history อยู่ใน localStorage (Report.html จะเห็นด้วย)
-  function attachCopyHistoryHookOnce(){
-    if(REPORT_COPY_HOOKED) return;
-    var doc = getReportDoc();
-    var win = getReportWin();
-    if(!doc || !win) return;
-
-    try{
-      var btn = doc.getElementById('btnCopy');
-
-      // fallback: หาโดยข้อความ
-      if(!btn){
-        var allBtns = doc.querySelectorAll('button');
-        for(var i=0;i<allBtns.length;i++){
-          var t = normText(allBtns[i].textContent || '');
-          if(t.indexOf('copy') !== -1 && t.indexOf('line') !== -1){
-            btn = allBtns[i];
-            break;
-          }
-        }
-      }
-
-      if(!btn || btn.__pt_hooked) return;
-
-      btn.__pt_hooked = true;
-      btn.addEventListener('click', function(){
-        // ให้ Report.html ทำงานของมันก่อน (copy + save history ตามโค้ดเดิม)
-        setTimeout(function(){
-          ensureHistoryExistsFallback();
-        }, 350);
-      }, true);
-
-      REPORT_COPY_HOOKED = true;
-    }catch(e){
-      console.warn('attachCopyHistoryHookOnce failed', e);
-    }
-  }
-
-  function readHistoryArray(win){
-    try{
-      var raw = win.localStorage.getItem(REPORT_KEYS.HISTORY);
-      if(!raw) return [];
-      var arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    }catch(e){
-      return [];
-    }
-  }
-
-  function writeHistoryArray(win, arr){
-    try{
-      win.localStorage.setItem(REPORT_KEYS.HISTORY, JSON.stringify(arr));
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
-
-  function ensureHistoryExistsFallback(){
-    var doc = getReportDoc();
-    var win = getReportWin();
-    if(!doc || !win || !win.localStorage) return;
-
-    // อ่าน preview text (ตัวจริงของรายงาน)
-    var previewEl = doc.getElementById('preview');
-    var reportText = previewEl ? String(previewEl.textContent || '').trim() : '';
-    if(!reportText){
-      return;
-    }
-
-    var now = Date.now();
-    var arr = readHistoryArray(win);
-
-    // ถ้ามีรายการที่ reportText เหมือนกันอยู่แล้ว (ภายใน 10 วิ) → ไม่ต้องเพิ่มซ้ำ
-    for(var i=0;i<Math.min(arr.length, 12);i++){
-      var it = arr[i];
-      if(!it) continue;
-      var sameText = String(it.reportText || '') === reportText;
-      var t = Number(it.createdAt || 0);
-      if(sameText && (Math.abs(now - t) <= 10000 || t === 0)){
-        return;
-      }
-    }
-
-    // สร้าง entry แบบเดียวกับ Report.html (เท่าที่ทำได้)
-    function gv(id){ var el = doc.getElementById(id); return el ? String(el.value || '').trim() : ''; }
-
-    var entry = {
-      id: String(Date.now()) + '_' + Math.random().toString(16).slice(2),
-      createdAt: now,
-      reportDateISO: gv('reportDate'),
-      reportText: reportText,
-      account: gv('account'),
-      branchCode: gv('branchCode'),
-      branchName: gv('branchName')
-    };
-
-    arr.unshift(entry);
-
-    // กันบวม (เก็บซัก 80 รายการพอ)
-    if(arr.length > 80) arr = arr.slice(0, 80);
-
-    writeHistoryArray(win, arr);
   }
 
   /** =========================
@@ -1530,7 +1446,7 @@
       el.querySelector('[data-act="done"]').onclick = async function(){
         var ok = await openModal({
           title:'ยืนยันว่าไปแล้ว',
-          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจำค่า visited และรายการจะหายไปทันที',
+          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจนจำค่า visited และรายการจะหายไปทันที',
           okText:'ยืนยัน',
           cancelText:'ยกเลิก',
           danger:false
@@ -1686,7 +1602,7 @@
         remaining: (res && res.remaining) ? res.remaining : 0
       };
 
-      // ✅ รองรับคอลัม F/G/H: place.account / place.number / place.account_name
+      // ✅ รองรับอนาคต: place.account / place.number / place.account_name
       PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
 
       renderList();
