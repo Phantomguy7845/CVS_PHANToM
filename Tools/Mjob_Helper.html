@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#dff7ef" />
-  <title>M Jobs Helper</title>
+  <title>Selfie + Time Logger (Mint Light)</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap" rel="stylesheet">
 
+  <!-- Dexie CDN (fallback to native IndexedDB if Dexie fails) -->
   <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     :root{
@@ -162,7 +162,7 @@
       font-weight:900;
       color: var(--muted);
     }
-    .field input{
+    .field input, .field select{
       border:none;
       outline:none;
       background: transparent;
@@ -318,9 +318,10 @@
     @media (max-width: 380px){
       .topBtn{ min-width: 48px; padding: 10px 10px; }
       .topTitle{ font-size: 15px; }
+      .topRight{ gap:8px; }
     }
 
-    /* single line status (no horizontal scroll) */
+    /* header status: 1 line, no horizontal scroll */
     .statusGrid{
       display:grid;
       grid-template-columns: 1.2fr .9fr .9fr;
@@ -612,7 +613,7 @@
           <div class="topTitle">Selfie + Time Logger</div>
           <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
           <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
-          <span class="badge" id="calMiniBadge" style="display:none">📅</span>
+          <span class="badge" id="a2MiniBadge" style="display:none">📅A2</span>
         </div>
 
         <div class="statusGrid" id="headerStatusGrid">
@@ -633,13 +634,14 @@
         <div class="warnLine" id="headerWarnLine">⚠ -</div>
 
         <div class="mini muted" id="headerHint">
-          PHANToM
+          * เว็บไม่การันตีปลุกนอก Chrome • เปิด “A2 (.ics)” แล้วกดปุ่ม 📅 เพื่อให้ OS/Calendar เตือนแทน
         </div>
       </div>
 
       <div class="topRight">
         <button class="btn primary topBtn" id="openCameraBtn" title="เปิดกล้องเซลฟี่">📷</button>
         <button class="btn soft topBtn" id="uploadBtn" title="อัปโหลดจากแกลเลอรี่">🖼️</button>
+        <button class="btn topBtn" id="a2Btn" title="A2: สร้างไฟล์ .ics เพื่อเพิ่ม Reminder ลงปฏิทิน">📅</button>
         <button class="btn topBtn" id="openDrawerBtn" title="ดูรายการ Downloaded">✅</button>
       </div>
     </div>
@@ -707,45 +709,46 @@
         </div>
 
         <div class="switch">
-          <input type="checkbox" id="calToggle" />
+          <input type="checkbox" id="a2Toggle" />
           <div>
-            <div style="font-weight:900;font-size:13px">Sync Google Calendar (A2)</div>
-            <div class="mini muted">สร้าง/อัปเดตอีเวนต์เดิม (ไม่ซ้อน)</div>
+            <div style="font-weight:900;font-size:13px">A2: สร้าง Reminder เป็นไฟล์ .ics</div>
+            <div class="mini muted">กดปุ่ม “📅” เพื่อเพิ่ม/อัปเดตอีเวนต์ใน Calendar</div>
           </div>
         </div>
       </div>
 
-      <div id="calConfig" class="card" style="margin:12px 0 0; box-shadow:none; display:none">
+      <div id="a2Config" class="card" style="margin:12px 0 0; box-shadow:none; display:none">
         <div class="row spread">
           <div class="row" style="gap:8px">
-            <span class="badge" id="calStatusBadge">📅 ปิด</span>
-            <span class="pill" id="calEventPill">event: -</span>
-            <span class="pill" id="calLastErrPill">last: -</span>
+            <span class="badge" id="a2StatusBadge">📅 ปิด</span>
+            <span class="pill" id="a2UidPill">UID: -</span>
+            <span class="pill" id="a2LastPill">last: -</span>
           </div>
           <div class="row" style="gap:8px">
-            <button class="btn soft btnMini" id="calConnectBtn" style="width:auto">เชื่อมต่อ</button>
-            <button class="btn btnMini" id="calDisconnectBtn" style="width:auto">ยกเลิก</button>
+            <button class="btn soft btnMini" id="a2CreateBtn" style="width:auto">📅 สร้าง/อัปเดต .ics</button>
           </div>
         </div>
 
         <div style="height:10px"></div>
-
         <div class="grid2">
           <div class="field">
-            <label>Google OAuth Client ID (Web)</label>
-            <input id="calClientIdInput" placeholder="เช่น 1234abcd.apps.googleusercontent.com" />
-            <div class="mini muted">Authorized JavaScript origins ใส่แค่โดเมน เช่น <b>https://phantomguy7845.github.io</b></div>
+            <label>Reminder type</label>
+            <select id="a2RemindMode">
+              <option value="popup">Popup (แนะนำ)</option>
+              <option value="both">Popup + Email (บางเครื่องอาจไม่ใช้)</option>
+            </select>
+            <div class="mini muted">เราใส่ VALARM ให้: เตือนทันทีเมื่อถึงเวลา</div>
           </div>
           <div class="field">
-            <label>Calendar ID</label>
-            <input id="calCalendarIdInput" placeholder="primary" />
-            <div class="mini muted">ปกติใช้ <b>primary</b> (ปฏิทินหลัก)</div>
+            <label>โซนเวลา</label>
+            <input id="a2TzInput" value="Asia/Bangkok" />
+            <div class="mini muted">ปกติไทยใช้ Asia/Bangkok</div>
           </div>
         </div>
 
         <div style="height:10px"></div>
-        <div class="mini muted" id="calInfoLine">
-          * จะ Sync หลัง “Download ครั้งแรก” แล้วมี Next time ที่คำนวณได้ • ต้องออนไลน์ขณะ Sync
+        <div class="mini muted">
+          * หมายเหตุ: บางแอป Calendar อาจ “เพิ่มซ้อน” เมื่อ import ใหม่ แม้ UID เดิม (ขึ้นกับเครื่อง) — เราลดโอกาสซ้อนโดยสร้างใหม่เฉพาะตอนเวลาเปลี่ยนจริง
         </div>
       </div>
 
@@ -868,7 +871,7 @@
       timer910: "stl_timer910_state",
       alarm: "stl_alarm_state",
       ui: "stl_ui_state",
-      cal: "stl_calendar_state"
+      a2: "stl_a2_state"
     };
 
     const state = {
@@ -902,19 +905,16 @@
         source: { lastDownloadedTag:null, lastDownloadedAt:null }
       },
 
-      cal: {
+      // A2: ICS state
+      a2: {
         enabled:false,
-        clientId:"",
-        calendarId:"primary",
-        token:null,
-        tokenExp:0,
-        eventId:null,
-        lastSyncedDueAt:null,
-        lastSyncedTag:null,
-        lastError:"",
+        tzid:"Asia/Bangkok",
+        remindMode:"popup",
+        uidBase:null,
+        sequence: 0,
+        lastDueAt:null,
+        lastTag:null,
       },
-      calTokenClient: null,
-      calSyncBusy: false,
 
       tickInterval: null,
       toastTimer: null
@@ -951,17 +951,6 @@
       const mm = Math.floor((s%3600)/60);
       const ss = s%60;
       return `${sign}${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
-    }
-
-    function rfc3339Local(ts){
-      const d = new Date(ts);
-      const pad = (n)=>String(n).padStart(2,"0");
-      const offMin = -d.getTimezoneOffset(); // minutes east
-      const sign = offMin >= 0 ? "+" : "-";
-      const abs = Math.abs(offMin);
-      const oh = pad(Math.floor(abs/60));
-      const om = pad(abs%60);
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${oh}:${om}`;
     }
 
     function loadJSON(key, fallback){
@@ -1005,6 +994,8 @@
       }
       return photo;
     }
+
+    // Tag slot allocation: ใช้ “slot ว่างจริง” กันกรณีลบแล้วถ่ายใหม่ -> ต้องกลับมาที่ slot ที่ว่าง
     function computeNextSlot(photos){
       const occ = new Map();
       for(const raw of photos){
@@ -1031,6 +1022,8 @@
       return `IN-${p.idx + 1}`;
     }
 
+    // ===== IndexedDB (Dexie schema) =====
+    // photos: ++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt, blob
     async function initDB(){
       const hasDexie = typeof window.Dexie !== "undefined";
       if(hasDexie){
@@ -1151,6 +1144,7 @@
       return state.db.getAll();
     }
 
+    // ===== Image utils (strip metadata by re-encode via canvas) =====
     function loadImage(src){
       return new Promise((resolve, reject)=>{
         const img = new Image();
@@ -1202,6 +1196,7 @@
       state.thumbUrl.clear();
     }
 
+    // ===== Add/Replace photo =====
     async function addPhotoFromBlob(blob, meta = {}){
       if(state.busy.saving) return;
       state.busy.saving = true;
@@ -1308,6 +1303,7 @@
       }
     }
 
+    // ===== Timer 9:10 lock =====
     const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
 
     function loadTimer910(){
@@ -1373,14 +1369,12 @@
       stopAlarmTimeout();
       hideToast();
 
-      if(state.cal.enabled && state.cal.eventId){
-        calendarDeleteEvent(state.cal.eventId).catch(()=>{});
-      }
-      state.cal.eventId = null;
-      state.cal.lastSyncedDueAt = null;
-      state.cal.lastSyncedTag = null;
-      state.cal.lastError = "";
-      saveCalendarState();
+      // reset A2 uidBase (new round/day)
+      state.a2.uidBase = null;
+      state.a2.sequence = 0;
+      state.a2.lastDueAt = null;
+      state.a2.lastTag = null;
+      saveA2State();
 
       log("Timer reset -> READY");
     }
@@ -1396,12 +1390,11 @@
       const allowed = (!state.timer910.locked) || isUnlockWindowActive();
       if(!allowed) return;
 
-      // reset ready
       resetTimer910ToReady();
       heavyRender();
-      // unlock button will reflect state
     }
 
+    // ===== counts/sorting =====
     function computeCounts(){
       const total = state.photos.length;
       const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
@@ -1422,6 +1415,8 @@
       return downloaded[downloaded.length-1] || null;
     }
 
+    // ===== schedule math (Exact fit to targetAt) =====
+    // rule: after IN gap 3..25 นาที, after OUT gap 4..30 นาที, and IN gap < OUT gap (best-effort)
     function minGapMinutes(kind){ return (kind==="IN") ? 3 : 4; }
     function maxGapMinutes(kind){ return (kind==="IN") ? 25 : 30; }
 
@@ -1477,6 +1472,7 @@
       return { ok:false, a:a0, b:bAdj };
     }
 
+    // adjust milliseconds to hit totalMs exactly (so last scheduled photo == targetAt)
     function distributeMsToMatchTotal(gapsMs, kinds, totalMs){
       let sum = gapsMs.reduce((s,x)=>s+x,0);
       let diff = totalMs - sum;
@@ -1504,7 +1500,6 @@
       return gapsMs;
     }
 
-    // ✅ NEW: schedule.error vs schedule.warn
     function computeScheduleExactFit(){
       const sched = {
         ok:false,
@@ -1552,6 +1547,9 @@
       let kinds = [];
       let intervals = 0;
 
+      // We schedule "dueAt" for each pending item in contiguous chain.
+      // If have last downloaded: chain length = intervals; dueAt_i = lastDownloadedAt + gap_i
+      // If no last downloaded: chain[0] dueAt = baseTime; next ones follow gaps between chain items.
       if(last){
         intervals = chain.length;
         const lastKind = (parseTag(last.tag)?.kind) || "IN";
@@ -1578,12 +1576,9 @@
         maxSum += maxGapMinutes(k)*60000;
       }
 
-      // show missing only if necessary to reach target
-      const missingNeeded = !!missingTag && (totalMs > maxSum + 1);
-
       if(totalMs > maxSum + 1){
+        // Not enough photos (or gaps too small) to reach target -> show missing
         sched.error = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
-        // best-effort max
         const gapsMs = kinds.map(k => Math.round(maxGapMinutes(k)*60000));
         let t = baseTime;
         if(last){
@@ -1655,19 +1650,15 @@
         sched.nextAt = sched.planAtById.get(chain[0].id) || null;
       }
 
-      // Only warn (not error) when IN<OUT constraint couldn't be solved perfectly by a/b search
       if(!abOk){
         sched.warn = "เฉลี่ยแบบ IN<OUT เป๊ะไม่ได้ (ใช้ค่าใกล้เคียง)";
       }
-      if(missingNeeded){
-        // safety
-        sched.error = `ขาดรูป ${missingTag}`;
-      }
-
+      // show missing only when it's actually needed to reach target (handled above via maxSum)
       sched.ok = !sched.error;
       return sched;
     }
 
+    // ===== in-app alarm (best-effort) =====
     function loadAlarmState(){
       const a = loadJSON(LS.alarm, null);
       if(a && typeof a === "object"){
@@ -1796,6 +1787,7 @@
       }
     }
 
+    // ===== Download & mark downloaded =====
     async function downloadPhoto(photo){
       const filename = `${photo.tag}.jpg`;
 
@@ -1819,9 +1811,16 @@
         log("Marked downloaded (first time):", photo.tag);
 
         heavyRender();
-        maybeCalendarSync("download").catch(()=>{});
+
+        // Hint user to use A2 for OS reminder
+        if(state.a2.enabled){
+          const s = state.schedule;
+          if(s && !s.error && s.nextAt && s.nextTag){
+            showToast("A2", "แตะปุ่ม 📅 เพื่อสร้าง Reminder ในปฏิทิน (เตือนนอก Chrome)", 4500);
+          }
+        }
       }else{
-        log("Downloaded again (no schedule reset):", photo.tag);
+        log("Downloaded again:", photo.tag);
       }
     }
 
@@ -1831,7 +1830,6 @@
       state.photos = state.photos.filter(p => p.id !== id);
       log("Deleted", tag, "id=", id);
       heavyRender();
-      maybeCalendarSync("delete").catch(()=>{});
     }
 
     function openDrawer(){
@@ -1843,555 +1841,261 @@
       $("drawer").classList.remove("show");
     }
 
-    function loadCalendarState(){
-      const c = loadJSON(LS.cal, null);
-      if(c && typeof c === "object"){
-        state.cal.enabled = !!c.enabled;
-        state.cal.clientId = c.clientId || "";
-        state.cal.calendarId = c.calendarId || "primary";
-        state.cal.eventId = c.eventId || null;
-        state.cal.lastSyncedDueAt = c.lastSyncedDueAt || null;
-        state.cal.lastSyncedTag = c.lastSyncedTag || null;
-        state.cal.lastError = c.lastError || "";
-        state.cal.token = null;
-        state.cal.tokenExp = 0;
+    // ===== A2: ICS generation (Plan A) =====
+    // เป้าหมาย: ให้ OS/Calendar เป็นคนเตือนนอก Chrome (เสถียรกว่า)
+    // ข้อจำกัด: import ใหม่บางเครื่องอาจซ้อน; เราลดซ้อนด้วย UID เดิม + SEQUENCE และไม่สร้างถ้าเวลาไม่เปลี่ยน
+    function loadA2State(){
+      const a = loadJSON(LS.a2, null);
+      if(a && typeof a === "object"){
+        state.a2.enabled = !!a.enabled;
+        state.a2.tzid = a.tzid || "Asia/Bangkok";
+        state.a2.remindMode = a.remindMode || "popup";
+        state.a2.uidBase = a.uidBase || null;
+        state.a2.sequence = Number.isFinite(a.sequence) ? a.sequence : 0;
+        state.a2.lastDueAt = a.lastDueAt || null;
+        state.a2.lastTag = a.lastTag || null;
       }
     }
-    function saveCalendarState(){
-      saveJSON(LS.cal, {
-        enabled: state.cal.enabled,
-        clientId: state.cal.clientId,
-        calendarId: state.cal.calendarId,
-        eventId: state.cal.eventId,
-        lastSyncedDueAt: state.cal.lastSyncedDueAt,
-        lastSyncedTag: state.cal.lastSyncedTag,
-        lastError: state.cal.lastError
+    function saveA2State(){
+      saveJSON(LS.a2, {
+        enabled: state.a2.enabled,
+        tzid: state.a2.tzid,
+        remindMode: state.a2.remindMode,
+        uidBase: state.a2.uidBase,
+        sequence: state.a2.sequence,
+        lastDueAt: state.a2.lastDueAt,
+        lastTag: state.a2.lastTag,
       });
     }
 
-    function renderCalendarUI(){
-      $("calToggle").checked = state.cal.enabled;
-      $("calConfig").style.display = state.cal.enabled ? "" : "none";
+    function ymdKey(ts){
+      const d = new Date(ts);
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${y}${m}${day}`;
+    }
 
-      $("calClientIdInput").value = state.cal.clientId || "";
-      $("calCalendarIdInput").value = state.cal.calendarId || "primary";
+    function icsDateTimeLocalBasic(ts){
+      // YYYYMMDDTHHMMSS
+      const d = new Date(ts);
+      const pad = (n)=>String(n).padStart(2,"0");
+      return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    }
 
-      const badge = $("calStatusBadge");
-      const mini = $("calMiniBadge");
+    function icsEscape(text){
+      return String(text ?? "")
+        .replace(/\\/g, "\\\\")
+        .replace(/\n/g, "\\n")
+        .replace(/,/g, "\\,")
+        .replace(/;/g, "\\;");
+    }
 
-      $("calLastErrPill").textContent = `last: ${state.cal.lastError ? state.cal.lastError : "-"}`;
+    function buildVTimezoneAsiaBangkok(){
+      // simple VTIMEZONE for Asia/Bangkok (no DST)
+      return [
+        "BEGIN:VTIMEZONE",
+        "TZID:Asia/Bangkok",
+        "X-LIC-LOCATION:Asia/Bangkok",
+        "BEGIN:STANDARD",
+        "TZOFFSETFROM:+0700",
+        "TZOFFSETTO:+0700",
+        "TZNAME:ICT",
+        "DTSTART:19700101T000000",
+        "END:STANDARD",
+        "END:VTIMEZONE"
+      ].join("\r\n");
+    }
 
-      if(!state.cal.enabled){
+    function buildICS({ tzid, uid, sequence, dtStart, dtEnd, summary, description, remindMode }){
+      const dtstamp = icsDateTimeLocalBasic(now());
+      const lines = [];
+
+      lines.push("BEGIN:VCALENDAR");
+      lines.push("PRODID:-//PHANToM//SelfieTimeLogger//TH");
+      lines.push("VERSION:2.0");
+      lines.push("CALSCALE:GREGORIAN");
+      lines.push("METHOD:PUBLISH");
+
+      // timezone block (best compatibility)
+      if((tzid || "").toLowerCase() === "asia/bangkok"){
+        lines.push(buildVTimezoneAsiaBangkok());
+      }
+
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${icsEscape(uid)}`);
+      lines.push(`SEQUENCE:${Number(sequence)||0}`);
+      lines.push(`DTSTAMP:${dtstamp}`);
+      lines.push(`DTSTART;TZID=${icsEscape(tzid)}:${dtStart}`);
+      lines.push(`DTEND;TZID=${icsEscape(tzid)}:${dtEnd}`);
+      lines.push(`SUMMARY:${icsEscape(summary)}`);
+      lines.push(`DESCRIPTION:${icsEscape(description)}`);
+
+      // alarm (popup)
+      lines.push("BEGIN:VALARM");
+      lines.push("TRIGGER:-PT0M");
+      lines.push("ACTION:DISPLAY");
+      lines.push(`DESCRIPTION:${icsEscape(summary)}`);
+      lines.push("END:VALARM");
+
+      if(remindMode === "both"){
+        // OPTIONAL email alarm (may be ignored by some clients)
+        lines.push("BEGIN:VALARM");
+        lines.push("TRIGGER:-PT0M");
+        lines.push("ACTION:EMAIL");
+        lines.push(`DESCRIPTION:${icsEscape(summary)}`);
+        lines.push(`SUMMARY:${icsEscape(summary)}`);
+        lines.push("END:VALARM");
+      }
+
+      lines.push("END:VEVENT");
+      lines.push("END:VCALENDAR");
+
+      return lines.join("\r\n") + "\r\n";
+    }
+
+    function renderA2UI(){
+      $("a2Toggle").checked = state.a2.enabled;
+      $("a2Config").style.display = state.a2.enabled ? "" : "none";
+
+      $("a2RemindMode").value = state.a2.remindMode || "popup";
+      $("a2TzInput").value = state.a2.tzid || "Asia/Bangkok";
+
+      const mini = $("a2MiniBadge");
+      const badge = $("a2StatusBadge");
+
+      if(!state.a2.enabled){
         badge.className = "badge";
         badge.textContent = "📅 ปิด";
         mini.style.display = "none";
-        $("calEventPill").textContent = "event: -";
+        $("a2UidPill").textContent = "UID: -";
+        $("a2LastPill").textContent = "last: -";
         return;
       }
 
       mini.style.display = "";
-      if(state.cal.token && now() < state.cal.tokenExp){
-        // token ok
-        if(state.schedule && state.schedule.error){
-          badge.className = "badge wait";
-          badge.textContent = "📅 รอข้อมูล";
-          mini.className = "badge wait";
-          mini.textContent = "📅";
-        }else{
-          badge.className = "badge ok";
-          badge.textContent = "📅 Connected";
-          mini.className = "badge ok";
-          mini.textContent = "📅";
-        }
+      mini.className = "badge ok";
+      mini.textContent = "📅A2";
+
+      const uid = getA2UidBase();
+      $("a2UidPill").textContent = `UID: ${uid || "-"}`;
+
+      if(state.a2.lastDueAt && state.a2.lastTag){
+        $("a2LastPill").textContent = `last: ${state.a2.lastTag} @ ${fmtTimeOnly(state.a2.lastDueAt)}`;
       }else{
-        badge.className = "badge wait";
-        badge.textContent = "📅 ยังไม่เชื่อมต่อ";
-        mini.className = "badge wait";
-        mini.textContent = "📅";
+        $("a2LastPill").textContent = "last: -";
       }
-
-      $("calEventPill").textContent = `event: ${state.cal.eventId || "-"}`;
-    }
-
-    function ensureTokenClient(){
-      if(!state.cal.enabled) return false;
-      if(!state.cal.clientId) return false;
-      if(!window.google || !google.accounts || !google.accounts.oauth2){
-        return false;
-      }
-      if(state.calTokenClient) return true;
-
-      state.calTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: state.cal.clientId,
-        scope: "https://www.googleapis.com/auth/calendar.events",
-        callback: (resp) => {
-          if(resp && resp.access_token){
-            state.cal.token = resp.access_token;
-            const expiresIn = (resp.expires_in ? Number(resp.expires_in) : 3600);
-            state.cal.tokenExp = now() + expiresIn*1000 - 60*1000;
-            log("Calendar token OK, exp in", expiresIn, "sec");
-            state.cal.lastError = "";
-            saveCalendarState();
-            renderCalendarUI();
-            showToast("Calendar", "เชื่อมต่อแล้ว ✅", 2500);
-            maybeCalendarSync("connect").catch(()=>{});
-          }else{
-            showToast("Calendar", "เชื่อมต่อไม่สำเร็จ", 2500);
-          }
-        }
-      });
-      return true;
-    }
-
-    function calendarConnect(){
-      if(!state.cal.enabled){
-        showToast("Calendar", "เปิดสวิตช์ก่อน", 2500);
-        return;
-      }
-      if(!state.cal.clientId){
-        showToast("Calendar", "กรอก Client ID ก่อน", 3000);
-        return;
-      }
-      if(!ensureTokenClient()){
-        showToast("Calendar", "Google script ยังไม่พร้อม (ลองใหม่)", 3000);
-        return;
-      }
-      try{
-        state.calTokenClient.requestAccessToken({ prompt: "consent" });
-      }catch(e){
-        showToast("Calendar", "ขอสิทธิ์ไม่สำเร็จ", 3000);
-        log("calendarConnect error", e);
-      }
-    }
-
-    function calendarDisconnect(){
-      if(state.cal.token && window.google && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.revoke){
-        try{ google.accounts.oauth2.revoke(state.cal.token, ()=>{}); }catch(_){}
-      }
-      state.cal.token = null;
-      state.cal.tokenExp = 0;
-      renderCalendarUI();
-      showToast("Calendar", "ยกเลิกการเชื่อมต่อแล้ว", 2500);
-    }
-
-    function getCalendarEventId(){
-      if(!state.timer910.startAt) return null;
-      const d = new Date(state.timer910.startAt);
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,"0");
-      const day = String(d.getDate()).padStart(2,"0");
-      const key = `${y}${m}${day}`;
-      return `stl-${key}-next`;
-    }
-
-    async function calendarFetch(url, opts={}){
-      const token = state.cal.token;
-      if(!token) throw new Error("NO_TOKEN");
-      const headers = Object.assign({
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      }, (opts.headers || {}));
-      return fetch(url, { ...opts, headers });
-    }
-
-    async function calendarDeleteEvent(eventId){
-      if(!state.cal.enabled || !state.cal.token || !eventId) return;
-      const calId = encodeURIComponent(state.cal.calendarId || "primary");
-      const eid = encodeURIComponent(eventId);
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${eid}`;
-      try{
-        const res = await calendarFetch(url, { method:"DELETE" });
-        if(res.ok){
-          log("Calendar event deleted:", eventId);
-        }
-      }catch(e){
-        log("Calendar delete error", e);
-      }
-    }
-
-    async function maybeCalendarSync(trigger){
-      if(state.calSyncBusy) return;
-      if(!state.cal.enabled) return;
-
-      if(!state.cal.token || now() >= state.cal.tokenExp){
-        renderCalendarUI();
-        return;
-      }
-
-      const last = getLastDownloadedFirstTime();
-      if(!last) return;
 
       const s = state.schedule;
-      // ✅ FIX: block only on "error" (not warn)
-      if(!s || !s.nextAt || !s.nextTag || s.error){
-        $("calStatusBadge").className = "badge wait";
-        $("calStatusBadge").textContent = "📅 รอข้อมูล";
-        renderCalendarUI();
+      if(!state.timer910.running){
+        badge.className = "badge wait";
+        badge.textContent = "📅 รอเริ่มนับเวลา";
+      }else if(s && s.error){
+        badge.className = "badge wait";
+        badge.textContent = "📅 รอข้อมูล";
+      }else if(s && s.nextAt && s.nextTag){
+        badge.className = "badge ok";
+        badge.textContent = "📅 พร้อมสร้าง .ics";
+      }else{
+        badge.className = "badge wait";
+        badge.textContent = "📅 รอข้อมูล";
+      }
+    }
+
+    function getA2UidBase(){
+      if(!state.a2.enabled) return null;
+      if(state.a2.uidBase) return state.a2.uidBase;
+
+      // create stable uid per "day/round" based on timer start date (so it won't mix across days)
+      if(state.timer910.startAt){
+        const key = ymdKey(state.timer910.startAt);
+        state.a2.uidBase = `stl-next-${key}@phantom-githubpages`;
+        saveA2State();
+        return state.a2.uidBase;
+      }
+      return null;
+    }
+
+    async function createA2IcsAndDownload(){
+      if(!state.a2.enabled){
+        showToast("A2", "เปิดสวิตช์ A2 ก่อน", 2500);
+        return;
+      }
+      if(!state.timer910.running || !state.timer910.targetAt){
+        showToast("A2", "เริ่มนับเวลาก่อน", 2500);
+        return;
+      }
+
+      const s = state.schedule;
+      if(!s || s.error || !s.nextAt || !s.nextTag){
+        showToast("A2", "ยังคำนวณเวลาไม่ได้ (รอข้อมูล)", 3000);
         return;
       }
 
       const dueAt = s.nextAt;
-      const nextTag = s.nextTag;
+      const tag = s.nextTag;
 
-      if(state.cal.lastSyncedDueAt === dueAt && state.cal.lastSyncedTag === nextTag){
+      // prevent needless duplicates if time unchanged
+      if(state.a2.lastDueAt === dueAt && state.a2.lastTag === tag){
+        showToast("A2", "เวลาเดิมอยู่แล้ว (ไม่สร้างซ้ำ)", 2500);
         return;
       }
 
-      const eventId = getCalendarEventId();
-      if(!eventId) return;
+      const tzid = (state.a2.tzid || "Asia/Bangkok").trim();
+      const uid = getA2UidBase() || `stl-next@phantom-githubpages`;
 
-      state.calSyncBusy = true;
+      state.a2.sequence = (state.a2.sequence || 0) + 1;
+      const seq = state.a2.sequence;
+
+      const dtStart = icsDateTimeLocalBasic(dueAt);
+      const dtEnd = icsDateTimeLocalBasic(dueAt + 5*60*1000); // 5 min
+
+      const summary = `STL Next: ${tag}`;
+      const description =
+        `Selfie Time Logger (A2 .ics)\n` +
+        `Next: ${tag}\n` +
+        `When: ${fmtDT(dueAt)}\n` +
+        `Target: ${fmtDT(state.timer910.targetAt)}\n` +
+        (s.warn ? `Warn: ${s.warn}\n` : "") +
+        `UID: ${uid}\n` +
+        `SEQ: ${seq}\n` +
+        `\n* หากเครื่องคุณ import แล้ว “ซ้อน” ให้ลบอีเวนต์เก่าใน Calendar ก่อน แล้วค่อย import ใหม่`;
+
+      const ics = buildICS({
+        tzid,
+        uid,
+        sequence: seq,
+        dtStart,
+        dtEnd,
+        summary,
+        description,
+        remindMode: state.a2.remindMode || "popup"
+      });
+
+      const fname = `STL_NEXT_${tag}.ics`;
+      const blob = new Blob([ics], { type:"text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
       try{
-        const calId = encodeURIComponent(state.cal.calendarId || "primary");
-        const startStr = rfc3339Local(dueAt);
-        const endStr = rfc3339Local(dueAt + 5*60*1000);
-
-        const { total, downloaded, pending } = computeCounts();
-
-        const body = {
-          id: eventId,
-          summary: `STL Next: ${nextTag}`,
-          description:
-            `Selfie Time Logger (Auto)\n` +
-            `Next: ${nextTag}\n` +
-            `When: ${fmtDT(dueAt)}\n` +
-            `Target: ${fmtDT(state.timer910.targetAt)}\n` +
-            `Downloaded: ${downloaded} / Pending: ${pending} / Total: ${total}\n` +
-            (s.warn ? `\nWarn: ${s.warn}\n` : "\n") +
-            `* อีเวนต์นี้ถูกอัปเดตอัตโนมัติจากเว็บ (A2)`,
-          start: { dateTime: startStr },
-          end: { dateTime: endStr },
-          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] }
-        };
-
-        const base = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`;
-        const patchUrl = `${base}/${encodeURIComponent(eventId)}`;
-
-        $("calStatusBadge").className = "badge wait";
-        $("calStatusBadge").textContent = "📅 Syncing…";
-
-        let res = await calendarFetch(patchUrl, { method:"PATCH", body: JSON.stringify(body) });
-
-        if(res.status === 404){
-          res = await calendarFetch(base, { method:"POST", body: JSON.stringify(body) });
-        }
-
-        if(res.ok){
-          state.cal.eventId = eventId;
-          state.cal.lastSyncedDueAt = dueAt;
-          state.cal.lastSyncedTag = nextTag;
-          state.cal.lastError = "";
-          saveCalendarState();
-
-          $("calStatusBadge").className = "badge ok";
-          $("calStatusBadge").textContent = "📅 Synced";
-          $("calEventPill").textContent = `event: ${eventId}`;
-          $("calLastErrPill").textContent = `last: -`;
-
-          log("Calendar synced", { trigger, eventId, nextTag, dueAt: fmtDT(dueAt) });
-        }else{
-          let msg = `HTTP ${res.status}`;
-          try{
-            const j = await res.json();
-            msg = j?.error?.message || msg;
-          }catch(_){
-            const t = await res.text().catch(()=> "");
-            if(t) msg = t.slice(0,120);
-          }
-          state.cal.lastError = msg;
-          saveCalendarState();
-
-          $("calStatusBadge").className = "badge err";
-          $("calStatusBadge").textContent = "📅 Sync fail";
-          $("calLastErrPill").textContent = `last: ${msg}`;
-          log("Calendar sync failed", res.status, msg);
-        }
-      }catch(e){
-        const msg = (e && (e.message||e.name)) ? (e.message||e.name) : "SYNC_ERROR";
-        state.cal.lastError = msg;
-        saveCalendarState();
-
-        $("calStatusBadge").className = "badge err";
-        $("calStatusBadge").textContent = "📅 Sync error";
-        $("calLastErrPill").textContent = `last: ${msg}`;
-        log("Calendar sync error", e);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       }finally{
-        state.calSyncBusy = false;
-        renderCalendarUI();
-      }
-    }
-
-    function renderTopCounts(){
-      const { downloaded } = computeCounts();
-      $("dlCountTop").textContent = downloaded;
-    }
-
-    function renderTimerPanel(){
-      const { downloaded } = computeCounts();
-
-      if(state.timer910.running && state.timer910.locked && downloaded >= 40){
-        state.timer910.locked = false;
-        saveTimer910();
-        log("Auto unlock timer (downloaded >= 40)");
+        URL.revokeObjectURL(url);
       }
 
-      const b = $("timerLockBadge");
-      if(state.timer910.running){
-        if(state.timer910.locked){
-          b.className = "badge err";
-          b.textContent = "LOCKED";
-        }else{
-          b.className = "badge ok";
-          b.textContent = "UNLOCKED";
-        }
-      }else{
-        b.className = "badge ok";
-        b.textContent = "READY";
-      }
+      state.a2.lastDueAt = dueAt;
+      state.a2.lastTag = tag;
+      saveA2State();
 
-      $("timerMeta").textContent =
-        `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
-
-      const startBtn = $("start910Btn");
-      if(!state.timer910.running){
-        startBtn.textContent = "⏱️ เริ่มนับเวลา";
-      }else{
-        startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
-      }
-
-      const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
-      startBtn.disabled = state.timer910.running ? !canResetNow : false;
-
-      const unlockBtn = $("unlockBtn");
-      const canUnlock = state.timer910.running && state.timer910.locked && downloaded < 40;
-      unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
-      if(!isUnlockWindowActive()) unlockBtn.textContent = "🔓";
+      renderA2UI();
+      showToast("A2", "ดาวน์โหลด .ics แล้ว ✅ เปิดด้วย Calendar แล้วกด Save", 5200);
+      log("A2 ICS created", { tag, dueAt: fmtDT(dueAt), uid, seq });
     }
 
-    function renderProgressBar(){
-      const { total } = computeCounts();
-      const prog = Math.min(40, total);
-      $("progressBar").style.width = `${(prog/40)*100}%`;
-      $("goalBadge").style.display = (total >= 40) ? "" : "none";
-    }
-
-    function renderHeaderStatus(){
-      const s = state.schedule;
-      $("headerNextText").textContent = s.nextTag || peekNextTag() || "-";
-
-      if(!state.timer910.running){
-        $("headerWhenText").textContent = "-";
-        $("headerCountdownText").textContent = "-";
-        $("headerWarnLine").style.display = "";
-        $("headerWarnLine").textContent = "⚠ เริ่มนับเวลาก่อน";
-        return;
-      }
-
-      if(s.nextAt){
-        const left = s.nextAt - now();
-        $("headerWhenText").textContent = (left <= 0) ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
-        $("headerCountdownText").textContent = (left <= 0) ? "ถึงเวลา" : fmtHMS(left);
-      }else{
-        $("headerWhenText").textContent = "-";
-        $("headerCountdownText").textContent = "-";
-      }
-
-      // show only ERROR (not warn)
-      if(s.error){
-        $("headerWarnLine").style.display = "";
-        $("headerWarnLine").textContent = `⚠ ${s.error}`;
-      }else{
-        $("headerWarnLine").style.display = "none";
-        $("headerWarnLine").textContent = "";
-      }
-    }
-
-    function renderAlarmPanel(){
-      if(state.alarm.dueAt){
-        const left = state.alarm.dueAt - now();
-        if(left <= 0){
-          $("alarmBadge").className = "badge err";
-          $("alarmBadge").textContent = "ครบเวลาแล้ว";
-        }else{
-          $("alarmBadge").className = "badge wait";
-          $("alarmBadge").textContent = "กำลังนับ…";
-        }
-        $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
-        $("alarmMeta").textContent = `next: ${state.alarm.nextTag || "-"} • dueAt: ${fmtDT(state.alarm.dueAt)}`;
-      }else{
-        $("alarmBadge").className = "badge";
-        $("alarmBadge").textContent = "ยังไม่ตั้ง";
-        $("alarmLeftPill").textContent = "เหลือ: -";
-        $("alarmMeta").textContent = "next: - • dueAt: -";
-      }
-    }
-
-    function renderLists(){
-      const pendingList = $("pendingList");
-      pendingList.innerHTML = "";
-
-      const downloadedList = $("downloadedList");
-      downloadedList.innerHTML = "";
-
-      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
-      const downloaded = state.photos.filter(p=>p.downloaded===1).map(ensureKindIdx);
-
-      pending.sort(sortSlot);
-      downloaded.sort(sortSlot);
-
-      $("pendingBadge").textContent = pending.length;
-      $("pendingEmpty").style.display = pending.length ? "none" : "";
-
-      $("drawerDownloadedCount").textContent = downloaded.length;
-      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
-
-      const planMap = state.schedule.planAtById || new Map();
-
-      for(const p of pending) pendingList.appendChild(renderPhotoItem(p, false, planMap));
-      for(const p of downloaded) downloadedList.appendChild(renderPhotoItem(p, true, planMap));
-
-      const { total, downloaded: dlCount, pending: pendCount } = computeCounts();
-      $("totalCount").textContent = total;
-      $("downloadedCount").textContent = dlCount;
-      $("pendingCount").textContent = pendCount;
-    }
-
-    function renderPhotoItem(photo, isDownloaded, planMap){
-      const wrap = document.createElement("div");
-      wrap.className = "photoItem";
-
-      const img = document.createElement("img");
-      img.className = "thumb";
-      img.src = getThumbUrl(photo);
-      img.alt = photo.tag;
-
-      const info = document.createElement("div");
-      info.className = "info";
-
-      const metaTop = document.createElement("div");
-      metaTop.className = "metaTop";
-
-      const left = document.createElement("div");
-      left.className = "metaLine";
-
-      const tagBadge = document.createElement("span");
-      tagBadge.className = "badge ok";
-      tagBadge.textContent = photo.tag;
-
-      const statusBadge = document.createElement("span");
-      statusBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
-      statusBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
-
-      left.appendChild(tagBadge);
-      left.appendChild(statusBadge);
-
-      const time = document.createElement("div");
-      time.className = "timeText";
-      time.textContent = fmtDT(photo.createdAt);
-
-      metaTop.appendChild(left);
-      metaTop.appendChild(time);
-
-      const timeUseRow = document.createElement("div");
-      timeUseRow.className = "timeUseRow";
-
-      const reco = document.createElement("div");
-      reco.className = "recoText";
-
-      if(!isDownloaded){
-        const t = planMap.get(photo.id);
-        if(t){
-          const late = (t - now()) <= 0;
-          reco.classList.toggle("late", late);
-          reco.textContent = `Time use ${fmtTimeOnly(t)}${late ? " • ถึงเวลา" : ""}`;
-        }else{
-          reco.classList.add("muted");
-          reco.textContent = "Time use —";
-        }
-      }else{
-        reco.classList.add("muted");
-        reco.textContent = `Time use —`;
-      }
-
-      timeUseRow.appendChild(reco);
-
-      if(!isDownloaded){
-        const editBtn = document.createElement("button");
-        editBtn.className = "btn soft btnMini";
-        editBtn.style.width = "auto";
-        editBtn.textContent = "✏️";
-        editBtn.title = "แทนที่รูปใบนี้ (Pending เท่านั้น)";
-        editBtn.onclick = async () => {
-          state.replace.active = true;
-          state.replace.targetId = photo.id;
-          state.replace.targetTag = photo.tag;
-          await openCamera(true);
-        };
-        timeUseRow.appendChild(editBtn);
-      }
-
-      const actions = document.createElement("div");
-      actions.className = "actions";
-
-      const dlBtn = document.createElement("button");
-      dlBtn.className = "btn primary";
-      dlBtn.textContent = "⬇ Download";
-      dlBtn.onclick = async () => {
-        dlBtn.disabled = true;
-        try{ await downloadPhoto(photo); }
-        finally{ dlBtn.disabled = false; }
-      };
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "btn danger";
-      delBtn.textContent = "🗑 Delete";
-      delBtn.onclick = async () => {
-        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
-        if(!ok) return;
-        delBtn.disabled = true;
-        try{ await deletePhoto(photo.id, photo.tag); }
-        finally{ delBtn.disabled = false; }
-      };
-
-      actions.appendChild(dlBtn);
-      actions.appendChild(delBtn);
-
-      info.appendChild(metaTop);
-      info.appendChild(timeUseRow);
-      info.appendChild(actions);
-
-      wrap.appendChild(img);
-      wrap.appendChild(info);
-      return wrap;
-    }
-
-    function heavyRender(){
-      state.schedule = computeScheduleExactFit();
-
-      renderTopCounts();
-      renderProgressBar();
-      renderTimerPanel();
-      renderAlarmPanel();
-      renderLists();
-
-      scheduleNextAlarmFromSchedule();
-      fireAlarmIfNeeded(false);
-
-      renderHeaderStatus();
-      renderCalendarUI();
-
-      maybeCalendarSync("render").catch(()=>{});
-
-      requestAnimationFrame(()=>measureBars());
-    }
-
-    function lightTick(){
-      renderTimerPanel();
-      renderHeaderStatus();
-      renderAlarmPanel();
-      fireAlarmIfNeeded(false);
-    }
-
+    // ===== delete all =====
     async function deleteAll(){
       const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
       if(!ok1) return;
@@ -2421,6 +2125,7 @@
       heavyRender();
     }
 
+    // ===== UI state =====
     function loadUIState(){
       const u = loadJSON(LS.ui, null);
       if(u && typeof u === "object"){
@@ -2441,6 +2146,7 @@
       });
     }
 
+    // ===== Camera =====
     async function openCamera(isReplace = false){
       $("camModalBackdrop").classList.add("show");
       $("camModeBadge").textContent = "CAM";
@@ -2606,6 +2312,286 @@
       updateCamHUD();
     }
 
+    // ===== render =====
+    function renderTopCounts(){
+      const { downloaded } = computeCounts();
+      $("dlCountTop").textContent = downloaded;
+    }
+
+    function renderTimerPanel(){
+      const { downloaded } = computeCounts();
+
+      // auto unlock if downloaded >= 40
+      if(state.timer910.running && state.timer910.locked && downloaded >= 40){
+        state.timer910.locked = false;
+        saveTimer910();
+        log("Auto unlock timer (downloaded >= 40)");
+      }
+
+      const b = $("timerLockBadge");
+      if(state.timer910.running){
+        if(state.timer910.locked){
+          b.className = "badge err";
+          b.textContent = "LOCKED";
+        }else{
+          b.className = "badge ok";
+          b.textContent = "UNLOCKED";
+        }
+      }else{
+        b.className = "badge ok";
+        b.textContent = "READY";
+      }
+
+      $("timerMeta").textContent =
+        `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
+
+      const startBtn = $("start910Btn");
+      if(!state.timer910.running){
+        startBtn.textContent = "⏱️ เริ่มนับเวลา";
+      }else{
+        startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
+      }
+
+      // lock behavior: start button becomes reset only when unlocked OR within 3s unlock window
+      const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
+      startBtn.disabled = state.timer910.running ? !canResetNow : false;
+
+      const unlockBtn = $("unlockBtn");
+      const canUnlock = state.timer910.running && state.timer910.locked && downloaded < 40;
+      unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
+      if(!isUnlockWindowActive()) unlockBtn.textContent = "🔓";
+
+      // left time display
+      if(state.timer910.running && state.timer910.targetAt){
+        $("timerLeftPill").textContent = `เหลือ: ${fmtHMS(state.timer910.targetAt - now())}`;
+      }else{
+        $("timerLeftPill").textContent = "เหลือ: -";
+      }
+    }
+
+    function renderProgressBar(){
+      const { total } = computeCounts();
+      const prog = Math.min(40, total);
+      $("progressBar").style.width = `${(prog/40)*100}%`;
+      $("goalBadge").style.display = (total >= 40) ? "" : "none";
+    }
+
+    function renderHeaderStatus(){
+      const s = state.schedule;
+      $("headerNextText").textContent = s.nextTag || peekNextTag() || "-";
+
+      if(!state.timer910.running){
+        $("headerWhenText").textContent = "-";
+        $("headerCountdownText").textContent = "-";
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = "⚠ เริ่มนับเวลาก่อน";
+        return;
+      }
+
+      if(s.nextAt){
+        const left = s.nextAt - now();
+        $("headerWhenText").textContent = (left <= 0) ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
+        $("headerCountdownText").textContent = (left <= 0) ? "ถึงเวลา" : fmtHMS(left);
+      }else{
+        $("headerWhenText").textContent = "-";
+        $("headerCountdownText").textContent = "-";
+      }
+
+      if(s.error){
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = `⚠ ${s.error}`;
+      }else{
+        $("headerWarnLine").style.display = "none";
+        $("headerWarnLine").textContent = "";
+      }
+    }
+
+    function renderAlarmPanel(){
+      if(state.alarm.dueAt){
+        const left = state.alarm.dueAt - now();
+        if(left <= 0){
+          $("alarmBadge").className = "badge err";
+          $("alarmBadge").textContent = "ครบเวลาแล้ว";
+        }else{
+          $("alarmBadge").className = "badge wait";
+          $("alarmBadge").textContent = "กำลังนับ…";
+        }
+        $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+        $("alarmMeta").textContent = `next: ${state.alarm.nextTag || "-"} • dueAt: ${fmtDT(state.alarm.dueAt)}`;
+      }else{
+        $("alarmBadge").className = "badge";
+        $("alarmBadge").textContent = "ยังไม่ตั้ง";
+        $("alarmLeftPill").textContent = "เหลือ: -";
+        $("alarmMeta").textContent = "next: - • dueAt: -";
+      }
+    }
+
+    function renderLists(){
+      const pendingList = $("pendingList");
+      pendingList.innerHTML = "";
+
+      const downloadedList = $("downloadedList");
+      downloadedList.innerHTML = "";
+
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      const downloaded = state.photos.filter(p=>p.downloaded===1).map(ensureKindIdx);
+
+      pending.sort(sortSlot);
+      downloaded.sort(sortSlot);
+
+      $("pendingBadge").textContent = pending.length;
+      $("pendingEmpty").style.display = pending.length ? "none" : "";
+
+      $("drawerDownloadedCount").textContent = downloaded.length;
+      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
+
+      const planMap = state.schedule.planAtById || new Map();
+
+      for(const p of pending) pendingList.appendChild(renderPhotoItem(p, false, planMap));
+      for(const p of downloaded) downloadedList.appendChild(renderPhotoItem(p, true, planMap));
+
+      const { total, downloaded: dlCount, pending: pendCount } = computeCounts();
+      $("totalCount").textContent = total;
+      $("downloadedCount").textContent = dlCount;
+      $("pendingCount").textContent = pendCount;
+    }
+
+    function renderPhotoItem(photo, isDownloaded, planMap){
+      const wrap = document.createElement("div");
+      wrap.className = "photoItem";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = getThumbUrl(photo);
+      img.alt = photo.tag;
+
+      const info = document.createElement("div");
+      info.className = "info";
+
+      const metaTop = document.createElement("div");
+      metaTop.className = "metaTop";
+
+      const left = document.createElement("div");
+      left.className = "metaLine";
+
+      const tagBadge = document.createElement("span");
+      tagBadge.className = "badge ok";
+      tagBadge.textContent = photo.tag;
+
+      const statusBadge = document.createElement("span");
+      statusBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
+      statusBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
+
+      left.appendChild(tagBadge);
+      left.appendChild(statusBadge);
+
+      const time = document.createElement("div");
+      time.className = "timeText";
+      time.textContent = fmtDT(photo.createdAt);
+
+      metaTop.appendChild(left);
+      metaTop.appendChild(time);
+
+      const timeUseRow = document.createElement("div");
+      timeUseRow.className = "timeUseRow";
+
+      const reco = document.createElement("div");
+      reco.className = "recoText";
+
+      if(!isDownloaded){
+        const t = planMap.get(photo.id);
+        if(t){
+          const late = (t - now()) <= 0;
+          reco.classList.toggle("late", late);
+          reco.textContent = `Time use ${fmtTimeOnly(t)}${late ? " • ถึงเวลา" : ""}`;
+        }else{
+          reco.classList.add("muted");
+          reco.textContent = "Time use —";
+        }
+      }else{
+        reco.classList.add("muted");
+        reco.textContent = `Time use —`;
+      }
+
+      timeUseRow.appendChild(reco);
+
+      // edit only for Pending
+      if(!isDownloaded){
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn soft btnMini";
+        editBtn.style.width = "auto";
+        editBtn.textContent = "✏️";
+        editBtn.title = "แทนที่รูปใบนี้ (Pending เท่านั้น)";
+        editBtn.onclick = async () => {
+          state.replace.active = true;
+          state.replace.targetId = photo.id;
+          state.replace.targetTag = photo.tag;
+          await openCamera(true);
+        };
+        timeUseRow.appendChild(editBtn);
+      }
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const dlBtn = document.createElement("button");
+      dlBtn.className = "btn primary";
+      dlBtn.textContent = "⬇ Download";
+      dlBtn.onclick = async () => {
+        dlBtn.disabled = true;
+        try{ await downloadPhoto(photo); }
+        finally{ dlBtn.disabled = false; }
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn danger";
+      delBtn.textContent = "🗑 Delete";
+      delBtn.onclick = async () => {
+        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
+        if(!ok) return;
+        delBtn.disabled = true;
+        try{ await deletePhoto(photo.id, photo.tag); }
+        finally{ delBtn.disabled = false; }
+      };
+
+      actions.appendChild(dlBtn);
+      actions.appendChild(delBtn);
+
+      info.appendChild(metaTop);
+      info.appendChild(timeUseRow);
+      info.appendChild(actions);
+
+      wrap.appendChild(img);
+      wrap.appendChild(info);
+      return wrap;
+    }
+
+    function heavyRender(){
+      state.schedule = computeScheduleExactFit();
+
+      renderTopCounts();
+      renderProgressBar();
+      renderTimerPanel();
+      renderAlarmPanel();
+      renderLists();
+      renderA2UI();
+
+      scheduleNextAlarmFromSchedule();
+      fireAlarmIfNeeded(false);
+
+      renderHeaderStatus();
+
+      requestAnimationFrame(()=>measureBars());
+    }
+
+    function lightTick(){
+      renderTimerPanel();
+      renderHeaderStatus();
+      renderAlarmPanel();
+      fireAlarmIfNeeded(false);
+    }
+
+    // ===== bars measuring =====
     function measureBars(){
       const top = $("topBar");
       const bottom = $("stickyBar");
@@ -2620,11 +2606,12 @@
       ro.observe($("stickyBar"));
     }
 
+    // ===== boot =====
     async function boot(){
       loadUIState();
       loadTimer910();
       loadAlarmState();
-      loadCalendarState();
+      loadA2State();
 
       await initDB();
       await refresh();
@@ -2639,7 +2626,6 @@
         const files = Array.from(e.target.files || []);
         e.target.value = "";
         await handleFilesAdd(files);
-        maybeCalendarSync("add").catch(()=>{});
       });
 
       $("fallbackUploadBtn").onclick = ()=> {
@@ -2650,7 +2636,6 @@
         const file = (e.target.files && e.target.files[0]) ? e.target.files[0] : null;
         e.target.value = "";
         await handleFileReplace(file);
-        maybeCalendarSync("replace").catch(()=>{});
       });
 
       $("openCameraBtn").onclick = async ()=> {
@@ -2671,11 +2656,8 @@
       $("closeDrawerBtn").onclick = closeDrawer;
       $("drawerBackdrop").onclick = closeDrawer;
 
-      $("start910Btn").onclick = async ()=>{
-        await onStartButtonClick();
-        maybeCalendarSync("timer").catch(()=>{});
-      };
-      $("unlockBtn").onclick = ()=> openUnlockWindow3s();
+      $("start910Btn").onclick = onStartButtonClick;
+      $("unlockBtn").onclick = openUnlockWindow3s;
       $("deleteAllBtn").onclick = deleteAll;
 
       $("toastDismissBtn").onclick = hideToast;
@@ -2704,41 +2686,26 @@
         $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
       });
 
-      $("calToggle").addEventListener("change", ()=>{
-        state.cal.enabled = $("calToggle").checked;
-        saveCalendarState();
-        if(state.cal.enabled){
-          showToast("Calendar", "เปิด Sync แล้ว (กรอก Client ID แล้วกดเชื่อมต่อ)", 3500);
-        }else{
-          state.cal.token = null;
-          state.cal.tokenExp = 0;
-          saveCalendarState();
-        }
-        renderCalendarUI();
+      // A2 controls
+      $("a2Toggle").addEventListener("change", ()=>{
+        state.a2.enabled = $("a2Toggle").checked;
+        saveA2State();
+        renderA2UI();
         measureBars();
+        showToast("A2", state.a2.enabled ? "เปิด A2 แล้ว ✅ แตะปุ่ม 📅 เพื่อสร้าง .ics" : "ปิด A2 แล้ว", 2800);
       });
 
-      $("calClientIdInput").addEventListener("input", ()=>{
-        state.cal.clientId = $("calClientIdInput").value.trim();
-        saveCalendarState();
-        state.calTokenClient = null;
-        renderCalendarUI();
+      $("a2RemindMode").addEventListener("change", ()=>{
+        state.a2.remindMode = $("a2RemindMode").value;
+        saveA2State();
+      });
+      $("a2TzInput").addEventListener("input", ()=>{
+        state.a2.tzid = ($("a2TzInput").value || "Asia/Bangkok").trim();
+        saveA2State();
       });
 
-      $("calCalendarIdInput").addEventListener("input", ()=>{
-        state.cal.calendarId = ($("calCalendarIdInput").value.trim() || "primary");
-        saveCalendarState();
-        renderCalendarUI();
-      });
-
-      $("calConnectBtn").onclick = ()=> {
-        if(!ensureTokenClient()){
-          showToast("Calendar", "Google script ยังไม่พร้อม (ลองใหม่)", 3000);
-          return;
-        }
-        calendarConnect();
-      };
-      $("calDisconnectBtn").onclick = calendarDisconnect;
+      $("a2CreateBtn").onclick = createA2IcsAndDownload;
+      $("a2Btn").onclick = createA2IcsAndDownload;
 
       document.addEventListener("visibilitychange", ()=>{
         if(!document.hidden){
@@ -2752,7 +2719,7 @@
       state.tickInterval = setInterval(lightTick, 1000);
 
       setSaveState("พร้อมใช้งาน", "wait");
-      renderCalendarUI();
+      renderA2UI();
       heavyRender();
 
       log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
