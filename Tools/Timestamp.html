@@ -79,6 +79,7 @@
       justify-content:space-between;
       padding: 0 var(--padX);
       gap: 10px;
+      flex: 0 0 auto;
     }
     .topbar .left,
     .topbar .right{
@@ -143,15 +144,16 @@
       align-items:center;
       justify-content:center;
       transform: translateY(calc(-1 * var(--vfLift)));
+      min-height: 0; /* ✅ สำคัญ: ป้องกัน grid ดันให้เกิด overflow */
     }
 
-    /* ✅ Viewfinder: ขยายอัตโนมัติให้ใหญ่สุดตามพื้นที่ (ไม่โดน meta/gallery บีบแล้ว) */
     .viewWrap{
       width: 100%;
       height: 100%;
       display:flex;
       align-items:center;
       justify-content:center;
+      min-height: 0;
     }
 
     .viewfinder{
@@ -244,6 +246,8 @@
       flex-direction:column;
       gap: 10px;
       align-items:center;
+      flex: 0 0 auto;
+      min-height: 0; /* ✅ กันบวม */
     }
 
     /* ✅ ย้าย meta+gallery มาไว้ล่าง เพื่อไม่ให้บีบ viewfinder */
@@ -256,6 +260,7 @@
       border: 1px solid var(--line);
       background: rgba(18,18,18,.72);
       backdrop-filter: blur(10px);
+      flex: 0 0 auto;
     }
     .metaRow{
       display:flex;
@@ -331,14 +336,30 @@
       box-shadow: 0 0 0 4px rgba(16,185,129,.18);
     }
 
-    /* Gallery strip */
+    /* ✅ Gallery strip: “แถบเลื่อนซ้าย-ขวา” แบบไม่เพิ่มความสูง/ไม่ขยายหน้าจอ */
     .gallery{
       width: min(100%, 980px);
       display:flex;
+      align-items:center;
       gap: 10px;
-      overflow:auto;
+
+      /* ✅ สำคัญ: บังคับให้เป็นแถบแนวนอนเสมอ */
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+
+      /* ✅ ให้ความสูงคงที่ ไม่ดัน layout */
+      height: calc(var(--thumb) + 12px);
+      max-height: calc(var(--thumb) + 12px);
+
       padding: 6px 2px;
       scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+
+      scroll-snap-type: x proximity;
+      flex: 0 0 auto;
     }
     .gallery::-webkit-scrollbar{ display:none; }
 
@@ -354,6 +375,8 @@
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       user-select:none;
+
+      scroll-snap-align: start;
     }
     .thumb img{
       width:100%;
@@ -397,6 +420,7 @@
       grid-template-columns: 1fr auto 1fr;
       align-items:center;
       gap: 10px;
+      flex: 0 0 auto;
     }
 
     .actionBtn{
@@ -433,6 +457,7 @@
       display:grid;
       place-items:center;
       position:relative;
+      flex: 0 0 auto;
     }
     .shutter::after{
       content:"";
@@ -495,6 +520,7 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
+      min-height: 0;
     }
     .modalHeader{
       display:flex;
@@ -504,6 +530,7 @@
       border-bottom: 1px solid rgba(255,255,255,.10);
       background: rgba(255,255,255,.04);
       gap:10px;
+      flex: 0 0 auto;
     }
     .modalHeader .hTitle{
       font-weight: 950;
@@ -520,6 +547,7 @@
       overflow:auto;
       display:grid;
       gap: 12px;
+      min-height: 0;
     }
     .modalFooter{
       padding: 12px;
@@ -528,6 +556,7 @@
       justify-content:flex-end;
       border-top: 1px solid rgba(255,255,255,.10);
       background: rgba(255,255,255,.04);
+      flex: 0 0 auto;
     }
 
     .btn{
@@ -732,7 +761,7 @@
         </div>
       </div>
 
-      <!-- Gallery -->
+      <!-- Gallery (แนวนอนเลื่อนซ้าย-ขวา ไม่เพิ่มความสูง) -->
       <div class="gallery" id="gallery"></div>
 
       <!-- Bottom row -->
@@ -1313,7 +1342,7 @@
     updateOverlayUI();
     refreshLocSummary();
     updateLogUI();
-    updatePresetGuide(); /* ✅ ปรับกรอบตาม preset */
+    updatePresetGuide();
   }
 
   function updateLogUI(){
@@ -1352,9 +1381,8 @@
     }
   }
 
-  /* ✅ Preset guide: ให้ viewfinder ใหญ่ (4:3 แนวตั้ง) แต่ “กรอบด้านใน” ปรับตาม preset */
+  /* ✅ Preset guide */
   function updatePresetGuide(){
-    // แสดงเฉพาะตอน outputMode=preset
     if (state.settings.outputMode !== "preset"){
       presetGuide.classList.remove("show");
       presetGuide.setAttribute("aria-hidden","true");
@@ -1367,14 +1395,10 @@
 
     const {w:pw, h:ph} = parseSize(state.settings.outputSize);
     const presetAspect = pw / ph; // width/height (portrait < 1)
-
-    // viewfinder aspect (base 3/4)
     const vfAspect = vfW / vfH;
 
-    // คำนวณกรอบให้ "พอดี" อยู่ใน viewfinder
     let frameW, frameH;
     if (presetAspect <= vfAspect){
-      // preset แคบกว่า => จำกัดด้วยความสูง
       frameH = vfH;
       frameW = frameH * presetAspect;
       if (frameW > vfW){
@@ -1382,7 +1406,6 @@
         frameH = frameW / presetAspect;
       }
     } else {
-      // preset กว้างกว่า => จำกัดด้วยความกว้าง
       frameW = vfW;
       frameH = frameW / presetAspect;
       if (frameH > vfH){
@@ -1391,7 +1414,6 @@
       }
     }
 
-    // margin ให้สวย (ไม่ชนขอบ viewfinder)
     const margin = Math.max(10, Math.round(Math.min(vfW, vfH) * 0.04));
     const scale = Math.min((vfW - margin*2) / frameW, (vfH - margin*2) / frameH, 1);
     frameW = Math.round(frameW * scale);
@@ -1400,13 +1422,11 @@
     const x = Math.round((vfW - frameW) / 2);
     const y = Math.round((vfH - frameH) / 2);
 
-    // วาง frame
     guideFrame.style.left = x + "px";
     guideFrame.style.top = y + "px";
     guideFrame.style.width = frameW + "px";
     guideFrame.style.height = frameH + "px";
 
-    // วาง mask รอบ ๆ frame
     maskTop.style.left = "0px";
     maskTop.style.top = "0px";
     maskTop.style.width = vfW + "px";
@@ -1432,7 +1452,6 @@
     presetGuide.setAttribute("aria-hidden","false");
   }
 
-  // ให้ guide อัปเดตเมื่อจอเปลี่ยน / rotate
   window.addEventListener("resize", () => {
     requestAnimationFrame(updatePresetGuide);
   });
@@ -1514,7 +1533,6 @@
 
       addLog(`camera started: facing=${state.cam.facingMode} torch=${state.cam.torchSupported}`);
 
-      // ✅ เริ่มกล้องแล้วอัปเดต guide (ขนาด viewfinder พร้อม)
       requestAnimationFrame(updatePresetGuide);
     } catch (e){
       vfHint.textContent = "เปิดกล้องไม่สำเร็จ (ต้องอนุญาตกล้อง + ใช้ HTTPS / GitHub Pages) — ยังสามารถ Import รูปได้";
@@ -1960,7 +1978,7 @@
     return { outW, outH, lines: lines.length };
   }
 
-  /* ✅ Capture: ครอปตาม “สิ่งที่เห็นใน viewfinder” (ทำให้ preset guide มีความหมาย) */
+  /* ✅ Capture: ครอปตาม “สิ่งที่เห็นใน viewfinder” */
   async function captureFromCamera(){
     if (!state.cam.stream){
       showToast("ยังไม่มีกล้อง — ใช้ Import แทนได้");
@@ -1973,7 +1991,6 @@
     const vfW = viewfinder.clientWidth || 360;
     const vfH = viewfinder.clientHeight || 640;
 
-    // object-fit: cover crop
     const scale = Math.max(vfW / iw, vfH / ih);
     const srcW = vfW / scale;
     const srcH = vfH / scale;
@@ -2629,16 +2646,14 @@
   window.addEventListener("beforeunload", () => { try{ stopCamera(); }catch{} });
 
   /* Boot */
-  addLog("boot camera-first (bigger viewfinder)");
+  addLog("boot camera-first (gallery horizontal-fixed)");
   applySettingsToUI();
   updateGallery();
   updateButtons();
 
   dlQuality.disabled = (dlType.value === "image/png");
 
-  // Start camera immediately
   startCamera({ facingMode: state.cam.facingMode });
-
   refreshAddressIfNeeded().catch(() => {});
 })();
 </script>
