@@ -3,36 +3,26 @@
   Single-file web app (HTML/CSS/JS) — Selfie + Time Logger (Mint Light style)
   Host on GitHub Pages (no backend). Uses IndexedDB (Dexie preferred; native fallback)
 
-  ✅ Latest fixes implemented per your checklist:
-  1) Schedule / Missing-tag (ขาดรูป) = "horizon-based"
-     - จะโชว์ “ขาดรูป IN-x/OUT-x” ก็ต่อเมื่อจำเป็นต้องใช้รูปนั้น “เพื่อให้ครอบคลุมเวลาถึง target (+9:10)”
-     - ถ้ารูปที่มี “เพียงพอไปจนถึง target” => ไม่โชว์ขาดรูป, Header จะแสดงเฉพาะ Next tag + เวลาแนะนำ
+  ✅ Changes in this version (per your latest review):
+  1) Header Next/เวลา/อีก อยู่ "บรรทัดเดียว" โดยไม่ใช้ horizontal scroll
+     - ใช้ CSS Grid 3 ช่อง + clamp() ลด padding/font ตามจออัตโนมัติ
+     - ไม่มีการเลื่อนแนวนอน
 
-  2) Download ซ้ำได้ แต่ "ไม่รีเซ็ตแผนเวลา"
-     - กด Download ซ้ำ: ไม่แก้ downloadedAt และไม่เปลี่ยนจุดเริ่มคำนวณ
-     - ตัวเตือน/แผนยึดการ “โหลดครั้งแรกของรูปนั้น” เท่านั้น
+  2) ปรับการคำนวณเวลาให้ “ภาพสุดท้ายที่ต้องโหลด” ตรงกับ targetAt เป๊ะ (Exact-fit)
+     - สร้างชุด “Pending ต่อเนื่องตามลำดับ tag” จาก nextExpected ไปจนสุดที่มี
+     - ถ้าเป็นไปได้ตามกฎ min/max => กระจายช่วงเวลาให้ผลรวมพอดี ทำให้ “ใบสุดท้าย = targetAt”
+     - ถ้าไม่เป็นไปได้ => แจ้งเตือนตามเหตุผล (รูปไม่พอ / เวลาน้อยเกิน / ขาดรูปที่จำเป็น)
+     - ข้อความ “ขาดรูป …” จะเกิดก็ต่อเมื่อ “จำเป็น” ต่อการทำให้ถึง targetAt เท่านั้น
 
-  3) Alarm UI ลดความเด่น
-     - จากแถบแดงใหญ่ => เปลี่ยนเป็น toast เล็กๆ แบบ Mint (ปิดได้/auto-hide)
-     - ยังมี best-effort: Notification (ถ้าอนุญาต) + vibrate + beep (ขึ้นกับเครื่อง)
+  3) เพิ่ม Google Calendar Sync โหมด A2 (เปิด-ปิดด้วยสวิตช์)
+     - สร้าง/อัปเดต Event เดิม (ไม่ซ้อน) ด้วย Calendar API (events.patch / insert)
+     - ต้องตั้งค่า Google OAuth Client ID (Web) และอนุญาต scope calendar.events
+     - จะ Sync เมื่อมี lastDownloadedAt + schedule ไม่มี error + มี nextAt/nextTag
+     - ถ้า offline/ไม่ได้เชื่อมต่อ จะโชว์สถานะ แต่แอปยังใช้งานได้ตามปกติ
 
-  4) Header บังเนื้อหา
-     - ใช้ ResizeObserver วัดความสูง topBar/stickyBar แบบ real-time
-     - body padding-top/padding-bottom ปรับตามจริงตลอด
-
-  5) UI update ช้า/ไม่ย้ายรายการหลัง Download
-     - ยกเลิกการ render หนักทุก 1 วิ
-     - แยกเป็น:
-       - heavyRender(): สร้าง list/คำนวณแผนเต็ม (เรียกเฉพาะตอนข้อมูลเปลี่ยน)
-       - lightTick(): อัปเดตแค่ countdown/ข้อความ (ทุก 1 วิ เบามาก)
-
-  6) Downloaded list ซ่อนไว้เป็น “Drawer สไลด์”
-     - มีปุ่ม “✅ Downloaded(x)” ใน Header เปิด/ปิด Drawer
-
-  7) เพิ่มปุ่ม Edit เฉพาะ “Pending”
-     - ปุ่ม ✏️ อยู่ขวาของบรรทัด Time use
-     - กดแล้วถ่าย/อัปโหลดรูปใหม่เพื่อ “แทนที่รูปเดิมใน slot เดิม” (tag/kind/idx/createdAt คงเดิม)
-     - Downloaded ไม่มีกด Edit ตามที่คุณกำหนด
+  Notes:
+  - เว็บทั่วไปไม่มี backend/push => นอก Chrome/ปิดแท็บ “ไม่การันตี” การแจ้งเตือน
+  - Calendar Sync (A2) = ใช้ notification engine ของ OS ผ่าน Google Calendar (เสถียรกว่าเว็บ) แต่ต้องออนไลน์ตอน sync
 
   -----------------------------------------
   DB Schema (Dexie):
@@ -48,12 +38,12 @@
 
   9:10 Timer lock:
     - กดครั้งที่ 1: เริ่มนับ + ล็อค + ปุ่มเปลี่ยนเป็น "สิ้นสุด HH:MM"
-    - กดครั้งที่ 2: รีเซ็ตได้เฉพาะเมื่อ UNLOCKED หรืออยู่ในหน้าต่าง 3 วิหลัง “🔓 ปลดล็อค”
+    - กดครั้งที่ 2: รีเซ็ตได้เฉพาะเมื่อ UNLOCKED หรืออยู่ในหน้าต่าง 3 วิหลัง “🔓”
     - Auto unlock เมื่อ downloadedCount >= 40
 
   Notification + fallback + catch-up:
-    - ไม่มี backend/push => นอก Chrome/ปิดแท็บ "ไม่การันตี"
-    - ในแอป: setTimeout + catch-up เมื่อกลับมาเปิด (ถ้าเลยเวลาแล้วจะขึ้น toast ทันที)
+    - In-app: setTimeout + catch-up เมื่อกลับมาเปิด
+    - Calendar Sync (A2): ทำให้แจ้งเตือนนอกแอปได้ (ผ่าน Google Calendar)
 -->
 
 <!doctype html>
@@ -71,6 +61,9 @@
 
   <!-- Dexie via CDN (preferred) -->
   <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
+
+  <!-- Google Identity Services (OAuth token for Calendar API) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     :root{
@@ -99,17 +92,11 @@
       color:var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
-
       padding-top: calc(var(--topH) + 10px);
       padding-bottom: calc(var(--stickH) + 12px);
     }
 
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0 14px 24px;
-    }
-
+    .wrap{ max-width: 980px; margin: 0 auto; padding: 0 14px 24px; }
     .mini{ font-size: 12px; color: var(--muted2); }
     .muted{ color: var(--muted); }
 
@@ -169,20 +156,9 @@
       border-color: rgba(0,0,0,.0);
       color: #062a22;
     }
-    .btn.soft{
-      background: var(--soft);
-      border-color: #c8efe3;
-    }
-    .btn.danger{
-      background: #fff1f1;
-      border-color: #ffd1d1;
-      color: #7c1313;
-    }
-    .btn.warn{
-      background: #fff7e6;
-      border-color: #ffe2ad;
-      color: #7a4e00;
-    }
+    .btn.soft{ background: var(--soft); border-color: #c8efe3; }
+    .btn.danger{ background: #fff1f1; border-color: #ffd1d1; color: #7c1313; }
+    .btn.warn{ background: #fff7e6; border-color: #ffe2ad; color: #7a4e00; }
 
     .pill{
       display:inline-flex;
@@ -223,6 +199,31 @@
       border-radius: 14px;
     }
     .switch input{ width: 22px; height: 22px; }
+
+    .field{
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      border-radius: 14px;
+      padding: 10px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .field label{
+      font-size:12px;
+      font-weight:900;
+      color: var(--muted);
+    }
+    .field input{
+      border:none;
+      outline:none;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      padding: 0;
+      width: 100%;
+    }
 
     .progressWrap{
       width: 100%;
@@ -344,7 +345,7 @@
     .topTitleRow{
       display:flex;
       align-items:center;
-      gap:10px;
+      gap:8px;
       flex-wrap:wrap;
     }
     .topTitle{
@@ -369,13 +370,41 @@
     }
     @media (max-width: 380px){
       .topBtn{ min-width: 48px; padding: 10px 10px; }
+      .topTitle{ font-size: 15px; }
     }
 
-    .headerStatusRow{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      flex-wrap:wrap;
+    /* Header status row: single line, no horizontal scroll */
+    .statusGrid{
+      display:grid;
+      grid-template-columns: 1.2fr .9fr .9fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .statusPill{
+      width: 100%;
+      justify-content: space-between;
+      padding: clamp(5px, 1.5vw, 6px) clamp(8px, 2vw, 10px);
+      font-size: clamp(11px, 3.1vw, 12px);
+    }
+    .statusPill b{
+      font-weight: 900;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .statusPill .k{
+      font-size: clamp(10px, 2.9vw, 11px);
+      color: var(--muted2);
+      font-weight: 900;
+    }
+
+    .warnLine{
+      display:none;
+      font-size: 12px;
+      font-weight: 900;
+      color: #7c1313;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Sticky bar bottom */
@@ -396,15 +425,13 @@
       gap:10px;
       align-items:stretch;
     }
-
     .stickyInner .btn.bigPrimary{
       min-height: 56px;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 900;
       letter-spacing: .2px;
       box-shadow: 0 10px 22px rgba(14,42,35,.14);
     }
-
     .btn.square{
       width: 56px;
       height: 56px;
@@ -560,9 +587,7 @@
       display:block;
       transform: none;
     }
-    video#camVideo.mirror{
-      transform: scaleX(-1);
-    }
+    video#camVideo.mirror{ transform: scaleX(-1); }
     .vfOverlay{
       position:absolute;
       inset:0;
@@ -646,17 +671,29 @@
           <div class="topTitle">Selfie + Time Logger</div>
           <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
           <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
+          <span class="badge" id="calMiniBadge" style="display:none">📅</span>
         </div>
 
-        <div class="headerStatusRow">
-          <span class="pill" id="headerNextPill">Next: <b id="headerNextText">-</b></span>
-          <span class="pill" id="headerWhenPill">เวลา: <b id="headerWhenText">-</b></span>
-          <span class="pill" id="headerCountdownPill">อีก: <b id="headerCountdownText">-</b></span>
-          <span class="badge err" id="headerWarnBadge" style="display:none">⚠ -</span>
+        <!-- single line status -->
+        <div class="statusGrid" id="headerStatusGrid">
+          <div class="pill statusPill">
+            <span class="k">Next</span>
+            <b id="headerNextText">-</b>
+          </div>
+          <div class="pill statusPill">
+            <span class="k">เวลา</span>
+            <b id="headerWhenText">-</b>
+          </div>
+          <div class="pill statusPill">
+            <span class="k">อีก</span>
+            <b id="headerCountdownText">-</b>
+          </div>
         </div>
+
+        <div class="warnLine" id="headerWarnLine">⚠ -</div>
 
         <div class="mini muted" id="headerHint">
-          * นอก Chrome/ปิดแท็บ: เว็บทั่วไปไม่การันตีแจ้งเตือน (ในแอปจะทำแบบ best-effort)
+          * ปิดแท็บ/ออกจาก Chrome: เว็บไม่การันตีปลุก • เปิด Sync Calendar เพื่อเตือนนอกแอปได้
         </div>
       </div>
 
@@ -691,7 +728,7 @@
       <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
     </section>
 
-    <!-- Progress (moved to bottom as requested) -->
+    <!-- Progress (bottom) -->
     <section class="card">
       <h2>
         <span>Progress</span>
@@ -713,7 +750,7 @@
           <input type="checkbox" id="mirrorHintToggle" checked />
           <div>
             <div style="font-weight:900;font-size:13px">กล้องหน้าแบบกระจก (Mirror)</div>
-            <div class="mini muted">พรีวิว & ภาพที่บันทึกจะเหมือนกัน (flip ซ้าย-ขวา)</div>
+            <div class="mini muted">พรีวิว & ภาพที่บันทึกจะเหมือนกัน</div>
           </div>
         </div>
 
@@ -721,7 +758,7 @@
           <input type="checkbox" id="autoWakeToggle" checked />
           <div>
             <div style="font-weight:900;font-size:13px">Catch-up เมื่อกลับมาเปิด</div>
-            <div class="mini muted">ถ้าเลยเวลาแล้ว จะขึ้น toast เล็กๆ ทันที</div>
+            <div class="mini muted">ถ้าเลยเวลาแล้วจะขึ้น toast</div>
           </div>
         </div>
 
@@ -731,6 +768,48 @@
             <div style="font-weight:900;font-size:13px">เปิด Log panel</div>
             <div class="mini muted">ใช้ debug บนมือถือ</div>
           </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="calToggle" />
+          <div>
+            <div style="font-weight:900;font-size:13px">Sync Google Calendar (A2)</div>
+            <div class="mini muted">สร้าง/อัปเดตอีเวนต์เดิม (ไม่ซ้อน)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar config -->
+      <div id="calConfig" class="card" style="margin:12px 0 0; box-shadow:none; display:none">
+        <div class="row spread">
+          <div class="row" style="gap:8px">
+            <span class="badge" id="calStatusBadge">📅 ปิด</span>
+            <span class="pill" id="calEventPill">event: -</span>
+          </div>
+          <div class="row" style="gap:8px">
+            <button class="btn soft btnMini" id="calConnectBtn" style="width:auto">เชื่อมต่อ</button>
+            <button class="btn btnMini" id="calDisconnectBtn" style="width:auto">ยกเลิก</button>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Google OAuth Client ID (Web)</label>
+            <input id="calClientIdInput" placeholder="เช่น 1234abcd.apps.googleusercontent.com" />
+            <div class="mini muted">ต้องเพิ่ม Authorized JavaScript origins เป็นโดเมน GitHub Pages ของคุณ</div>
+          </div>
+          <div class="field">
+            <label>Calendar ID</label>
+            <input id="calCalendarIdInput" placeholder="primary" />
+            <div class="mini muted">ปกติใช้ <b>primary</b> (ปฏิทินหลัก)</div>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="mini muted" id="calInfoLine">
+          * จะ Sync เมื่อมีการ “Download ครั้งแรก” แล้วมี Next time ที่คำนวณได้ • ต้องออนไลน์ขณะ Sync
         </div>
       </div>
 
@@ -857,16 +936,17 @@
     const $ = (id) => document.getElementById(id);
 
     const LS = {
-      timer910: "stl_timer910_state",   // {running, locked, startAt, targetAt}
-      alarm: "stl_alarm_state",         // {dueAt, nextTag, firedDueAt}
-      ui: "stl_ui_state"                // {logEnabled, autoWake, mirrorPref}
+      timer910: "stl_timer910_state",
+      alarm: "stl_alarm_state",
+      ui: "stl_ui_state",
+      cal: "stl_calendar_state"
     };
 
     const state = {
       db: null,
       dbType: "unknown",
       photos: [],
-      thumbUrl: new Map(), // id -> objectURL
+      thumbUrl: new Map(),
 
       busy: { saving:false },
 
@@ -874,30 +954,38 @@
 
       ui: { logEnabled:false, autoWake:true, mirrorPref:true },
 
-      // Replace mode (Pending only)
       replace: { active:false, targetId:null, targetTag:null },
 
-      // 9:10 timer
       timer910: { running:false, locked:false, startAt:null, targetAt:null },
 
-      // Unlock window
       unlock: { until:null, ticker:null },
 
-      // Alarm (best-effort in-app)
       alarm: { dueAt:null, nextTag:null, firedDueAt:null },
       alarmTimeout: null,
 
-      // Schedule (frontend dynamic)
       schedule: {
         ok:false,
         reason:"",
         nextTag:null,
         nextAt:null,
-        planAtById: new Map(), // only tags needed up to target
+        planAtById: new Map(),
         source: { lastDownloadedTag:null, lastDownloadedAt:null }
       },
 
-      // Ticking
+      cal: {
+        enabled:false,
+        clientId:"",
+        calendarId:"primary",
+        token:null,
+        tokenExp:0,
+        eventId:null,
+        lastSyncedDueAt:null,
+        lastSyncedTag:null,
+        status:"ปิด"
+      },
+      calTokenClient: null,
+      calSyncBusy: false,
+
       tickInterval: null,
       toastTimer: null
     };
@@ -980,7 +1068,7 @@
       return photo;
     }
     function computeNextSlot(photos){
-      const occ = new Map(); // idx -> {IN, OUT}
+      const occ = new Map();
       for(const raw of photos){
         const p = ensureKindIdx(raw);
         if(!p || !p.kind || !p.idx) continue;
@@ -997,9 +1085,7 @@
         i++;
       }
     }
-    function peekNextTag(){
-      return computeNextSlot(state.photos).tag;
-    }
+    function peekNextTag(){ return computeNextSlot(state.photos).tag; }
     function nextTagInSequence(tag){
       const p = parseTag(tag);
       if(!p) return null;
@@ -1015,31 +1101,26 @@
       if(hasDexie){
         try{
           const db = new Dexie("SelfieTimeLoggerMintLight");
-          db.version(1).stores({
-            photos: "++id, tag, kind, idx, createdAt, downloaded"
-          });
-          db.version(2).stores({
-            photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt"
-          }).upgrade(async tx=>{
-            const table = tx.table("photos");
-            await table.toCollection().modify(p=>{
-              if(!("downloadedAt" in p)) p.downloadedAt = null;
-              if(!("editedAt" in p)) p.editedAt = null;
-              if((!p.kind || !p.idx) && p.tag){
-                const q = parseTag(p.tag);
-                if(q){ p.kind = q.kind; p.idx = q.idx; }
-              }
+          db.version(1).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded" });
+          db.version(2).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt" })
+            .upgrade(async tx=>{
+              const table = tx.table("photos");
+              await table.toCollection().modify(p=>{
+                if(!("downloadedAt" in p)) p.downloadedAt = null;
+                if(!("editedAt" in p)) p.editedAt = null;
+                if((!p.kind || !p.idx) && p.tag){
+                  const q = parseTag(p.tag);
+                  if(q){ p.kind = q.kind; p.idx = q.idx; }
+                }
+              });
             });
-          });
-          // v3: add editedAt
-          db.version(3).stores({
-            photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt"
-          }).upgrade(async tx=>{
-            const table = tx.table("photos");
-            await table.toCollection().modify(p=>{
-              if(!("editedAt" in p)) p.editedAt = null;
+          db.version(3).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt" })
+            .upgrade(async tx=>{
+              const table = tx.table("photos");
+              await table.toCollection().modify(p=>{
+                if(!("editedAt" in p)) p.editedAt = null;
+              });
             });
-          });
 
           await db.open();
           state.dbType = "Dexie";
@@ -1071,9 +1152,7 @@
           const db = req.result;
 
           const api = {
-            async addPhoto(obj){
-              return txWrap(db, "photos", "readwrite", store => store.add(obj));
-            },
+            async addPhoto(obj){ return txWrap(db, "photos", "readwrite", store => store.add(obj)); },
             async updatePhoto(id, changes){
               return txWrap(db, "photos", "readwrite", async store => {
                 const existing = await reqWrap(store.get(id));
@@ -1083,17 +1162,12 @@
                 return merged;
               });
             },
-            async deletePhoto(id){
-              return txWrap(db, "photos", "readwrite", store => store.delete(id));
-            },
-            async clearAll(){
-              return txWrap(db, "photos", "readwrite", store => store.clear());
-            },
+            async deletePhoto(id){ return txWrap(db, "photos", "readwrite", store => store.delete(id)); },
+            async clearAll(){ return txWrap(db, "photos", "readwrite", store => store.clear()); },
             async getAll(){
               return txWrap(db, "photos", "readonly", async store => {
                 const idx = store.index("createdAt");
-                const all = await reqWrap(idx.getAll());
-                return all;
+                return await reqWrap(idx.getAll());
               });
             }
           };
@@ -1160,9 +1234,7 @@
       return { w: Math.round(w*scale), h: Math.round(h*scale) };
     }
     function canvasToJpegBlob(canvas, quality=0.92){
-      return new Promise((resolve)=>{
-        canvas.toBlob((b)=> resolve(b), "image/jpeg", quality);
-      });
+      return new Promise((resolve)=> canvas.toBlob((b)=> resolve(b), "image/jpeg", quality));
     }
     async function imageFileToCleanJpegBlob(file, targetMax = 1600){
       const url = URL.createObjectURL(file);
@@ -1202,7 +1274,7 @@
     }
 
     /**********************************************************************
-     * Add photo: store immediately, tag continuity ensured
+     * Add photo (tag continuity ensured)
      **********************************************************************/
     async function addPhotoFromBlob(blob, meta = {}){
       if(state.busy.saving) return;
@@ -1252,7 +1324,6 @@
       const p = state.photos.find(x => x.id === targetId);
       if(!p) return;
 
-      // revoke old thumb url so UI updates image immediately
       revokeThumbUrl(targetId);
 
       const editedAt = now();
@@ -1268,8 +1339,6 @@
       setSaveState(`<span class="spin"></span> แทนที่รูป…`, "wait");
       try{
         await dbUpdatePhoto(targetId, changes);
-
-        // update in-memory record (keep tag/kind/idx/createdAt and downloaded stays 0 because edit only in Pending)
         Object.assign(p, changes);
 
         setSaveState("แทนที่แล้ว ✅", "ok");
@@ -1287,7 +1356,6 @@
     async function handleFilesAdd(files){
       if(!files || !files.length) return;
       setSaveState(`<span class="spin"></span> แปลงรูป…`, "wait");
-
       for(const file of files){
         try{
           const clean = await imageFileToCleanJpegBlob(file, 1600);
@@ -1352,7 +1420,7 @@
         const leftSec = Math.max(0, Math.ceil(leftMs / 1000));
         if(leftSec <= 0){
           clearUnlockWindow();
-          lightTick(); // update button disabled state quickly
+          lightTick();
           return;
         }
         $("unlockBtn").textContent = `🔓${leftSec}`;
@@ -1376,33 +1444,42 @@
       state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
       saveTimer910();
       clearUnlockWindow();
-      // clear alarm
+
       state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
       saveJSON(LS.alarm, state.alarm);
       stopAlarmTimeout();
       hideToast();
+
+      // Calendar: optionally delete old event (best-effort)
+      if(state.cal.enabled && state.cal.eventId){
+        calendarDeleteEvent(state.cal.eventId).catch(()=>{});
+      }
+      state.cal.eventId = null;
+      state.cal.lastSyncedDueAt = null;
+      state.cal.lastSyncedTag = null;
+      saveCalendarState();
+
       log("Timer reset -> READY");
     }
 
     async function onStartButtonClick(){
       const { downloaded } = computeCounts();
 
-      // Step 1: Start
       if(!state.timer910.running){
         startTimer910();
         heavyRender();
         return;
       }
 
-      // Step 2: Reset (only when unlocked or within unlock window)
       const allowed = (!state.timer910.locked) || isUnlockWindowActive();
       if(!allowed) return;
+
       resetTimer910ToReady();
       heavyRender();
     }
 
     /**********************************************************************
-     * Schedule (horizon-based up to target) + Missing logic only if needed
+     * Counts / Sorting
      **********************************************************************/
     function computeCounts(){
       const total = state.photos.length;
@@ -1410,7 +1487,6 @@
       const pending = total - downloaded;
       return { total, downloaded, pending };
     }
-
     function sortSlot(a,b){
       const ai = a.idx||0, bi = b.idx||0;
       if(ai !== bi) return ai - bi;
@@ -1418,80 +1494,107 @@
       const bk = (String(b.kind).toUpperCase()==="IN") ? 0 : 1;
       return ak - bk;
     }
-
     function getLastDownloadedFirstTime(){
-      // NOTE: downloadedAt is only set on "first download" and never overwritten (per your requirement)
       const downloaded = state.photos.filter(p=>p.downloaded===1 && p.downloadedAt);
       if(!downloaded.length) return null;
       downloaded.sort((a,b)=> (a.downloadedAt||0) - (b.downloadedAt||0));
       return downloaded[downloaded.length-1] || null;
     }
 
+    /**********************************************************************
+     * Schedule (Exact-fit): last required photo hits targetAt exactly
+     **********************************************************************/
     function minGapMinutes(kind){ return (kind==="IN") ? 3 : 4; }
     function maxGapMinutes(kind){ return (kind==="IN") ? 25 : 30; }
 
-    function solveKindAverages(totalMin, nIn, nOut){
-      const mean = totalMin / Math.max(1,(nIn+nOut));
-      const best = { a:null, b:null, score: 1e18 };
-
-      if(nOut===0 && nIn>0){
-        let a = totalMin / nIn;
-        a = Math.max(3, Math.min(25, a));
-        return { a, b:null, ok:true };
-      }
-      if(nIn===0 && nOut>0){
-        let b = totalMin / nOut;
-        b = Math.max(4, Math.min(30, b));
-        return { a:null, b, ok:true };
-      }
-      if(nIn===0 && nOut===0){
-        return { a:null, b:null, ok:false };
-      }
-
-      for(let a=3; a<=25; a+=0.25){
-        const b = (totalMin - a*nIn) / nOut;
-        if(b < 4 || b > 30) continue;
-        if(!(b - a >= 0.25)) continue; // IN < OUT
-        const score = Math.abs(a-mean) + Math.abs(b-mean);
-        if(score < best.score){
-          best.a = a; best.b = b; best.score = score;
+    function buildContiguousPendingChain(nextExpected, pendingByTag, limit=200){
+      const chain = [];
+      let tag = nextExpected;
+      let missingTag = null;
+      for(let i=0;i<limit;i++){
+        const p = pendingByTag.get(tag);
+        if(!p){
+          missingTag = tag;
+          break;
         }
+        chain.push(p);
+        const nxt = nextTagInSequence(tag);
+        if(!nxt){ break; }
+        tag = nxt;
       }
-
-      if(best.a==null){
-        let a = Math.max(3, Math.min(25, mean-1));
-        let b = Math.max(4, Math.min(30, mean+1));
-        if(!(b - a >= 0.25)) b = Math.min(30, a + 0.25);
-        return { a, b, ok:false };
-      }
-      return { a: best.a, b: best.b, ok:true };
+      return { chain, missingTag };
     }
 
-    function distributeDiffWithinBounds(gapsMs, kinds, totalMs){
+    // Find feasible constants a (IN gap), b (OUT gap) to satisfy sum exactly
+    // constraints: a in [3,25], b in [4,30], b > a, and a*nIn + b*nOut = totalMin
+    function solveExactAB(totalMin, nIn, nOut){
+      if(nIn===0 && nOut===0) return { ok:false, a:null, b:null };
+
+      // Only one kind -> single value
+      if(nOut===0){
+        const a = totalMin / Math.max(1,nIn);
+        const ok = (a >= 3 && a <= 25);
+        return { ok, a: Math.max(3, Math.min(25, a)), b: null };
+      }
+      if(nIn===0){
+        const b = totalMin / Math.max(1,nOut);
+        const ok = (b >= 4 && b <= 30);
+        return { ok, a: null, b: Math.max(4, Math.min(30, b)) };
+      }
+
+      const mean = totalMin / (nIn + nOut);
+      let best = { ok:false, a:null, b:null, score: 1e18 };
+
+      // scan a in [3..25] with step 0.01
+      for(let a=3; a<=25.0001; a+=0.01){
+        const b = (totalMin - a*nIn) / nOut;
+        if(b < 4 || b > 30) continue;
+        if(!(b > a + 0.001)) continue; // IN must be < OUT
+        // score: keep near mean + keep gap between a/b not extreme
+        const score = Math.abs(a-mean) + Math.abs(b-mean) + 0.08*Math.abs(b-a);
+        if(score < best.score){
+          best = { ok:true, a, b, score };
+        }
+      }
+
+      if(best.ok) return best;
+
+      // no exact feasible a,b -> return closest clamped suggestion
+      const a0 = Math.max(3, Math.min(25, mean-1));
+      const b0 = Math.max(4, Math.min(30, mean+1));
+      const bAdj = (b0 <= a0) ? Math.min(30, a0 + 0.25) : b0;
+      return { ok:false, a:a0, b:bAdj };
+    }
+
+    function distributeMsToMatchTotal(gapsMs, kinds, totalMs){
+      // gapsMs are integers (ms). Adjust +/- 1ms within min/max to match totalMs exactly.
       let sum = gapsMs.reduce((s,x)=>s+x,0);
       let diff = totalMs - sum;
-      if(Math.abs(diff) < 500) return gapsMs;
+      if(diff === 0) return gapsMs;
 
-      for(let i=gapsMs.length-1;i>=0;i--){
-        if(diff === 0) break;
-        const kind = kinds[i];
-        const minMs = minGapMinutes(kind)*60000;
-        const maxMs = maxGapMinutes(kind)*60000;
-
-        const current = gapsMs[i];
-        const target = current + diff;
-
-        const clamped = Math.max(minMs, Math.min(maxMs, target));
-        const applied = clamped - current;
-        if(applied !== 0){
-          gapsMs[i] = clamped;
-          diff -= applied;
+      let safety = 200000; // prevent infinite
+      while(diff !== 0 && safety-- > 0){
+        let moved = false;
+        for(let i=gapsMs.length-1; i>=0 && diff !== 0; i--){
+          const kind = kinds[i];
+          const minMs = Math.round(minGapMinutes(kind) * 60000);
+          const maxMs = Math.round(maxGapMinutes(kind) * 60000);
+          if(diff > 0){
+            if(gapsMs[i] < maxMs){
+              gapsMs[i] += 1; diff -= 1; moved = true;
+            }
+          }else{
+            if(gapsMs[i] > minMs){
+              gapsMs[i] -= 1; diff += 1; moved = true;
+            }
+          }
         }
+        if(!moved) break;
       }
       return gapsMs;
     }
 
-    function computeScheduleHorizon(){
+    function computeScheduleExactFit(){
       const sched = {
         ok:false,
         reason:"",
@@ -1501,187 +1604,173 @@
         source: { lastDownloadedTag:null, lastDownloadedAt:null }
       };
 
-      // Must have timer running
       if(!state.timer910.running || !state.timer910.targetAt){
         sched.reason = "ยังไม่ได้เริ่มนับเวลา";
+        sched.nextTag = peekNextTag();
         return sched;
       }
 
-      // Build pending lookup
       const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
       const pendingByTag = new Map(pending.map(p=>[p.tag, p]));
 
-      // Determine last downloaded (first-time) and next expected tag
       const last = getLastDownloadedFirstTime();
       let nextExpected = last ? nextTagInSequence(last.tag) : "IN-1";
       sched.source.lastDownloadedTag = last ? last.tag : null;
       sched.source.lastDownloadedAt = last ? last.downloadedAt : null;
 
-      // Base time for schedule:
-      // - If there is lastDownloadedAt, schedule from that time (alarm starts after download)
-      // - Else: schedule UI can still compute; but alarm will not auto-fire until first download
+      const { chain, missingTag } = buildContiguousPendingChain(nextExpected, pendingByTag, 200);
+      sched.nextTag = chain[0]?.tag || nextExpected || "-";
+
+      if(chain.length === 0){
+        sched.reason = `ขาดรูป ${nextExpected}`;
+        return sched;
+      }
+
+      const targetAt = state.timer910.targetAt;
+
+      // baseTime: if last downloaded exists => lastDownloadedAt, else now (not earlier than startAt)
       let baseTime = last ? last.downloadedAt : now();
       baseTime = Math.max(baseTime, state.timer910.startAt || 0);
 
-      const targetAt = state.timer910.targetAt;
-      const totalMs = targetAt - baseTime;
-
+      let totalMs = targetAt - baseTime;
       if(totalMs <= 0){
         sched.reason = "เลยเวลาเป้าหมายแล้ว";
-        sched.nextTag = nextExpected || "-";
         sched.nextAt = now();
         return sched;
       }
 
-      // Horizon-based chain:
-      // Build minimal number of steps so that maxPossible >= totalMs
-      // If we hit missing before that -> missing is truly needed => show reason
-      const plan = [];
-      const gapKinds = []; // kind that determines wait before the corresponding plan item (if last exists), or between items (if no last)
-      let minPossibleMs = 0;
-      let maxPossibleMs = 0;
-
-      // helper to add gap kind
-      const addGap = (kind) => {
-        gapKinds.push(kind);
-        minPossibleMs += minGapMinutes(kind)*60000;
-        maxPossibleMs += maxGapMinutes(kind)*60000;
-      };
+      // Determine intervals
+      let kinds = []; // each interval is kind of "previous downloaded"
+      let intervals = 0;
 
       if(last){
-        // we need a gap before each planned download
-        let cur = nextExpected;
-        let prevKind = (parseTag(last.tag)?.kind) || "IN";
-        for(let i=0;i<200;i++){
-          const p = pendingByTag.get(cur);
-          if(!p){
-            // missing needed because we haven't covered target yet
-            sched.reason = `ขาดรูป ${cur}`;
-            break;
-          }
-          plan.push(p);
-          // gap kind for this step:
-          const kindForGap = (i===0) ? prevKind : String(plan[i-1].kind).toUpperCase();
-          addGap(kindForGap);
-
-          if(totalMs <= maxPossibleMs){
-            // enough photos to potentially cover target, stop here
-            break;
-          }
-          cur = nextTagInSequence(cur);
-          if(!cur) break;
-        }
-
-        // If we never set reason missing and plan is empty => can't compute
-        if(!plan.length && !sched.reason){
-          sched.reason = `ขาดรูป ${nextExpected}`;
+        // intervals count = chain.length (from last->first + between chain)
+        intervals = chain.length;
+        const lastKind = (parseTag(last.tag)?.kind) || "IN";
+        kinds.push(lastKind);
+        for(let i=1;i<chain.length;i++){
+          kinds.push(String(chain[i-1].kind).toUpperCase());
         }
       }else{
-        // no last download: first planned "should be now" if exists
-        let cur = nextExpected;
-        const first = pendingByTag.get(cur);
-        if(!first){
-          sched.reason = `ขาดรูป ${cur}`;
-          sched.nextTag = cur;
+        if(chain.length === 1){
+          // only 1 photo to load: to satisfy "last = target", set its time to targetAt
+          sched.planAtById.set(chain[0].id, targetAt);
+          sched.nextAt = targetAt;
+          sched.ok = true;
           return sched;
         }
-        plan.push(first);
-
-        // add more steps until horizon covered
-        for(let i=1;i<200;i++){
-          const prev = plan[i-1];
-          const kindForGap = String(prev.kind).toUpperCase(); // after IN => gap 3-25, after OUT => gap 4-30
-          addGap(kindForGap);
-
-          if(totalMs <= maxPossibleMs){
-            break;
-          }
-
-          cur = nextTagInSequence(prev.tag);
-          const p = pendingByTag.get(cur);
-          if(!p){
-            sched.reason = `ขาดรูป ${cur}`;
-            break;
-          }
-          plan.push(p);
+        // intervals count = chain.length - 1 (first at baseTime)
+        intervals = chain.length - 1;
+        for(let i=0;i<chain.length-1;i++){
+          kinds.push(String(chain[i].kind).toUpperCase());
         }
       }
 
-      // Determine nextTag even when missing
-      sched.nextTag = plan[0]?.tag || nextExpected || "-";
+      // min/max sum
+      let minSum = 0, maxSum = 0;
+      for(const k of kinds){
+        minSum += minGapMinutes(k)*60000;
+        maxSum += maxGapMinutes(k)*60000;
+      }
 
-      // If we have missing reason, we still compute times for "available plan" as far as possible,
-      // BUT we won't claim schedule is OK. (Header will show missing)
-      // Also: If missing isn't needed (horizon covered), it will never be set.
+      // If missingTag exists but chain might still be enough to reach target via maxSum
+      // Show missing only if it becomes necessary (i.e., cannot reach target with current intervals)
+      const missingNeeded = !!missingTag && (totalMs > maxSum + 1);
 
-      const gapCount = last ? plan.length : Math.max(0, plan.length - 1);
-
-      // If no gaps (only 1 item when no last), nextAt is now
-      if(gapCount === 0){
-        sched.ok = (sched.reason === "");
-        sched.nextAt = last ? (baseTime + (minGapMinutes((parseTag(last.tag)?.kind)||"IN")*60000)) : baseTime;
-        if(plan[0]) sched.planAtById.set(plan[0].id, sched.nextAt);
+      if(totalMs > maxSum + 1){
+        sched.reason = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
+        // best-effort: use max gaps
+        const gapsMs = kinds.map(k => Math.round(maxGapMinutes(k)*60000));
+        // build times
+        let t = baseTime;
+        if(last){
+          for(let i=0;i<chain.length;i++){
+            t += gapsMs[i];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }else{
+          sched.planAtById.set(chain[0].id, baseTime);
+          for(let i=1;i<chain.length;i++){
+            t += gapsMs[i-1];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }
+        sched.ok = false;
         return sched;
       }
 
-      // Feasibility check only if we have enough horizon (i.e., missing not set)
-      const feasible = (totalMs >= (minPossibleMs - 2000)) && (totalMs <= (maxPossibleMs + 2000));
-
-      // count kinds for averages
-      let nIn=0, nOut=0;
-      for(const k of gapKinds){ if(k==="IN") nIn++; else nOut++; }
-
-      let gapsMs = new Array(gapCount).fill(0);
-
-      if(!feasible){
-        // If missing was set: keep reason as missing
-        // Else show time feasibility reason
-        if(!sched.reason){
-          if(totalMs > maxPossibleMs){
-            const extra = totalMs - maxPossibleMs;
-            const needMore = Math.ceil(extra / (30*60000));
-            sched.reason = `รูปไม่พอถึงเป้าหมาย (ควรเพิ่ม ~${needMore} รูป+)`;
-          }else{
-            sched.reason = `เวลาน้อยเกินสำหรับจำนวนรูปในลำดับ`;
+      if(totalMs < minSum - 1){
+        sched.reason = `เวลาน้อยเกินสำหรับจำนวนรูปในลำดับ`;
+        // best-effort: use min gaps
+        const gapsMs = kinds.map(k => Math.round(minGapMinutes(k)*60000));
+        let t = baseTime;
+        if(last){
+          for(let i=0;i<chain.length;i++){
+            t += gapsMs[i];
+            sched.planAtById.set(chain[i].id, t);
           }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }else{
+          sched.planAtById.set(chain[0].id, baseTime);
+          for(let i=1;i<chain.length;i++){
+            t += gapsMs[i-1];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
         }
-
-        // best-effort gaps: stretch or shrink
-        for(let i=0;i<gapKinds.length;i++){
-          const k = gapKinds[i];
-          gapsMs[i] = Math.round((totalMs > maxPossibleMs ? maxGapMinutes(k) : minGapMinutes(k)) * 60000);
-        }
-      }else{
-        const totalMin = totalMs / 60000;
-        const { a, b } = solveKindAverages(totalMin, nIn, nOut);
-        for(let i=0;i<gapKinds.length;i++){
-          const k = gapKinds[i];
-          const mins = (k==="IN") ? (a ?? 10) : (b ?? 12);
-          const clamped = Math.max(minGapMinutes(k), Math.min(maxGapMinutes(k), mins));
-          gapsMs[i] = Math.round(clamped * 60000);
-        }
-        gapsMs = distributeDiffWithinBounds(gapsMs, gapKinds, totalMs);
+        sched.ok = false;
+        return sched;
       }
 
-      // Build recommended times
+      // Feasible in min/max => compute exact-fit a/b to make sum == totalMs
+      let nIn=0, nOut=0;
+      for(const k of kinds){ if(k==="IN") nIn++; else nOut++; }
+      const totalMin = totalMs / 60000;
+
+      const { ok:abOk, a, b } = solveExactAB(totalMin, nIn, nOut);
+
+      // build gaps in ms (float), then round and distribute ms to match totalMs exactly
+      let gapsMs = new Array(kinds.length).fill(0).map((_,i)=>{
+        const k = kinds[i];
+        const mins = (k==="IN") ? (a ?? 10) : (b ?? 12);
+        const clamped = Math.max(minGapMinutes(k), Math.min(maxGapMinutes(k), mins));
+        return Math.round(clamped * 60000);
+      });
+
+      gapsMs = distributeMsToMatchTotal(gapsMs, kinds, Math.round(totalMs));
+
+      // Build plan times
       let t = baseTime;
       if(last){
-        for(let i=0;i<plan.length;i++){
+        for(let i=0;i<chain.length;i++){
           t += gapsMs[i];
-          sched.planAtById.set(plan[i].id, t);
+          sched.planAtById.set(chain[i].id, t);
         }
-        sched.nextAt = sched.planAtById.get(plan[0].id) || null;
+        sched.nextAt = sched.planAtById.get(chain[0].id) || null;
       }else{
-        // first at baseTime (now)
-        sched.planAtById.set(plan[0].id, t);
-        for(let i=1;i<plan.length;i++){
+        sched.planAtById.set(chain[0].id, baseTime);
+        for(let i=1;i<chain.length;i++){
           t += gapsMs[i-1];
-          sched.planAtById.set(plan[i].id, t);
+          sched.planAtById.set(chain[i].id, t);
         }
-        sched.nextAt = sched.planAtById.get(plan[0].id) || null;
+        sched.nextAt = sched.planAtById.get(chain[0].id) || null;
       }
 
-      // Mark ok only when no reason
+      // At this point, if feasible, last should hit targetAt exactly (within ms)
+      // But keep "missingTag" hidden if not needed (per requirement)
+      if(missingNeeded){
+        // should not happen here because totalMs <= maxSum, but safe
+        sched.reason = `ขาดรูป ${missingTag}`;
+      }else if(!abOk){
+        // theoretically feasible by min/max but IN<OUT exact constraint might be tight
+        // treat as warning (still we created a best effort)
+        sched.reason = `เงื่อนไข IN<OUT ทำให้เฉลี่ยเป๊ะได้ยาก`;
+      }else{
+        sched.reason = "";
+      }
+
       sched.ok = (sched.reason === "");
       return sched;
     }
@@ -1699,9 +1788,8 @@
         };
       }
     }
-    function saveAlarmState(){
-      saveJSON(LS.alarm, state.alarm);
-    }
+    function saveAlarmState(){ saveJSON(LS.alarm, state.alarm); }
+
     function stopAlarmTimeout(){
       if(state.alarmTimeout){
         clearTimeout(state.alarmTimeout);
@@ -1712,9 +1800,7 @@
     function tryNotify(body){
       if(typeof Notification === "undefined") return;
       if(Notification.permission !== "granted") return;
-      try{
-        new Notification("Selfie Time Logger", { body });
-      }catch(_){}
+      try{ new Notification("Selfie Time Logger", { body }); }catch(_){}
     }
 
     function beepOnce(duration=0.14, freq=880){
@@ -1731,9 +1817,7 @@
       }catch(_){}
     }
     function vibratePattern(){
-      try{
-        if(navigator.vibrate) navigator.vibrate([120, 70, 120]);
-      }catch(_){}
+      try{ if(navigator.vibrate) navigator.vibrate([120, 70, 120]); }catch(_){}
     }
     function beepSoft(){
       vibratePattern();
@@ -1745,7 +1829,6 @@
       $("toastText").textContent = text;
       $("toastSub").textContent = sub || "";
       $("toastWrap").classList.add("show");
-
       if(state.toastTimer) clearTimeout(state.toastTimer);
       state.toastTimer = setTimeout(()=> hideToast(), autoHideMs);
     }
@@ -1760,7 +1843,6 @@
     function scheduleNextAlarmFromSchedule(){
       stopAlarmTimeout();
 
-      // Alarm starts only after first download exists (per original spec)
       const last = getLastDownloadedFirstTime();
       if(!last){
         state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
@@ -1769,7 +1851,8 @@
       }
 
       const s = state.schedule;
-      if(!s || !s.nextAt || !s.nextTag){
+      // ✅ do not schedule alarm when schedule has error reason
+      if(!s || !s.nextAt || !s.nextTag || s.reason){
         state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
         saveAlarmState();
         return;
@@ -1784,9 +1867,7 @@
       saveAlarmState();
 
       const delay = Math.max(0, dueAt - now());
-      state.alarmTimeout = setTimeout(()=>{
-        fireAlarmIfNeeded(true);
-      }, delay + 80);
+      state.alarmTimeout = setTimeout(()=>{ fireAlarmIfNeeded(true); }, delay + 80);
 
       fireAlarmIfNeeded(false);
     }
@@ -1799,7 +1880,6 @@
       if(!isPast) return;
 
       if(state.alarm.firedDueAt === dueAt) return;
-
       if(!fromTimeout && !state.ui.autoWake) return;
 
       state.alarm.firedDueAt = dueAt;
@@ -1852,9 +1932,12 @@
         photo.downloaded = 1;
         photo.downloadedAt = t;
         log("Marked downloaded (first time):", photo.tag);
-        heavyRender(); // move to downloaded immediately
+
+        heavyRender(); // move to downloaded immediately + schedule update
+
+        // Calendar sync (A2) should happen after schedule update
+        maybeCalendarSync("download").catch(()=>{});
       }else{
-        // re-download: do NOT touch downloadedAt (per your requirement)
         log("Downloaded again (no schedule reset):", photo.tag);
       }
     }
@@ -1865,6 +1948,7 @@
       state.photos = state.photos.filter(p => p.id !== id);
       log("Deleted", tag, "id=", id);
       heavyRender();
+      maybeCalendarSync("delete").catch(()=>{});
     }
 
     /**********************************************************************
@@ -1880,19 +1964,270 @@
     }
 
     /**********************************************************************
+     * Calendar Sync (A2) — Google Calendar API via OAuth token (GIS)
+     **********************************************************************/
+    function loadCalendarState(){
+      const c = loadJSON(LS.cal, null);
+      if(c && typeof c === "object"){
+        state.cal.enabled = !!c.enabled;
+        state.cal.clientId = c.clientId || "";
+        state.cal.calendarId = c.calendarId || "primary";
+        state.cal.eventId = c.eventId || null;
+        state.cal.lastSyncedDueAt = c.lastSyncedDueAt || null;
+        state.cal.lastSyncedTag = c.lastSyncedTag || null;
+        // token isn't persisted for safety; user reconnects after reload
+        state.cal.token = null;
+        state.cal.tokenExp = 0;
+      }
+    }
+    function saveCalendarState(){
+      saveJSON(LS.cal, {
+        enabled: state.cal.enabled,
+        clientId: state.cal.clientId,
+        calendarId: state.cal.calendarId,
+        eventId: state.cal.eventId,
+        lastSyncedDueAt: state.cal.lastSyncedDueAt,
+        lastSyncedTag: state.cal.lastSyncedTag
+      });
+    }
+
+    function renderCalendarUI(){
+      $("calToggle").checked = state.cal.enabled;
+      $("calConfig").style.display = state.cal.enabled ? "" : "none";
+
+      $("calClientIdInput").value = state.cal.clientId || "";
+      $("calCalendarIdInput").value = state.cal.calendarId || "primary";
+
+      const badge = $("calStatusBadge");
+      const mini = $("calMiniBadge");
+
+      if(!state.cal.enabled){
+        badge.className = "badge";
+        badge.textContent = "📅 ปิด";
+        mini.style.display = "none";
+        $("calEventPill").textContent = "event: -";
+        return;
+      }
+
+      mini.style.display = "";
+      if(state.cal.token && now() < state.cal.tokenExp){
+        badge.className = "badge ok";
+        badge.textContent = "📅 Connected";
+        mini.className = "badge ok";
+        mini.textContent = "📅";
+      }else{
+        badge.className = "badge wait";
+        badge.textContent = "📅 ยังไม่เชื่อมต่อ";
+        mini.className = "badge wait";
+        mini.textContent = "📅";
+      }
+
+      $("calEventPill").textContent = `event: ${state.cal.eventId || "-"}`;
+    }
+
+    function ensureTokenClient(){
+      if(!state.cal.enabled) return false;
+      if(!state.cal.clientId) return false;
+      if(!window.google || !google.accounts || !google.accounts.oauth2){
+        return false;
+      }
+      if(state.calTokenClient) return true;
+
+      state.calTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: state.cal.clientId,
+        scope: "https://www.googleapis.com/auth/calendar.events",
+        callback: (resp) => {
+          if(resp && resp.access_token){
+            state.cal.token = resp.access_token;
+            const expiresIn = (resp.expires_in ? Number(resp.expires_in) : 3600);
+            state.cal.tokenExp = now() + expiresIn*1000 - 60*1000; // keep 1 min buffer
+            log("Calendar token OK, exp in", expiresIn, "sec");
+            renderCalendarUI();
+            showToast("Calendar", "เชื่อมต่อแล้ว ✅", 2500);
+            // sync immediately if possible
+            maybeCalendarSync("connect").catch(()=>{});
+          }else{
+            showToast("Calendar", "เชื่อมต่อไม่สำเร็จ", 2500);
+          }
+        }
+      });
+      return true;
+    }
+
+    function calendarConnect(){
+      if(!state.cal.enabled){
+        showToast("Calendar", "เปิดสวิตช์ก่อน", 2500);
+        return;
+      }
+      if(!state.cal.clientId){
+        showToast("Calendar", "กรอก Client ID ก่อน", 3000);
+        return;
+      }
+      if(!ensureTokenClient()){
+        showToast("Calendar", "Google script ยังไม่พร้อม (ลองใหม่)", 3000);
+        return;
+      }
+      try{
+        state.calTokenClient.requestAccessToken({ prompt: "consent" });
+      }catch(e){
+        showToast("Calendar", "ขอสิทธิ์ไม่สำเร็จ", 3000);
+        log("calendarConnect error", e);
+      }
+    }
+
+    function calendarDisconnect(){
+      if(state.cal.token && window.google && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.revoke){
+        try{ google.accounts.oauth2.revoke(state.cal.token, ()=>{}); }catch(_){}
+      }
+      state.cal.token = null;
+      state.cal.tokenExp = 0;
+      renderCalendarUI();
+      showToast("Calendar", "ยกเลิกการเชื่อมต่อแล้ว", 2500);
+    }
+
+    function getCalendarEventId(){
+      if(!state.timer910.startAt) return null;
+      const d = new Date(state.timer910.startAt);
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      const key = `${y}${m}${day}`;
+      // custom id (keeps updates non-duplicated)
+      return `stl-${key}-next`;
+    }
+
+    async function calendarFetch(url, opts={}){
+      const token = state.cal.token;
+      if(!token) throw new Error("NO_TOKEN");
+      const headers = Object.assign({
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }, (opts.headers || {}));
+      return fetch(url, { ...opts, headers });
+    }
+
+    async function calendarDeleteEvent(eventId){
+      if(!state.cal.enabled || !state.cal.token || !eventId) return;
+      const calId = encodeURIComponent(state.cal.calendarId || "primary");
+      const eid = encodeURIComponent(eventId);
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${eid}`;
+      try{
+        const res = await calendarFetch(url, { method:"DELETE" });
+        if(res.ok){
+          log("Calendar event deleted:", eventId);
+        }
+      }catch(e){
+        log("Calendar delete error", e);
+      }
+    }
+
+    async function maybeCalendarSync(trigger){
+      if(state.calSyncBusy) return;
+      if(!state.cal.enabled) return;
+
+      // Need token
+      if(!state.cal.token || now() >= state.cal.tokenExp){
+        renderCalendarUI();
+        return;
+      }
+
+      // Only sync when we have lastDownloadedAt and schedule is clean
+      const last = getLastDownloadedFirstTime();
+      if(!last) return;
+
+      const s = state.schedule;
+      if(!s || !s.nextAt || !s.nextTag || s.reason){
+        // no valid schedule -> don't create misleading event
+        $("calStatusBadge").className = "badge wait";
+        $("calStatusBadge").textContent = "📅 รอข้อมูล (มีข้อผิดพลาด)";
+        return;
+      }
+
+      const dueAt = s.nextAt;
+      const nextTag = s.nextTag;
+
+      // skip if nothing changed
+      if(state.cal.lastSyncedDueAt === dueAt && state.cal.lastSyncedTag === nextTag){
+        return;
+      }
+
+      const eventId = getCalendarEventId();
+      if(!eventId) return;
+
+      state.calSyncBusy = true;
+      try{
+        const calId = encodeURIComponent(state.cal.calendarId || "primary");
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Bangkok";
+
+        const startISO = new Date(dueAt).toISOString();
+        const endISO = new Date(dueAt + 5*60*1000).toISOString();
+
+        const { total, downloaded, pending } = computeCounts();
+
+        const patchBody = {
+          id: eventId,
+          summary: `STL Next: ${nextTag}`,
+          description:
+            `Selfie Time Logger (Auto)\n` +
+            `Next: ${nextTag}\n` +
+            `When: ${fmtDT(dueAt)}\n` +
+            `Target: ${fmtDT(state.timer910.targetAt)}\n` +
+            `Downloaded: ${downloaded} / Pending: ${pending} / Total: ${total}\n\n` +
+            `* อีเวนต์นี้ถูกอัปเดตอัตโนมัติจากเว็บ (A2)`,
+          start: { dateTime: startISO, timeZone: tz },
+          end: { dateTime: endISO, timeZone: tz },
+          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] }
+        };
+
+        const base = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`;
+        const patchUrl = `${base}/${encodeURIComponent(eventId)}`;
+
+        // PATCH (update if exists); if 404 then INSERT (create)
+        let res = await calendarFetch(patchUrl, { method:"PATCH", body: JSON.stringify(patchBody) });
+
+        if(res.status === 404){
+          res = await calendarFetch(base, { method:"POST", body: JSON.stringify(patchBody) });
+        }
+
+        if(res.ok){
+          state.cal.eventId = eventId;
+          state.cal.lastSyncedDueAt = dueAt;
+          state.cal.lastSyncedTag = nextTag;
+          saveCalendarState();
+
+          $("calStatusBadge").className = "badge ok";
+          $("calStatusBadge").textContent = "📅 Synced";
+          $("calEventPill").textContent = `event: ${eventId}`;
+          renderCalendarUI();
+
+          log("Calendar synced", { trigger, eventId, nextTag, dueAt: fmtDT(dueAt) });
+        }else{
+          const txt = await res.text().catch(()=> "");
+          $("calStatusBadge").className = "badge err";
+          $("calStatusBadge").textContent = "📅 Sync fail";
+          log("Calendar sync failed", res.status, txt);
+        }
+      }catch(e){
+        $("calStatusBadge").className = "badge err";
+        $("calStatusBadge").textContent = "📅 Sync error";
+        log("Calendar sync error", e);
+      }finally{
+        state.calSyncBusy = false;
+        renderCalendarUI();
+      }
+    }
+
+    /**********************************************************************
      * Render: heavy vs light
      **********************************************************************/
     function renderTopCounts(){
       const { downloaded } = computeCounts();
       $("dlCountTop").textContent = downloaded;
-      $("openDrawerBtn").textContent = `✅`;
-      $("openDrawerBtn").title = `Downloaded (${downloaded})`;
     }
 
     function renderTimerPanel(){
       const { downloaded } = computeCounts();
 
-      // Auto unlock if downloaded >= 40
       if(state.timer910.running && state.timer910.locked && downloaded >= 40){
         state.timer910.locked = false;
         saveTimer910();
@@ -1916,7 +2251,6 @@
       $("timerMeta").textContent =
         `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
 
-      // button label
       const startBtn = $("start910Btn");
       if(!state.timer910.running){
         startBtn.textContent = "⏱️ เริ่มนับเวลา";
@@ -1924,11 +2258,9 @@
         startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
       }
 
-      // Start button enabled rules (2-step)
       const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
       startBtn.disabled = state.timer910.running ? !canResetNow : false;
 
-      // Unlock button enabled rules
       const unlockBtn = $("unlockBtn");
       const canUnlock = state.timer910.running && state.timer910.locked && downloaded < 40;
       unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
@@ -1939,50 +2271,36 @@
       const { total } = computeCounts();
       const prog = Math.min(40, total);
       $("progressBar").style.width = `${(prog/40)*100}%`;
-      if(total >= 40){
-        $("goalBadge").style.display = "";
-      }else{
-        $("goalBadge").style.display = "none";
-      }
+      $("goalBadge").style.display = (total >= 40) ? "" : "none";
     }
 
     function renderHeaderStatus(){
-      // schedule is already computed in heavyRender and stored
       const s = state.schedule;
-      const warn = $("headerWarnBadge");
+      $("headerNextText").textContent = s.nextTag || peekNextTag() || "-";
 
       if(!state.timer910.running){
-        $("headerNextText").textContent = peekNextTag();
         $("headerWhenText").textContent = "-";
         $("headerCountdownText").textContent = "-";
-        warn.style.display = "";
-        warn.className = "badge wait";
-        warn.textContent = "⏱ เริ่มนับเวลาก่อน";
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = "⚠ เริ่มนับเวลาก่อน";
         return;
       }
 
-      // show Next tag always (based on plan)
-      $("headerNextText").textContent = s.nextTag || "-";
-
-      // show warning only when schedule has reason (missing/insufficient/too fast)
-      if(s.reason){
-        warn.style.display = "";
-        warn.className = "badge err";
-        warn.textContent = `⚠ ${s.reason}`;
-      }else{
-        warn.style.display = "none";
-        warn.textContent = "";
-      }
-
-      // show time and countdown if nextAt exists
       if(s.nextAt){
         const left = s.nextAt - now();
-        const when = left <= 0 ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
-        $("headerWhenText").textContent = when;
-        $("headerCountdownText").textContent = left <= 0 ? "ถึงเวลา" : fmtHMS(left);
+        $("headerWhenText").textContent = (left <= 0) ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
+        $("headerCountdownText").textContent = (left <= 0) ? "ถึงเวลา" : fmtHMS(left);
       }else{
         $("headerWhenText").textContent = "-";
         $("headerCountdownText").textContent = "-";
+      }
+
+      if(s.reason){
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = `⚠ ${s.reason}`;
+      }else{
+        $("headerWarnLine").style.display = "none";
+        $("headerWarnLine").textContent = "";
       }
     }
 
@@ -2007,11 +2325,9 @@
     }
 
     function renderLists(){
-      // pending
       const pendingList = $("pendingList");
       pendingList.innerHTML = "";
 
-      // downloaded (drawer)
       const downloadedList = $("downloadedList");
       downloadedList.innerHTML = "";
 
@@ -2027,17 +2343,11 @@
       $("drawerDownloadedCount").textContent = downloaded.length;
       $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
 
-      // Show Time use only if the photo is part of schedule.planAtById (i.e., needed to reach target)
       const planMap = state.schedule.planAtById || new Map();
 
-      for(const p of pending){
-        pendingList.appendChild(renderPhotoItem(p, false, planMap));
-      }
-      for(const p of downloaded){
-        downloadedList.appendChild(renderPhotoItem(p, true, planMap));
-      }
+      for(const p of pending) pendingList.appendChild(renderPhotoItem(p, false, planMap));
+      for(const p of downloaded) downloadedList.appendChild(renderPhotoItem(p, true, planMap));
 
-      // counts bottom
       const { total, downloaded: dlCount, pending: pendCount } = computeCounts();
       $("totalCount").textContent = total;
       $("downloadedCount").textContent = dlCount;
@@ -2080,7 +2390,6 @@
       metaTop.appendChild(left);
       metaTop.appendChild(time);
 
-      // Time use line + Edit (Pending only)
       const timeUseRow = document.createElement("div");
       timeUseRow.className = "timeUseRow";
 
@@ -2094,7 +2403,6 @@
           reco.classList.toggle("late", late);
           reco.textContent = `Time use ${fmtTimeOnly(t)}${late ? " • ถึงเวลา" : ""}`;
         }else{
-          // show nothing intrusive (not red) when not needed / can't compute due to missing earlier needed tag
           reco.classList.add("muted");
           reco.textContent = "Time use —";
         }
@@ -2112,7 +2420,6 @@
         editBtn.textContent = "✏️";
         editBtn.title = "แทนที่รูปใบนี้ (Pending เท่านั้น)";
         editBtn.onclick = async () => {
-          // open replace mode: camera modal, show REPLACE badge
           state.replace.active = true;
           state.replace.targetId = photo.id;
           state.replace.targetTag = photo.tag;
@@ -2121,7 +2428,6 @@
         timeUseRow.appendChild(editBtn);
       }
 
-      // Actions
       const actions = document.createElement("div");
       actions.className = "actions";
 
@@ -2158,8 +2464,8 @@
     }
 
     function heavyRender(){
-      // compute schedule once (heavy) and render lists
-      state.schedule = computeScheduleHorizon();
+      // compute schedule exact-fit
+      state.schedule = computeScheduleExactFit();
 
       renderTopCounts();
       renderProgressBar();
@@ -2167,24 +2473,22 @@
       renderAlarmPanel();
       renderLists();
 
-      // schedule next alarm after recompute (best-effort) + catch-up
       scheduleNextAlarmFromSchedule();
       fireAlarmIfNeeded(false);
 
-      // header uses schedule
       renderHeaderStatus();
+      renderCalendarUI();
 
-      // measure bars (in case content changed)
+      // try sync calendar when schedule updated (non-blocking)
+      maybeCalendarSync("render").catch(()=>{});
+
       requestAnimationFrame(()=>measureBars());
     }
 
     function lightTick(){
-      // lightweight updates every second (no list rebuild)
-      renderTimerPanel();    // update button disabled + lock status
-      renderHeaderStatus();  // update countdown
-      renderAlarmPanel();    // update remaining time
-
-      // alarm catch-up
+      renderTimerPanel();
+      renderHeaderStatus();
+      renderAlarmPanel();
       fireAlarmIfNeeded(false);
     }
 
@@ -2254,7 +2558,6 @@
       $("camModeBadge").textContent = "CAM";
       $("camModeBadge").className = "badge ok";
 
-      // show replace badge if needed
       if(isReplace && state.replace.active && state.replace.targetTag){
         $("replaceBadge").style.display = "";
         $("replaceBadge").textContent = `REPLACE ${state.replace.targetTag}`;
@@ -2272,7 +2575,6 @@
       $("camModalBackdrop").classList.remove("show");
       hideCamToast();
 
-      // leaving camera should exit replace mode
       state.replace.active = false;
       state.replace.targetId = null;
       state.replace.targetTag = null;
@@ -2348,7 +2650,6 @@
     function updateCamHUD(){
       const { total, downloaded, pending } = computeCounts();
       $("camCountPill").textContent = `📸 Total: ${total} • Pending: ${pending} • DL: ${downloaded}`;
-
       const next = state.replace.active ? state.replace.targetTag : peekNextTag();
       $("camNextPill").textContent = `Next: ${next}`;
     }
@@ -2366,13 +2667,11 @@
       const facing = state.cam.facing;
       const mirror = (facing === "user") && state.ui.mirrorPref;
 
-      // Output portrait 4:3 (aspect 3/4)
       const outAR = 3/4;
       const srcW = video.videoWidth;
       const srcH = video.videoHeight;
       const srcAR = srcW/srcH;
 
-      // crop to match outAR
       let cropW, cropH, sx, sy;
       if(srcAR > outAR){
         cropH = srcH;
@@ -2398,7 +2697,6 @@
       canvas.width = outW; canvas.height = outH;
       const ctx = canvas.getContext("2d", { alpha:false });
 
-      // mirror saved image to match mirror preview
       if(mirror){
         ctx.save();
         ctx.translate(outW, 0);
@@ -2421,7 +2719,7 @@
     }
 
     /**********************************************************************
-     * Layout measurements: fixed top & bottom bars (real-time)
+     * Layout measurements: fixed top & bottom bars
      **********************************************************************/
     function measureBars(){
       const top = $("topBar");
@@ -2431,7 +2729,6 @@
       document.documentElement.style.setProperty("--topH", `${topH}px`);
       document.documentElement.style.setProperty("--stickH", `${stickH}px`);
     }
-
     function installResizeObservers(){
       const ro = new ResizeObserver(() => measureBars());
       ro.observe($("topBar"));
@@ -2445,6 +2742,7 @@
       loadUIState();
       loadTimer910();
       loadAlarmState();
+      loadCalendarState();
 
       await initDB();
       await refresh();
@@ -2454,23 +2752,25 @@
       window.addEventListener("resize", ()=> measureBars());
       window.addEventListener("orientationchange", ()=> setTimeout(()=> measureBars(), 200));
 
-      // Wire: Add
+      // Add
       $("uploadBtn").onclick = ()=> $("fileInputAdd").click();
       $("fileInputAdd").addEventListener("change", async (e)=>{
         const files = Array.from(e.target.files || []);
         e.target.value = "";
         await handleFilesAdd(files);
+        maybeCalendarSync("add").catch(()=>{});
       });
 
-      // Wire: Replace upload in camera modal
+      // Replace upload
       $("fallbackUploadBtn").onclick = ()=> {
         if(state.replace.active) $("fileInputReplace").click();
-        else $("fileInputAdd").click(); // allow multi-add outside replace
+        else $("fileInputAdd").click();
       };
       $("fileInputReplace").addEventListener("change", async (e)=>{
         const file = (e.target.files && e.target.files[0]) ? e.target.files[0] : null;
         e.target.value = "";
         await handleFileReplace(file);
+        maybeCalendarSync("replace").catch(()=>{});
       });
 
       // Camera
@@ -2494,14 +2794,18 @@
       $("drawerBackdrop").onclick = closeDrawer;
 
       // Timer buttons
-      $("start910Btn").onclick = onStartButtonClick;
+      $("start910Btn").onclick = async ()=>{
+        await onStartButtonClick();
+        // if timer started/reset, schedule changes -> sync calendar
+        maybeCalendarSync("timer").catch(()=>{});
+      };
       $("unlockBtn").onclick = ()=> openUnlockWindow3s();
       $("deleteAllBtn").onclick = deleteAll;
 
-      // Toast dismiss
+      // Toast
       $("toastDismissBtn").onclick = hideToast;
 
-      // Progress actions
+      // Notification test
       $("requestNotifBtn").onclick = requestNotificationPermission;
       $("testBeepBtn").onclick = ()=> beepSoft();
 
@@ -2527,13 +2831,44 @@
         $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
       });
 
+      // Calendar toggle + inputs
+      $("calToggle").addEventListener("change", ()=>{
+        state.cal.enabled = $("calToggle").checked;
+        saveCalendarState();
+        if(state.cal.enabled){
+          showToast("Calendar", "เปิด Sync แล้ว (กรอก Client ID แล้วกดเชื่อมต่อ)", 3500);
+        }else{
+          // stop syncing
+          state.cal.token = null;
+          state.cal.tokenExp = 0;
+          saveCalendarState();
+        }
+        renderCalendarUI();
+        measureBars();
+      });
+
+      $("calClientIdInput").addEventListener("input", ()=>{
+        state.cal.clientId = $("calClientIdInput").value.trim();
+        saveCalendarState();
+        // reset token client to re-init with new id
+        state.calTokenClient = null;
+        renderCalendarUI();
+      });
+
+      $("calCalendarIdInput").addEventListener("input", ()=>{
+        state.cal.calendarId = ($("calCalendarIdInput").value.trim() || "primary");
+        saveCalendarState();
+        renderCalendarUI();
+      });
+
+      $("calConnectBtn").onclick = calendarConnect;
+      $("calDisconnectBtn").onclick = calendarDisconnect;
+
       // visibility catch-up
       document.addEventListener("visibilitychange", ()=>{
         if(!document.hidden){
           measureBars();
-          if(state.ui.autoWake){
-            fireAlarmIfNeeded(false);
-          }
+          if(state.ui.autoWake) fireAlarmIfNeeded(false);
           lightTick();
         }
       });
@@ -2543,15 +2878,13 @@
       state.tickInterval = setInterval(lightTick, 1000);
 
       setSaveState("พร้อมใช้งาน", "wait");
+      renderCalendarUI();
       heavyRender();
 
       log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
     }
 
-    window.addEventListener("beforeunload", ()=>{
-      revokeAllThumbs();
-    });
-
+    window.addEventListener("beforeunload", ()=> revokeAllThumbs());
     boot();
   </script>
 </body>
