@@ -1,16 +1,13 @@
 <!--
   File: Selfie_TimeLogger_MintLight.html
   Single-file web app (HTML/CSS/JS) — Selfie + Time Logger (Mint Light style)
-  Works on GitHub Pages (no backend). Uses IndexedDB (Dexie via CDN) to persist images + metadata.
-
-  ✅ Key Features
-  - Persist photos (Blob) in IndexedDB (Dexie preferred; native IndexedDB fallback)
-  - Auto tagging IN/OUT sequence: IN-1, OUT-1, IN-2, OUT-2, ... (continues beyond 20 if you keep adding)
-  - Pending / Downloaded split, downloadable file name = TAG.jpg, download repeatable
-  - Per-photo delete (real delete from IndexedDB)
-  - 9:10 timer lock (persists) unlock when downloaded >= 40 or reset
-  - Alarm-style notifications triggered after each download (IN=15m, OUT=25m), resets on new download
-  - Best-effort notifications (works reliably while app open; catch-up when reopen)
+  Works on GitHub Pages (no backend). Uses IndexedDB (Dexie preferred; native IndexedDB fallback)
+  ✅ Updated per your requests:
+    1) FIX Tag continuity after delete: fill missing slots (IN/OUT) based on existing records (no simple cursor)
+    2) Camera live view shows current counts + next tag + capture feedback (flash + toast)
+    3) Timer button = 2-step (Start/Reset) + locked behavior + Unlock window 3s with countdown on unlock button
+    4) Pending layout split: IN left / OUT right
+    5) Sticky bar remains bottom, but auto-adds bottom padding so it never blocks scrolling cards
 -->
 
 <!doctype html>
@@ -43,6 +40,9 @@
       --danger:#ff4d4f;
       --shadow:0 10px 28px rgba(14,42,35,.10);
       --radius:18px;
+
+      /* dynamic sticky height set by JS */
+      --stickH: 0px;
     }
 
     *{ box-sizing:border-box; }
@@ -53,7 +53,9 @@
       color:var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
-      padding-bottom: 92px; /* space for sticky bar */
+
+      /* IMPORTANT: prevent sticky bar from blocking scroll content */
+      padding-bottom: calc(var(--stickH) + 10px);
     }
 
     a{ color:inherit; }
@@ -178,6 +180,11 @@
       border-color: #ffd1d1;
       color: #7c1313;
     }
+    .btn.warn{
+      background: #fff7e6;
+      border-color: #ffe2ad;
+      color: #7a4e00;
+    }
 
     .pill{
       display:inline-flex;
@@ -240,6 +247,7 @@
       flex-direction:column;
       gap:10px;
     }
+
     .photoItem{
       display:grid;
       grid-template-columns: 92px 1fr;
@@ -287,6 +295,34 @@
     }
     .actions .btn{ padding: 10px 12px; min-height: 40px; font-size: 13px; }
 
+    /* Pending split IN | OUT */
+    .pendingSplit{
+      display:grid;
+      grid-template-columns: 1fr 1fr; /* user wants IN left, OUT right */
+      gap: 10px;
+    }
+    @media (max-width: 360px){
+      /* ultra-small devices: still keep split but tighter */
+      .pendingSplit{ gap: 8px; }
+    }
+    .pendingCol{
+      border: 1px dashed #cfeee4;
+      background:#fbfffd;
+      border-radius: 16px;
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width:0;
+    }
+    .pendingColHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+
+    /* Sticky bar */
     .stickyBar{
       position: fixed;
       left: 0; right: 0; bottom: 0;
@@ -300,11 +336,24 @@
       max-width: 980px;
       margin: 0 auto;
       display:grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr auto auto; /* big start + 2 small buttons */
       gap:10px;
+      align-items:stretch;
     }
-    .stickyInner .btn{ min-height: 46px; }
+    .stickyInner .btn{ min-height: 50px; }
+    .stickyInner .btn.small{
+      width:auto;
+      min-width: 118px;
+      padding-left: 12px;
+      padding-right: 12px;
+      box-shadow: 0 8px 18px rgba(14,42,35,.08);
+    }
+    @media (max-width: 420px){
+      .stickyInner{ gap:8px; }
+      .stickyInner .btn.small{ min-width: 98px; font-size: 13px; }
+    }
 
+    /* Modal */
     .modalBackdrop{
       position: fixed;
       inset: 0;
@@ -364,6 +413,56 @@
       border: 1px solid rgba(255,255,255,.08);
     }
 
+    /* Camera HUD overlay (counts + next tag) */
+    .camHUD{
+      position:absolute;
+      left:10px;
+      right:10px;
+      top:10px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      pointer-events:none;
+      z-index: 3;
+    }
+    .camHUD .pill{
+      background: rgba(251,255,253,.92);
+      border-color: rgba(215,239,231,.95);
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      color: #1f4a3f;
+      pointer-events:none;
+    }
+
+    .camToast{
+      position:absolute;
+      left:10px;
+      right:10px;
+      bottom:10px;
+      display:none;
+      z-index: 3;
+    }
+    .camToast.show{ display:block; }
+    .camToastInner{
+      background: rgba(231,251,244,.92);
+      border: 1px solid rgba(191,238,224,.95);
+      color:#0b5f4a;
+      border-radius: 16px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      font-weight: 800;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .camFlash{
+      position:absolute;
+      inset:0;
+      background: rgba(255,255,255,.0);
+      z-index: 4;
+      pointer-events:none;
+      transition: background .15s ease;
+    }
+    .camFlash.on{ background: rgba(255,255,255,.55); }
+
     .spin{
       width: 14px; height:14px;
       border: 2px solid #cfeee4;
@@ -375,6 +474,7 @@
     }
     @keyframes spin{ to{ transform: rotate(360deg); } }
 
+    /* Alarm banner */
     .alarmBanner{
       position: fixed;
       left: 10px; right: 10px;
@@ -562,7 +662,27 @@
         <span>Pending (ยังไม่โหลด)</span>
         <span class="badge wait" id="pendingBadge">0</span>
       </h2>
-      <div class="list" id="pendingList"></div>
+
+      <div class="pendingSplit" id="pendingSplit">
+        <div class="pendingCol">
+          <div class="pendingColHeader">
+            <span class="badge ok">IN</span>
+            <span class="pill">ค้าง: <b id="pendingInCount">0</b></span>
+          </div>
+          <div class="list" id="pendingInList"></div>
+          <div class="mini muted" id="pendingInEmpty" style="display:none">ยังไม่มี IN ที่ค้างดาวน์โหลด</div>
+        </div>
+
+        <div class="pendingCol">
+          <div class="pendingColHeader">
+            <span class="badge ok">OUT</span>
+            <span class="pill">ค้าง: <b id="pendingOutCount">0</b></span>
+          </div>
+          <div class="list" id="pendingOutList"></div>
+          <div class="mini muted" id="pendingOutEmpty" style="display:none">ยังไม่มี OUT ที่ค้างดาวน์โหลด</div>
+        </div>
+      </div>
+
       <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
     </section>
 
@@ -578,11 +698,18 @@
   </div>
 
   <!-- E) Sticky Bar -->
-  <div class="stickyBar">
+  <div class="stickyBar" id="stickyBar">
     <div class="stickyInner">
-      <button class="btn primary" id="start910Btn">⏱️ เริ่มนับเวลา 9:10</button>
-      <button class="btn soft" id="reset910Btn">🔓 รีเซ็ตเวลา</button>
-      <button class="btn danger" id="deleteAllBtn">🧨 ลบทั้งหมด</button>
+      <!-- IMPORTANT: This button is 2-step:
+         - Step 1: Start -> lock -> show target time (disabled while locked)
+         - Step 2: Reset -> back to "เริ่มนับเวลา" (requires unlock window or auto unlock via downloaded>=40)
+      -->
+      <button class="btn primary" id="start910Btn">⏱️ เริ่มนับเวลา</button>
+
+      <!-- Unlock button opens a 3-second window (countdown shown on this button) -->
+      <button class="btn warn small" id="unlockBtn" disabled>🔓 ปลดล็อค</button>
+
+      <button class="btn danger small" id="deleteAllBtn">🧨 ลบทั้งหมด</button>
     </div>
   </div>
 
@@ -604,6 +731,21 @@
       <div class="modalBody">
         <div class="viewfinderWrap">
           <video id="camVideo" playsinline autoplay muted></video>
+
+          <!-- HUD: counts + next slot -->
+          <div class="camHUD">
+            <span class="pill" id="camCountPill">📸 Total: 0</span>
+            <span class="pill" id="camNextPill">Next: -</span>
+          </div>
+
+          <!-- Toast after capture -->
+          <div class="camToast" id="camToast">
+            <div class="camToastInner" id="camToastInner">บันทึกแล้ว</div>
+          </div>
+
+          <!-- Flash feedback -->
+          <div class="camFlash" id="camFlash"></div>
+
           <div class="vfOverlay"></div>
         </div>
 
@@ -628,8 +770,7 @@
     const $ = (id) => document.getElementById(id);
 
     const LS = {
-      cursor: "stl_cursor_nextPos",     // next slot position (1-based, increments on add, not reduced on delete)
-      timer910: "stl_timer910_state",   // {locked, startAt, targetAt}
+      timer910: "stl_timer910_state",   // {running, locked, startAt, targetAt}
       alarm: "stl_alarm_state",         // {dueAt, nextTag, lastDownloadedTag, lastDownloadedAt, firedDueAt}
       ui: "stl_ui_state"                // {logEnabled, autoWake, mirrorPref}
     };
@@ -643,11 +784,17 @@
       cam: {
         stream: null,
         facing: "user", // 'user' or 'environment'
-        mirror: true
       },
-      timer910: { locked:false, startAt:null, targetAt:null },
-      alarm: { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null },
       ui: { logEnabled:false, autoWake:true, mirrorPref:true },
+
+      // 9:10 timer
+      timer910: { running:false, locked:false, startAt:null, targetAt:null },
+
+      // Unlock window 3s
+      unlock: { until:null, ticker:null },
+
+      // Alarm
+      alarm: { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null },
       tickInterval: null,
       alarmTimeout: null
     };
@@ -663,6 +810,16 @@
         });
       }catch(_){
         return new Date(ts).toString();
+      }
+    }
+
+    function fmtTimeOnly(ts){
+      if(!ts) return "-";
+      try{
+        return new Date(ts).toLocaleTimeString("th-TH", { hour:"2-digit", minute:"2-digit" });
+      }catch(_){
+        const d = new Date(ts);
+        return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
       }
     }
 
@@ -684,11 +841,9 @@
       }).join(" ");
       if(state.ui.logEnabled){
         const box = $("logBox");
-        box.textContent = (line + "\n" + box.textContent).slice(0, 12000);
+        box.textContent = (line + "\n" + box.textContent).slice(0, 16000);
       }
-      // Always keep a minimal status text too
       $("statusText").textContent = args.join(" ").slice(0, 120);
-      // console for dev
       console.log(...args);
     }
 
@@ -709,31 +864,62 @@
     }
 
     function setSaveState(text, mode){
-      // mode: ok/wait/err
       const b = $("saveStateBadge");
       b.className = "badge " + (mode || "wait");
       b.innerHTML = text;
     }
 
     /**********************************************************************
-     * (B) Tag generator (IN/OUT)
-     * - Uses a persistent cursor (nextPos) so deletion doesn't reuse tags.
-     * - nextPos = 1 => IN-1, 2 => OUT-1, 3 => IN-2, ...
+     * (B) TAG logic (FIXED)
+     * Tag is NOT just a label; it is a fixed sequence slot:
+     * IN-1, OUT-1, IN-2, OUT-2, ...
+     *
+     * ✅ New rule: When adding a new photo, we always fill the earliest missing slot.
+     * - If IN-k missing => next = IN-k
+     * - Else if OUT-k missing => next = OUT-k
+     * - Else go to k+1
+     *
+     * This guarantees: if user deletes OUT-1 then adds new photo => it becomes OUT-1 (not IN-2)
      **********************************************************************/
-    function getNextPos(){
-      const v = parseInt(localStorage.getItem(LS.cursor) || "1", 10);
-      return Number.isFinite(v) && v > 0 ? v : 1;
+    function parseTag(tag){
+      const m = String(tag || "").trim().match(/^(IN|OUT)-(\d+)$/i);
+      if(!m) return null;
+      return { kind: m[1].toUpperCase(), idx: parseInt(m[2], 10) };
     }
-    function setNextPos(v){
-      localStorage.setItem(LS.cursor, String(v));
+
+    function ensureKindIdx(photo){
+      // Some old records might miss kind/idx; infer from tag
+      if(photo && (!photo.kind || !photo.idx) && photo.tag){
+        const p = parseTag(photo.tag);
+        if(p){
+          photo.kind = p.kind;
+          photo.idx = p.idx;
+        }
+      }
+      return photo;
     }
-    function tagFromPos(pos){
-      const pairIndex = Math.ceil(pos / 2);
-      const kind = (pos % 2 === 1) ? "IN" : "OUT";
-      return { tag: `${kind}-${pairIndex}`, kind, idx: pairIndex };
+
+    function computeNextSlot(photos){
+      const occ = new Map(); // idx -> {IN:bool, OUT:bool}
+      for(const raw of photos){
+        const p = ensureKindIdx(raw);
+        if(!p || !p.kind || !p.idx) continue;
+        const o = occ.get(p.idx) || { IN:false, OUT:false };
+        if(p.kind === "IN") o.IN = true;
+        if(p.kind === "OUT") o.OUT = true;
+        occ.set(p.idx, o);
+      }
+      let i = 1;
+      while(true){
+        const o = occ.get(i) || { IN:false, OUT:false };
+        if(!o.IN) return { tag:`IN-${i}`, kind:"IN", idx:i };
+        if(!o.OUT) return { tag:`OUT-${i}`, kind:"OUT", idx:i };
+        i++;
+      }
     }
+
     function peekNextTag(){
-      return tagFromPos(getNextPos()).tag;
+      return computeNextSlot(state.photos).tag;
     }
 
     /**********************************************************************
@@ -744,7 +930,6 @@
      *   (stores blob + metadata fields)
      **********************************************************************/
     async function initDB(){
-      // Detect Dexie availability
       const hasDexie = typeof window.Dexie !== "undefined";
       if(hasDexie){
         try{
@@ -762,7 +947,6 @@
         }
       }
 
-      // Native IndexedDB fallback (minimal operations we need)
       state.dbType = "Native";
       $("dbBadge").textContent = "DB: Native IndexedDB (fallback)";
       state.db = await openNativeDB();
@@ -804,7 +988,6 @@
               return txWrap(db, "photos", "readonly", async store => {
                 const idx = store.index("createdAt");
                 const all = await reqWrap(idx.getAll());
-                // getAll from index returns sorted by createdAt
                 return all;
               });
             }
@@ -834,58 +1017,42 @@
       }
     }
 
-    // DB abstraction (Dexie or Native) — methods we call below
+    // DB abstraction
     async function dbAddPhoto(photo){
-      if(state.dbType === "Dexie"){
-        return state.db.photos.add(photo);
-      }
+      if(state.dbType === "Dexie") return state.db.photos.add(photo);
       return state.db.addPhoto(photo);
     }
     async function dbUpdatePhoto(id, changes){
-      if(state.dbType === "Dexie"){
-        return state.db.photos.update(id, changes);
-      }
+      if(state.dbType === "Dexie") return state.db.photos.update(id, changes);
       return state.db.updatePhoto(id, changes);
     }
     async function dbDeletePhoto(id){
-      if(state.dbType === "Dexie"){
-        return state.db.photos.delete(id);
-      }
+      if(state.dbType === "Dexie") return state.db.photos.delete(id);
       return state.db.deletePhoto(id);
     }
     async function dbClearAll(){
-      if(state.dbType === "Dexie"){
-        return state.db.photos.clear();
-      }
+      if(state.dbType === "Dexie") return state.db.photos.clear();
       return state.db.clearAll();
     }
     async function dbGetAll(){
-      if(state.dbType === "Dexie"){
-        return state.db.photos.orderBy("createdAt").toArray();
-      }
+      if(state.dbType === "Dexie") return state.db.photos.orderBy("createdAt").toArray();
       return state.db.getAll();
     }
 
     /**********************************************************************
      * (D) Image processing
-     * - Re-encode via canvas (JPEG) to minimize metadata (removes EXIF)
-     * - Camera capture respects mirror preview for user-facing camera
+     * - Re-encode via canvas (JPEG) to reduce metadata (removes EXIF)
      **********************************************************************/
     async function imageFileToCleanJpegBlob(file, targetMax = 1600){
-      // Load image
       const url = URL.createObjectURL(file);
       try{
         const img = await loadImage(url);
-
-        // Resize with aspect preserved, limit longest side = targetMax
         const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, targetMax);
 
         const canvas = document.createElement("canvas");
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d", { alpha:false });
-
-        // Draw (no mirror for uploads)
         ctx.drawImage(img, 0, 0, w, h);
 
         const blob = await canvasToJpegBlob(canvas, 0.92);
@@ -920,12 +1087,18 @@
 
     /**********************************************************************
      * (E) Add photo (camera/upload) -> store to IndexedDB immediately
-     * - Auto tag creation
-     * - createdAt is the timestamp we store and sort by
+     * - Uses computeNextSlot() to fill missing slot safely
      **********************************************************************/
     async function addPhotoFromBlob(blob, meta = {}){
-      const pos = getNextPos();
-      const { tag, kind, idx } = tagFromPos(pos);
+      // Prevent race (two adds at same time) to avoid duplicate tags
+      if(state.busy.saving){
+        log("Busy: wait saving…");
+        return;
+      }
+      state.busy.saving = true;
+
+      const next = computeNextSlot(state.photos);
+      const { tag, kind, idx } = next;
 
       const createdAt = now();
       const record = {
@@ -940,18 +1113,30 @@
       };
 
       setSaveState(`<span class="spin"></span> กำลังบันทึก…`, "wait");
-      state.busy.saving = true;
       try{
         const id = await dbAddPhoto(record);
-        setNextPos(pos + 1);
+        record.id = id;
+
+        // Update in-memory list immediately (so next tag is correct instantly)
+        state.photos.push(record);
+        state.photos.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+
         log("Saved", tag, "id=", id);
-      }finally{
-        state.busy.saving = false;
+
+        // Update UI + camera HUD/Toast quickly
         setSaveState("บันทึกแล้ว ✅", "ok");
         setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
-      }
 
-      await refresh();
+        render();
+        updateCamHUD();
+        showCamToast(`บันทึกแล้ว: ${tag} • Total: ${state.photos.length}`);
+      }catch(e){
+        log("Save error:", e && (e.message||e.name) ? (e.message||e.name) : e);
+        setSaveState("บันทึกล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+      }finally{
+        state.busy.saving = false;
+      }
     }
 
     /**********************************************************************
@@ -980,19 +1165,8 @@
     function setNotifBadge(){
       const p = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
       const el = $("permBadge");
-      if(p === "granted"){
-        el.className = "pill";
-        el.textContent = "🔔 Permission: granted";
-      }else if(p === "denied"){
-        el.className = "pill";
-        el.textContent = "🔔 Permission: denied";
-      }else if(p === "default"){
-        el.className = "pill";
-        el.textContent = "🔔 Permission: default";
-      }else{
-        el.className = "pill";
-        el.textContent = "🔔 Permission: unsupported";
-      }
+      el.className = "pill";
+      el.textContent = `🔔 Permission: ${p}`;
     }
 
     function computeCounts(){
@@ -1024,7 +1198,7 @@
 
       $("nextSlotText").textContent = peekNextTag();
 
-      // Timer 9:10 status
+      // Timer 9:10 status + auto unlock if downloaded >= 40
       renderTimer910(downloaded);
 
       // Alarm status
@@ -1032,23 +1206,40 @@
 
       // Lists
       renderList();
+
+      // Keep camera HUD fresh
+      updateCamHUD();
     }
 
     function renderList(){
-      const pendingList = $("pendingList");
+      const inList = $("pendingInList");
+      const outList = $("pendingOutList");
       const downloadedList = $("downloadedList");
-      pendingList.innerHTML = "";
+      inList.innerHTML = "";
+      outList.innerHTML = "";
       downloadedList.innerHTML = "";
 
-      const pending = state.photos.filter(p=>p.downloaded === 0);
+      const pendingAll = state.photos.filter(p=>p.downloaded === 0);
       const downloaded = state.photos.filter(p=>p.downloaded === 1);
 
-      $("pendingEmpty").style.display = pending.length ? "none" : "";
-      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
+      // Pending split
+      const pendingIN = pendingAll.filter(p=>String(p.kind).toUpperCase() === "IN")
+        .sort((a,b)=> (a.idx||0)-(b.idx||0) || (a.createdAt||0)-(b.createdAt||0));
+      const pendingOUT = pendingAll.filter(p=>String(p.kind).toUpperCase() === "OUT")
+        .sort((a,b)=> (a.idx||0)-(b.idx||0) || (a.createdAt||0)-(b.createdAt||0));
 
-      for(const photo of pending){
-        pendingList.appendChild(renderPhotoItem(photo, false));
-      }
+      $("pendingInCount").textContent = pendingIN.length;
+      $("pendingOutCount").textContent = pendingOUT.length;
+
+      $("pendingEmpty").style.display = pendingAll.length ? "none" : "";
+      $("pendingInEmpty").style.display = pendingIN.length ? "none" : "";
+      $("pendingOutEmpty").style.display = pendingOUT.length ? "none" : "";
+
+      for(const photo of pendingIN) inList.appendChild(renderPhotoItem(photo, false));
+      for(const photo of pendingOUT) outList.appendChild(renderPhotoItem(photo, false));
+
+      // Downloaded list (keep combined)
+      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
       for(const photo of downloaded){
         downloadedList.appendChild(renderPhotoItem(photo, true));
       }
@@ -1132,17 +1323,12 @@
     }
 
     /**********************************************************************
-     * (G) Download + mark downloaded + move list
-     *
-     * - Download file name = TAG.jpg (e.g., IN-7.jpg)
-     * - Mark downloaded=1 (keeps downloadable again)
-     * - Also triggers the "alarm timer" logic:
-     *     IN -> 15 minutes, OUT -> 25 minutes
-     *     If download again before due -> reset by latest download
+     * (G) Download + mark downloaded + trigger alarm
+     * - File name = TAG.jpg
+     * - Mark downloaded=1 but can download again
      **********************************************************************/
     async function downloadPhoto(photo){
-      const ext = "jpg"; // we re-encode into JPEG for uploads/camera
-      const filename = `${photo.tag}.${ext}`;
+      const filename = `${photo.tag}.jpg`;
 
       // Download
       const url = URL.createObjectURL(photo.blob);
@@ -1157,9 +1343,10 @@
         URL.revokeObjectURL(url);
       }
 
-      // Mark downloaded (and keep it downloadable again)
+      // Mark downloaded
       if(photo.downloaded !== 1){
         await dbUpdatePhoto(photo.id, { downloaded: 1 });
+        photo.downloaded = 1; // update in memory
         log("Marked downloaded:", photo.tag);
       }else{
         log("Downloaded again:", photo.tag);
@@ -1168,23 +1355,34 @@
       // Alarm scheduling based on latest downloaded tag
       scheduleAlarmFromDownloadedTag(photo.tag);
 
-      await refresh();
+      render(); // update counts and unlock logic
     }
 
     async function deletePhoto(id, tag){
       await dbDeletePhoto(id);
       revokeThumbUrl(id);
+
+      // remove from memory
+      state.photos = state.photos.filter(p => p.id !== id);
+
       log("Deleted", tag, "id=", id);
-      await refresh();
+      render();
     }
 
     /**********************************************************************
      * (H) 9:10 Timer Lock (persist)
      *
-     * - Press start -> locked, stores startAt and targetAt = startAt + 9h10m
-     * - Unlock condition:
-     *     downloadedCount >= 40 OR user presses "รีเซ็ตเวลา" (confirm)
-     * - State persists via localStorage
+     * Schema:
+     *  state.timer910 = { running, locked, startAt, targetAt }
+     *
+     * Behavior (per your spec):
+     *  - Start button has 2-step toggle:
+     *    Step 1: Start -> lock -> label becomes "สิ้นสุด <targetTime>"
+     *    Step 2: Reset -> label back to "เริ่มนับเวลา" (ready to start again)
+     *
+     *  - After Step 1, button is locked (cannot press) until:
+     *    a) downloadedCount >= 40 => auto unlock (button becomes pressable for reset)
+     *    b) user presses Unlock => opens 3-sec window => during that 3 sec, Start button becomes pressable (for Step 2 reset)
      **********************************************************************/
     const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
 
@@ -1192,82 +1390,160 @@
       const t = loadJSON(LS.timer910, null);
       if(t && typeof t === "object"){
         state.timer910 = {
+          running: !!t.running,
           locked: !!t.locked,
           startAt: t.startAt || null,
           targetAt: t.targetAt || null
         };
       }else{
-        state.timer910 = { locked:false, startAt:null, targetAt:null };
+        state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
       }
     }
     function saveTimer910(){
       saveJSON(LS.timer910, state.timer910);
     }
 
+    function isUnlockWindowActive(){
+      return !!state.unlock.until && now() < state.unlock.until;
+    }
+
     function renderTimer910(downloadedCount){
-      // auto-unlock if downloaded >= 40
-      if(state.timer910.locked && downloadedCount >= 40){
-        state.timer910 = { locked:false, startAt:null, targetAt:null };
+      // Auto unlock if downloaded >= 40 (do not clear times; just unlock so user can reset)
+      if(state.timer910.running && state.timer910.locked && downloadedCount >= 40){
+        state.timer910.locked = false;
         saveTimer910();
-        log("Auto unlock 9:10 (downloaded >= 40)");
+        log("Auto unlock timer (downloaded >= 40)");
       }
 
       const b = $("timerLockBadge");
-      if(state.timer910.locked){
-        b.className = "badge err";
-        b.textContent = "LOCKED";
+      if(state.timer910.running){
+        if(state.timer910.locked){
+          b.className = "badge err";
+          b.textContent = "LOCKED";
+        }else{
+          b.className = "badge ok";
+          b.textContent = "UNLOCKED";
+        }
       }else{
         b.className = "badge ok";
-        b.textContent = "UNLOCKED";
+        b.textContent = "READY";
       }
 
       $("timerMeta").textContent =
         `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
 
-      if(state.timer910.locked && state.timer910.targetAt){
+      if(state.timer910.running && state.timer910.targetAt){
         const left = state.timer910.targetAt - now();
         $("timerLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
       }else{
         $("timerLeftPill").textContent = "เหลือ: -";
       }
 
-      // Button states
-      $("start910Btn").disabled = state.timer910.locked;
+      // Start button label
+      const startBtn = $("start910Btn");
+      if(!state.timer910.running){
+        startBtn.textContent = "⏱️ เริ่มนับเวลา";
+      }else{
+        startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
+      }
+
+      // Start button enabled rules:
+      // - If not running => enabled (start Step 1)
+      // - If running => enabled only when NOT locked, OR within unlock window (to reset Step 2)
+      const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
+      startBtn.disabled = state.timer910.running ? !canResetNow : false;
+
+      // Unlock button enabled only when timer is running & locked & not already auto-unlocked
+      const unlockBtn = $("unlockBtn");
+      const canUnlock = state.timer910.running && state.timer910.locked && downloadedCount < 40;
+      unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
+
+      // If unlock window active, label is set by ticker (countdown)
+      if(!isUnlockWindowActive()){
+        unlockBtn.textContent = "🔓 ปลดล็อค";
+      }
     }
 
-    async function start910(){
-      if(state.timer910.locked) return;
+    function startTimer910(){
       const startAt = now();
       const targetAt = startAt + TIMER_910_MS;
 
-      state.timer910 = { locked:true, startAt, targetAt };
+      state.timer910 = { running:true, locked:true, startAt, targetAt };
       saveTimer910();
-      log("Start 9:10", fmtDT(startAt), "->", fmtDT(targetAt));
+      log("Timer start", fmtDT(startAt), "->", fmtDT(targetAt));
+    }
+
+    function resetTimer910ToReady(){
+      state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
+      saveTimer910();
+      log("Timer reset -> READY");
+    }
+
+    async function onStartButtonClick(){
+      const { downloaded } = computeCounts();
+
+      // Step 1: Start
+      if(!state.timer910.running){
+        startTimer910();
+        // After starting, button becomes locked immediately (unless auto unlock condition already true via downloaded >= 40; render will handle)
+        render();
+        return;
+      }
+
+      // Step 2: Reset (requires unlocked or unlock window)
+      const allowed = (!state.timer910.locked) || isUnlockWindowActive();
+      if(!allowed){
+        // Should not happen because button disabled, but keep safe
+        log("Blocked: timer locked");
+        return;
+      }
+
+      // Reset back to READY
+      resetTimer910ToReady();
+
+      // Close unlock window if active
+      clearUnlockWindow();
+
       render();
     }
 
-    async function reset910(){
-      const ok1 = confirm("ต้องการรีเซ็ตเวลา 9:10 ใช่ไหม?\n(จะปลดล็อกปุ่ม)");
-      if(!ok1) return;
-      const ok2 = confirm("ยืนยันอีกครั้ง: รีเซ็ตเวลา 9:10 (ปลดล็อก)\n*ไม่ลบรูป*");
-      if(!ok2) return;
+    function clearUnlockWindow(){
+      state.unlock.until = null;
+      if(state.unlock.ticker){
+        clearInterval(state.unlock.ticker);
+        state.unlock.ticker = null;
+      }
+      $("unlockBtn").textContent = "🔓 ปลดล็อค";
+    }
 
-      state.timer910 = { locked:false, startAt:null, targetAt:null };
-      saveTimer910();
-      log("Reset 9:10");
-      render();
+    function openUnlockWindow3s(){
+      // Restart if pressed again
+      clearUnlockWindow();
+
+      state.unlock.until = now() + 3000;
+      const unlockBtn = $("unlockBtn");
+
+      // Countdown text on unlock button
+      const tick = () => {
+        const leftMs = state.unlock.until - now();
+        const leftSec = Math.max(0, Math.ceil(leftMs / 1000)); // 3..2..1..0
+        if(leftSec <= 0){
+          clearUnlockWindow();
+          render();
+          return;
+        }
+        unlockBtn.textContent = `🔓 ปลดล็อค (${leftSec})`;
+        // While window active, start button becomes enabled for reset
+        render();
+      };
+
+      tick();
+      state.unlock.ticker = setInterval(tick, 200);
+      log("Unlock window opened: 3s");
     }
 
     /**********************************************************************
-     * (I) Alarm / Notification system (IN 15m / OUT 25m)
-     *
-     * - Starts timing when user downloads a photo
-     * - IN -> 15 minutes, OUT -> 25 minutes
-     * - Download a new photo before due -> reset timer to latest
-     * - When due:
-     *     show Notification (if permission granted) + fallback banner + beep
-     * - Catch-up:
-     *     if app reopened after due (and autoWake enabled) -> show immediately
+     * (I) Alarm / Notification (unchanged)
      **********************************************************************/
     function loadAlarmState(){
       const a = loadJSON(LS.alarm, null);
@@ -1287,17 +1563,10 @@
       saveJSON(LS.alarm, state.alarm);
     }
 
-    function parseTag(tag){
-      const m = String(tag || "").match(/^(IN|OUT)-(\d+)$/);
-      if(!m) return null;
-      return { kind:m[1], idx: parseInt(m[2], 10) };
-    }
-
     function nextTagFromDownloaded(tag){
       const p = parseTag(tag);
       if(!p) return null;
       if(p.kind === "IN") return `OUT-${p.idx}`;
-      // OUT-k => IN-(k+1)
       return `IN-${p.idx + 1}`;
     }
 
@@ -1323,7 +1592,7 @@
       saveAlarmState();
 
       log("Alarm set", downloadedTag, `+${mins}m`, "dueAt=", fmtDT(dueAt), "next=", nextTag);
-      setupAlarmTimeout(); // while app open
+      setupAlarmTimeout();
       render();
     }
 
@@ -1353,7 +1622,6 @@
     }
 
     function setupAlarmTimeout(){
-      // Clear old timeout
       if(state.alarmTimeout){
         clearTimeout(state.alarmTimeout);
         state.alarmTimeout = null;
@@ -1363,10 +1631,9 @@
       if(!dueAt) return;
 
       const delay = Math.max(0, dueAt - now());
-      // While app open: schedule
       state.alarmTimeout = setTimeout(()=>{
         fireAlarmIfNeeded(true);
-      }, delay + 30); // small cushion
+      }, delay + 30);
     }
 
     function fireAlarmIfNeeded(fromTimeout){
@@ -1375,18 +1642,10 @@
 
       const shouldCatchUp = state.ui.autoWake;
       const isPast = (dueAt - now()) <= 0;
-      if(!isPast){
-        // If called early, ignore
-        return;
-      }
+      if(!isPast) return;
 
-      // Only fire once per dueAt
-      if(state.alarm.firedDueAt === dueAt){
-        return;
-      }
-      if(!fromTimeout && !shouldCatchUp){
-        return;
-      }
+      if(state.alarm.firedDueAt === dueAt) return;
+      if(!fromTimeout && !shouldCatchUp) return;
 
       state.alarm.firedDueAt = dueAt;
       saveAlarmState();
@@ -1406,9 +1665,7 @@
     function tryNotify(body){
       if(typeof Notification === "undefined") return;
       if(Notification.permission !== "granted") return;
-
       try{
-        // Note: without service worker, background delivery is not guaranteed.
         new Notification("Selfie Time Logger", { body });
       }catch(_){}
     }
@@ -1439,7 +1696,6 @@
         }, duration*1000);
       }catch(_){}
     }
-
     function beepTriple(){
       beepOnce(0.12, 880);
       setTimeout(()=>beepOnce(0.12, 990), 180);
@@ -1449,19 +1705,21 @@
     /**********************************************************************
      * (J) Camera modal
      * - getUserMedia
-     * - Mirror preview for user-facing camera (CSS transform)
+     * - Mirror preview for user-facing camera
      * - Saved image matches preview (mirror applied at capture)
      **********************************************************************/
     async function openCamera(){
       $("camModalBackdrop").classList.add("show");
       $("camModeBadge").textContent = "CAM";
       $("camModeBadge").className = "badge ok";
+      updateCamHUD();
       await startCameraStream();
     }
 
     function closeCamera(){
       stopCameraStream();
       $("camModalBackdrop").classList.remove("show");
+      hideCamToast();
     }
 
     async function startCameraStream(){
@@ -1516,9 +1774,31 @@
     }
 
     async function switchCamera(){
-      // toggle facing
       state.cam.facing = (state.cam.facing === "user") ? "environment" : "user";
       await startCameraStream();
+    }
+
+    function camFlash(){
+      const el = $("camFlash");
+      el.classList.add("on");
+      setTimeout(()=> el.classList.remove("on"), 140);
+    }
+
+    function showCamToast(text){
+      const box = $("camToast");
+      $("camToastInner").textContent = text;
+      box.classList.add("show");
+      setTimeout(()=> hideCamToast(), 900);
+    }
+    function hideCamToast(){
+      $("camToast").classList.remove("show");
+    }
+
+    function updateCamHUD(){
+      // Counts + next tag shown in live view
+      const { total, downloaded, pending } = computeCounts();
+      $("camCountPill").textContent = `📸 Total: ${total} • Pending: ${pending} • DL: ${downloaded}`;
+      $("camNextPill").textContent = `Next: ${peekNextTag()}`;
     }
 
     async function captureFromCamera(){
@@ -1528,10 +1808,14 @@
         return;
       }
 
+      // feedback immediately
+      camFlash();
+      if(navigator.vibrate) navigator.vibrate(15);
+
       const facing = state.cam.facing;
       const mirror = (facing === "user") && state.ui.mirrorPref;
 
-      // We want a portrait 4:3 output (w/h = 3/4)
+      // Output portrait 4:3 (w/h = 3/4)
       const outAR = 3/4;
 
       const srcW = video.videoWidth;
@@ -1541,25 +1825,21 @@
       // crop source to match outAR
       let cropW, cropH, sx, sy;
       if(srcAR > outAR){
-        // source wider -> crop width
         cropH = srcH;
         cropW = cropH * outAR;
         sx = (srcW - cropW)/2;
         sy = 0;
       }else{
-        // source taller -> crop height
         cropW = srcW;
         cropH = cropW / outAR;
         sx = 0;
         sy = (srcH - cropH)/2;
       }
 
-      // output size: keep within ~1600px height for performance
+      // output size
       const maxH = 1600;
       let outH = Math.min(maxH, Math.round(cropH));
       let outW = Math.round(outH * outAR);
-
-      // if cropH already smaller than maxH, keep as-is
       if(cropH < maxH){
         outH = Math.round(cropH);
         outW = Math.round(cropW);
@@ -1570,7 +1850,7 @@
       canvas.height = outH;
       const ctx = canvas.getContext("2d", { alpha:false });
 
-      // IMPORTANT: If mirror, we flip the drawing so the saved image matches preview.
+      // IMPORTANT: mirror saved image to match mirror preview
       if(mirror){
         ctx.save();
         ctx.translate(outW, 0);
@@ -1583,9 +1863,6 @@
 
       const blob = await canvasToJpegBlob(canvas, 0.92);
       await addPhotoFromBlob(blob, { width: outW, height: outH, mime:"image/jpeg" });
-
-      // Optional: quick haptic (best-effort)
-      if(navigator.vibrate) navigator.vibrate(20);
     }
 
     /**********************************************************************
@@ -1595,41 +1872,41 @@
       if(!files || !files.length) return;
 
       setSaveState(`<span class="spin"></span> กำลังแปลงรูป…`, "wait");
-      state.busy.saving = true;
 
-      try{
-        // Process sequentially to keep tag order predictable
-        for(const file of files){
+      // Process sequentially to keep slot filling predictable
+      for(const file of files){
+        try{
           const clean = await imageFileToCleanJpegBlob(file, 1600);
           await addPhotoFromBlob(clean.blob, clean);
+        }catch(e){
+          log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
+          setSaveState("บันทึกล้มเหลว", "err");
+          setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
         }
-      }catch(e){
-        log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
-        setSaveState("บันทึกล้มเหลว", "err");
-        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
-      }finally{
-        state.busy.saving = false;
       }
+
+      render();
     }
 
     /**********************************************************************
-     * (L) Delete all (2-step confirm) + reset cursor + clear states
+     * (L) Delete all (2-step confirm) + clear states
      **********************************************************************/
     async function deleteAll(){
       const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
       if(!ok1) return;
-      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด + รีเซ็ต slot IN/OUT\nการกระทำนี้ย้อนกลับไม่ได้");
+      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด\nการกระทำนี้ย้อนกลับไม่ได้");
       if(!ok2) return;
 
       setSaveState(`<span class="spin"></span> กำลังลบทั้งหมด…`, "wait");
       try{
         await dbClearAll();
         revokeAllThumbs();
-        setNextPos(1);
+        state.photos = [];
 
-        // also clear timer/alarm (optional but practical)
-        state.timer910 = { locked:false, startAt:null, targetAt:null };
-        saveTimer910();
+        // reset timer/alarm
+        resetTimer910ToReady();
+        clearUnlockWindow();
+
         state.alarm = { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null };
         saveAlarmState();
         hideInAppAlarm();
@@ -1640,19 +1917,18 @@
         setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
       }
 
-      await refresh();
+      render();
     }
 
     /**********************************************************************
-     * (M) Refresh: load all photos (sorted) and render
+     * (M) Refresh from DB (on boot)
      **********************************************************************/
     async function refresh(){
       const all = await dbGetAll();
-      // Ensure sorted by createdAt
       all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+      // Ensure kind/idx is present in memory
+      for(const p of all) ensureKindIdx(p);
       state.photos = all;
-
-      // If timer locked, check auto-unlock logic on render
       render();
     }
 
@@ -1705,42 +1981,51 @@
       state.tickInterval = setInterval(()=>{
         // alarm catch-up check (while open)
         if(state.alarm.dueAt){
-          fireAlarmIfNeeded(true); // safe: only fires once per dueAt
+          fireAlarmIfNeeded(true);
         }
         renderTimer910(computeCounts().downloaded);
         renderAlarm();
+        updateCamHUD();
       }, 1000);
     }
 
     /**********************************************************************
-     * (Q) Init
+     * (Q) Sticky bar height -> body padding (so cards never blocked)
+     **********************************************************************/
+    function measureSticky(){
+      const el = $("stickyBar");
+      if(!el) return;
+      const h = el.offsetHeight || 0;
+      document.documentElement.style.setProperty("--stickH", `${h}px`);
+    }
+
+    /**********************************************************************
+     * (R) Init
      **********************************************************************/
     async function boot(){
-      // UI persisted switches
       loadUIState();
-
-      // Timer & Alarm persisted
       loadTimer910();
       loadAlarmState();
-
-      // Notification badge
       setNotifBadge();
 
-      // Init DB
       await initDB();
-
-      // Load photos
       await refresh();
 
       // Catch-up alarm if overdue
       setupAlarmTimeout();
       if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
-        // Only show immediately if autoWake enabled
         fireAlarmIfNeeded(false);
       }
 
-      // Start ticking
-      startTick();
+      // Sticky bar measurement
+      measureSticky();
+      window.addEventListener("resize", ()=> {
+        measureSticky();
+        render();
+      });
+      window.addEventListener("orientationchange", ()=> {
+        setTimeout(()=>{ measureSticky(); render(); }, 250);
+      });
 
       // Wire events
       $("requestNotifBtn").onclick = requestNotificationPermission;
@@ -1751,20 +2036,21 @@
 
       $("fileInput").addEventListener("change", async (e)=>{
         const files = Array.from(e.target.files || []);
-        e.target.value = ""; // allow re-select same files
+        e.target.value = "";
         await handleFiles(files);
       });
 
-      $("openCameraBtn").onclick = async ()=>{
-        // If camera not available, fallback to upload
-        await openCamera();
-      };
+      $("openCameraBtn").onclick = openCamera;
       $("closeCamBtn").onclick = closeCamera;
       $("switchCamBtn").onclick = switchCamera;
       $("captureBtn").onclick = captureFromCamera;
 
-      $("start910Btn").onclick = start910;
-      $("reset910Btn").onclick = reset910;
+      // Timer buttons
+      $("start910Btn").onclick = onStartButtonClick;
+      $("unlockBtn").onclick = () => {
+        openUnlockWindow3s();
+      };
+
       $("deleteAllBtn").onclick = deleteAll;
 
       $("alarmDismissBtn").onclick = hideInAppAlarm;
@@ -1786,7 +2072,7 @@
       $("mirrorHintToggle").addEventListener("change", ()=>{
         state.ui.mirrorPref = $("mirrorHintToggle").checked;
         saveUIState();
-        // reflect in camera modal if open
+
         const facing = state.cam.facing;
         const mirror = (facing === "user") && state.ui.mirrorPref;
         $("camVideo").classList.toggle("mirror", mirror);
@@ -1794,34 +2080,30 @@
         log("MirrorPref:", state.ui.mirrorPref);
       });
 
-      // Close modal when tapping backdrop (optional)
       $("camModalBackdrop").addEventListener("click", (e)=>{
         if(e.target === $("camModalBackdrop")){
           closeCamera();
         }
       });
 
-      // Basic status
       $("statusText").textContent = "พร้อมใช้งาน";
       setSaveState("พร้อมใช้งาน", "wait");
 
-      // Update "Next slot"
-      $("nextSlotText").textContent = peekNextTag();
-
       log("BOOT OK", "dbType=", state.dbType, "next=", peekNextTag());
+      render();
     }
 
     document.addEventListener("visibilitychange", ()=>{
-      // When user comes back, do catch-up if needed
       if(!document.hidden){
+        measureSticky();
         if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
           fireAlarmIfNeeded(false);
         }
+        render();
       }
     });
 
     window.addEventListener("beforeunload", ()=>{
-      // Clean object URLs
       revokeAllThumbs();
     });
 
