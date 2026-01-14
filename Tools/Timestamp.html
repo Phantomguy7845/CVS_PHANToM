@@ -35,9 +35,16 @@
       --thumb: clamp(52px, 16vw, 74px);
       --radius: 18px;
 
-      /* Viewfinder bias up (เลื่อนขึ้นให้เหมือนแอปกล้อง) */
-      --vfTopPad: clamp(10px, 5vh, 46px);
-      --vfLift: clamp(6px, 2vh, 22px);
+      /* Viewfinder bias up */
+      --vfTopPad: clamp(6px, 1.8vh, 16px);
+      --vfLift: clamp(10px, 2.2vh, 26px);
+
+      /* ✅ Viewfinder base aspect: "4:3 แนวตั้ง" = 3/4 */
+      --vfAspect: 3 / 4;
+
+      /* spacing */
+      --padX: clamp(10px, 3vw, 16px);
+      --gapY: clamp(10px, 2vh, 14px);
     }
 
     *{ box-sizing:border-box; }
@@ -47,7 +54,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
-      overflow:hidden; /* camera-app feel */
+      overflow:hidden;
     }
 
     button, input, select{
@@ -64,13 +71,13 @@
       padding-bottom: var(--safeB);
     }
 
-    /* ===== Top Bar (เหมือนแอปกล้อง) ===== */
+    /* ===== Top Bar ===== */
     .topbar{
       height: clamp(48px, 7.5vh, 64px);
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding: 0 clamp(10px, 3vw, 16px);
+      padding: 0 var(--padX);
       gap: 10px;
     }
     .topbar .left,
@@ -97,6 +104,7 @@
       text-overflow:ellipsis;
       color: rgba(255,255,255,.92);
     }
+
     .pill{
       display:inline-flex;
       align-items:center;
@@ -127,35 +135,36 @@
 
     svg{ width: var(--icon); height: var(--icon); fill: currentColor; }
 
-    /* ===== Stage (พื้นที่ดำ + Viewfinder 4:3 + ขอบดำบนล่าง) ===== */
+    /* ===== Stage: เอาให้ Viewfinder ใหญ่สุด ===== */
     .stage{
       position:relative;
+      padding: var(--vfTopPad) var(--padX) 0;
       display:flex;
-      flex-direction:column;
-      justify-content:flex-start;
       align-items:center;
-      gap: clamp(10px, 2vh, 16px);
-      padding-top: calc(var(--vfTopPad) - var(--vfLift));
-      padding-left: clamp(10px, 3vw, 16px);
-      padding-right: clamp(10px, 3vw, 16px);
+      justify-content:center;
+      transform: translateY(calc(-1 * var(--vfLift)));
     }
 
-    /* Viewfinder container: 4:3 landscape inside portrait screen */
+    /* ✅ Viewfinder: ขยายอัตโนมัติให้ใหญ่สุดตามพื้นที่ (ไม่โดน meta/gallery บีบแล้ว) */
     .viewWrap{
       width: 100%;
+      height: 100%;
       display:flex;
+      align-items:center;
       justify-content:center;
     }
+
     .viewfinder{
-      width: min(92vw, 820px);
-      aspect-ratio: 4 / 3;
+      width: 100%;
+      max-width: min(100vw, 980px);
+      max-height: 100%;
+      aspect-ratio: var(--vfAspect);
       border-radius: calc(var(--radius) + 6px);
       overflow:hidden;
       background: #000;
       border: 1px solid rgba(255,255,255,.10);
       box-shadow: 0 18px 60px rgba(0,0,0,.45);
       position:relative;
-      transform: translateY(calc(-1 * var(--vfLift)));
     }
 
     video{
@@ -167,7 +176,7 @@
       transform: none;
     }
     video.mirror{
-      transform: scaleX(-1); /* mirror preview for front camera */
+      transform: scaleX(-1);
     }
 
     .vfOverlay{
@@ -187,13 +196,59 @@
       border: 1px solid rgba(255,255,255,.12);
       padding: 8px 10px;
       border-radius: 14px;
-      max-width: 85%;
+      max-width: 88%;
       line-height: 1.25;
     }
 
-    /* ===== Compact Main Controls (Time / Location) ===== */
+    /* ✅ Preset frame guide (ปรับตาม preset) */
+    .presetGuide{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      display:none;
+    }
+    .presetGuide.show{ display:block; }
+
+    .mask{
+      position:absolute;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(1px);
+    }
+    .guideFrame{
+      position:absolute;
+      border: 2px solid rgba(255,255,255,.65);
+      border-radius: 14px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset;
+    }
+    .guideLabel{
+      position:absolute;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.40);
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      font-size: clamp(11px, 3.1vw, 13px);
+      font-weight: 900;
+      left: 12px;
+      bottom: 12px;
+      max-width: 80%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* ===== Bottom Controls ===== */
+    .controls{
+      padding: 10px var(--padX) calc(10px + var(--safeB));
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      align-items:center;
+    }
+
+    /* ✅ ย้าย meta+gallery มาไว้ล่าง เพื่อไม่ให้บีบ viewfinder */
     .metaBar{
-      width: min(92vw, 820px);
+      width: min(100%, 980px);
       display:grid;
       gap: 10px;
       padding: 10px 12px;
@@ -236,7 +291,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width: 55vw;
+      max-width: 62vw;
     }
 
     .switch{
@@ -262,7 +317,7 @@
     }
 
     .dtInput{
-      width: min(92vw, 820px);
+      width: 100%;
       padding: 10px 12px;
       border-radius: 14px;
       border: 1px solid var(--line);
@@ -276,13 +331,13 @@
       box-shadow: 0 0 0 4px rgba(16,185,129,.18);
     }
 
-    /* ===== Gallery Strip ===== */
+    /* Gallery strip */
     .gallery{
-      width: min(92vw, 820px);
+      width: min(100%, 980px);
       display:flex;
       gap: 10px;
       overflow:auto;
-      padding: 8px 2px;
+      padding: 6px 2px;
       scrollbar-width: none;
     }
     .gallery::-webkit-scrollbar{ display:none; }
@@ -335,17 +390,9 @@
     }
     .thumb .del svg{ width: 16px; height: 16px; }
 
-    /* ===== Bottom Controls (Shutter + Switch + DeleteAll moved to bottom-left) ===== */
-    .controls{
-      padding: 10px clamp(10px, 3vw, 16px) calc(10px + var(--safeB));
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-      align-items:center;
-    }
-
+    /* Bottom main row (DeleteAll / Shutter / SwitchCam) */
     .ctrlRow{
-      width: min(92vw, 820px);
+      width: min(100%, 980px);
       display:grid;
       grid-template-columns: 1fr auto 1fr;
       align-items:center;
@@ -407,11 +454,11 @@
       gap: 10px;
     }
 
-    /* ===== Toast / Status ===== */
+    /* Toast */
     .toast{
       position: fixed;
       left: 50%;
-      bottom: calc(90px + var(--safeB));
+      bottom: calc(170px + var(--safeB));
       transform: translateX(-50%);
       padding: 10px 12px;
       border-radius: 999px;
@@ -428,7 +475,7 @@
       text-overflow:ellipsis;
     }
 
-    /* ===== Modals (Settings / Preview / Map / Log) ===== */
+    /* ===== Modals (Settings / Preview / Map) ===== */
     .backdrop{
       position: fixed;
       inset: 0;
@@ -543,7 +590,7 @@
       line-height:1.35;
     }
 
-    /* Preview Modal */
+    /* Preview */
     .previewCanvas{
       width:100%;
       height:auto;
@@ -584,7 +631,6 @@
       background:#000;
     }
 
-    /* Log */
     pre{
       margin:0;
       padding: 10px 12px;
@@ -600,7 +646,6 @@
       overflow:auto;
     }
 
-    /* Hidden file input */
     #fileInput{ display:none; }
   </style>
 </head>
@@ -637,17 +682,30 @@
       </div>
     </div>
 
-    <!-- Stage -->
+    <!-- Stage (ใหญ่สุด) -->
     <div class="stage">
       <div class="viewWrap">
-        <div class="viewfinder">
+        <div class="viewfinder" id="viewfinder">
           <video id="camVideo" playsinline autoplay muted></video>
+
+          <div class="presetGuide" id="presetGuide" aria-hidden="true">
+            <div class="mask" id="maskTop"></div>
+            <div class="mask" id="maskBottom"></div>
+            <div class="mask" id="maskLeft"></div>
+            <div class="mask" id="maskRight"></div>
+            <div class="guideFrame" id="guideFrame"></div>
+            <div class="guideLabel" id="guideLabel"></div>
+          </div>
+
           <div class="vfOverlay">
             <div class="hint" id="vfHint">กำลังเปิดกล้อง… (ต้องอนุญาตกล้อง และเปิดผ่าน HTTPS / GitHub Pages)</div>
           </div>
         </div>
       </div>
+    </div>
 
+    <!-- Bottom Controls -->
+    <div class="controls">
       <!-- Main Time controls (อยู่หน้าหลัก + ยังมีใน Settings) -->
       <div class="metaBar">
         <div class="metaRow">
@@ -676,12 +734,10 @@
 
       <!-- Gallery -->
       <div class="gallery" id="gallery"></div>
-    </div>
 
-    <!-- Bottom Controls -->
-    <div class="controls">
+      <!-- Bottom row -->
       <div class="ctrlRow">
-        <!-- ✅ ย้าย "ลบทั้งหมด" มาแทนปุ่มมุมล่างซ้าย -->
+        <!-- ✅ Delete All อยู่มุมล่างซ้าย -->
         <button class="actionBtn danger" id="btnDeleteAll" title="Delete All" disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 7h16v2H4V7z"/></svg>
         </button>
@@ -697,7 +753,7 @@
     </div>
   </div>
 
-  <!-- Hidden File Input (รองรับหลายรูป) -->
+  <!-- Hidden File Input -->
   <input id="fileInput" type="file" accept="image/*" multiple />
 
   <!-- Toast -->
@@ -786,7 +842,7 @@
             <option value="thaiVerboseGmt" selected>ไทยแบบยาว + GMT+07:00 (ค่าเริ่มต้น)</option>
             <option value="isoLike">YYYY-MM-DD HH:mm:ss</option>
           </select>
-          <div class="mini">คุณเลือก “โหมด 2” แล้ว: จะโชว์ 2 บรรทัด พร้อม label “Network:” และ “Local:”</div>
+          <div class="mini">โหมด 2: จะโชว์ 2 บรรทัด พร้อม label “Network:” และ “Local:”</div>
         </div>
 
         <div class="card">
@@ -958,30 +1014,23 @@
 (() => {
   "use strict";
 
-  /* =========================
-     Storage (คง key เดิม)
-  ========================== */
   const SETTINGS_KEY = "PT_TS_SETTINGS_V2_4";
 
   const DEFAULT_SETTINGS = {
-    // time
     useNow: true,
     customTime: "",
     timeFormat: "thaiVerboseGmt",
 
-    // output
     outputMode: "preset",
     outputSize: "1080x2340",
     fitMode: "contain",
 
-    // overlay
     overlayPos: "tr",
     overlayPad: 24,
     fontAuto: true,
     fontScale: 100,
     fontPx: 32,
 
-    // location
     enableLocation: false,
     showLatLng: true,
     showAddress: true,
@@ -989,15 +1038,21 @@
     lng: "",
     placeQuery: "",
 
-    // log
     enableLogPanel: false,
   };
 
-  /* =========================
-     DOM
-  ========================== */
+  /* DOM */
+  const viewfinder = document.getElementById("viewfinder");
   const camVideo = document.getElementById("camVideo");
   const vfHint = document.getElementById("vfHint");
+
+  const presetGuide = document.getElementById("presetGuide");
+  const maskTop = document.getElementById("maskTop");
+  const maskBottom = document.getElementById("maskBottom");
+  const maskLeft = document.getElementById("maskLeft");
+  const maskRight = document.getElementById("maskRight");
+  const guideFrame = document.getElementById("guideFrame");
+  const guideLabel = document.getElementById("guideLabel");
 
   const btnTorch = document.getElementById("btnTorch");
   const btnImport = document.getElementById("btnImport");
@@ -1010,7 +1065,6 @@
   const btnDeleteAll = document.getElementById("btnDeleteAll");
 
   const fileInput = document.getElementById("fileInput");
-
   const gallery = document.getElementById("gallery");
   const photoCountPill = document.getElementById("photoCountPill");
 
@@ -1083,9 +1137,7 @@
   const btnCancelMap = document.getElementById("btnCancelMap");
   const mapHint = document.getElementById("mapHint");
 
-  /* =========================
-     Utils
-  ========================== */
+  /* Utils */
   const pad2 = (n) => String(n).padStart(2,"0");
   const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
   const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -1139,7 +1191,6 @@
   }
 
   function formatThaiVerboseGmt(date){
-    // ตัวอย่าง: 13 ม.ค. 2026 19 นาฬิกา 42 นาที 50 วินาที GMT+07:00
     const d = date.getDate();
     const m = date.toLocaleString("th-TH", { month: "short" });
     const y = date.getFullYear();
@@ -1147,7 +1198,6 @@
     const mm = date.getMinutes();
     const ss = date.getSeconds();
 
-    // timezone offset
     const offMin = -date.getTimezoneOffset();
     const sign = offMin >= 0 ? "+" : "-";
     const abs = Math.abs(offMin);
@@ -1184,12 +1234,10 @@
     return la>=-90 && la<=90 && ln>=-180 && ln<=180;
   }
 
-  /* =========================
-     State
-  ========================== */
+  /* State */
   const state = {
     settings: readSettings(),
-    photos: [], // {id, baseBlob, w, h, thumbUrl, createdAtISO, timeMode:"now"|"custom", timeValueISO}
+    photos: [],
     selectedId: null,
 
     cam: {
@@ -1207,9 +1255,7 @@
     pendingPick: null,
   };
 
-  /* =========================
-     Settings read/write
-  ========================== */
+  /* Settings */
   function readSettings(){
     try{
       const raw = localStorage.getItem(SETTINGS_KEY);
@@ -1235,7 +1281,6 @@
   }
 
   function applySettingsToUI(){
-    // settings modal
     useNow.checked = !!state.settings.useNow;
     customTime.value = state.settings.customTime || "";
     timeFormat.value = state.settings.timeFormat || "thaiVerboseGmt";
@@ -1260,7 +1305,6 @@
     enableLogPanel.checked = !!state.settings.enableLogPanel;
     logPre.textContent = enableLogPanel.checked ? logs.join("\n") : "";
 
-    // main UI sync
     useNowMain.checked = !!state.settings.useNow;
     customTimeMain.value = state.settings.customTime || "";
 
@@ -1269,6 +1313,7 @@
     updateOverlayUI();
     refreshLocSummary();
     updateLogUI();
+    updatePresetGuide(); /* ✅ ปรับกรอบตาม preset */
   }
 
   function updateLogUI(){
@@ -1294,14 +1339,12 @@
   }
 
   function updateTimeUI(){
-    // show/hide custom time input on main + settings
     customTimeMain.style.display = state.settings.useNow ? "none" : "block";
     customTime.style.display = state.settings.useNow ? "none" : "block";
 
-    // summary text
     if (state.settings.useNow){
-      timeSummary.textContent = "ใช้เวลาปัจจุบัน (บันทึกเวลา ณ ตอนถ่าย/นำเข้า)";
-      timeStatus.textContent = "โหมด: เวลาปัจจุบัน — รูปใหม่จะถูกบันทึก timestamp ตอนถ่าย/นำเข้า";
+      timeSummary.textContent = "ใช้เวลาปัจจุบัน (ล็อกเวลาตอนถ่าย/นำเข้า)";
+      timeStatus.textContent = "โหมด: เวลาปัจจุบัน — รูปใหม่จะล็อก timestamp ตอนถ่าย/นำเข้า";
     } else {
       const v = state.settings.customTime;
       timeSummary.textContent = v ? `เลือกเวลาเอง: ${v.replace("T"," ")}` : "เลือกเวลาเอง (ยังไม่ตั้งค่า)";
@@ -1309,9 +1352,92 @@
     }
   }
 
-  /* =========================
-     Camera
-  ========================== */
+  /* ✅ Preset guide: ให้ viewfinder ใหญ่ (4:3 แนวตั้ง) แต่ “กรอบด้านใน” ปรับตาม preset */
+  function updatePresetGuide(){
+    // แสดงเฉพาะตอน outputMode=preset
+    if (state.settings.outputMode !== "preset"){
+      presetGuide.classList.remove("show");
+      presetGuide.setAttribute("aria-hidden","true");
+      return;
+    }
+
+    const vfW = viewfinder.clientWidth;
+    const vfH = viewfinder.clientHeight;
+    if (vfW <= 10 || vfH <= 10) return;
+
+    const {w:pw, h:ph} = parseSize(state.settings.outputSize);
+    const presetAspect = pw / ph; // width/height (portrait < 1)
+
+    // viewfinder aspect (base 3/4)
+    const vfAspect = vfW / vfH;
+
+    // คำนวณกรอบให้ "พอดี" อยู่ใน viewfinder
+    let frameW, frameH;
+    if (presetAspect <= vfAspect){
+      // preset แคบกว่า => จำกัดด้วยความสูง
+      frameH = vfH;
+      frameW = frameH * presetAspect;
+      if (frameW > vfW){
+        frameW = vfW;
+        frameH = frameW / presetAspect;
+      }
+    } else {
+      // preset กว้างกว่า => จำกัดด้วยความกว้าง
+      frameW = vfW;
+      frameH = frameW / presetAspect;
+      if (frameH > vfH){
+        frameH = vfH;
+        frameW = frameH * presetAspect;
+      }
+    }
+
+    // margin ให้สวย (ไม่ชนขอบ viewfinder)
+    const margin = Math.max(10, Math.round(Math.min(vfW, vfH) * 0.04));
+    const scale = Math.min((vfW - margin*2) / frameW, (vfH - margin*2) / frameH, 1);
+    frameW = Math.round(frameW * scale);
+    frameH = Math.round(frameH * scale);
+
+    const x = Math.round((vfW - frameW) / 2);
+    const y = Math.round((vfH - frameH) / 2);
+
+    // วาง frame
+    guideFrame.style.left = x + "px";
+    guideFrame.style.top = y + "px";
+    guideFrame.style.width = frameW + "px";
+    guideFrame.style.height = frameH + "px";
+
+    // วาง mask รอบ ๆ frame
+    maskTop.style.left = "0px";
+    maskTop.style.top = "0px";
+    maskTop.style.width = vfW + "px";
+    maskTop.style.height = y + "px";
+
+    maskBottom.style.left = "0px";
+    maskBottom.style.top = (y + frameH) + "px";
+    maskBottom.style.width = vfW + "px";
+    maskBottom.style.height = (vfH - (y + frameH)) + "px";
+
+    maskLeft.style.left = "0px";
+    maskLeft.style.top = y + "px";
+    maskLeft.style.width = x + "px";
+    maskLeft.style.height = frameH + "px";
+
+    maskRight.style.left = (x + frameW) + "px";
+    maskRight.style.top = y + "px";
+    maskRight.style.width = (vfW - (x + frameW)) + "px";
+    maskRight.style.height = frameH + "px";
+
+    guideLabel.textContent = `Preset frame: ${pw}×${ph}`;
+    presetGuide.classList.add("show");
+    presetGuide.setAttribute("aria-hidden","false");
+  }
+
+  // ให้ guide อัปเดตเมื่อจอเปลี่ยน / rotate
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(updatePresetGuide);
+  });
+
+  /* Camera */
   async function stopCamera(){
     try{
       if (state.cam.stream){
@@ -1376,7 +1502,6 @@
       await enumerateVideoDevices();
       btnSwitchCam.disabled = (state.cam.devices.length < 2);
 
-      // Torch capability
       const track = stream.getVideoTracks()?.[0];
       if (track && track.getCapabilities){
         const caps = track.getCapabilities();
@@ -1388,22 +1513,22 @@
       }
 
       addLog(`camera started: facing=${state.cam.facingMode} torch=${state.cam.torchSupported}`);
+
+      // ✅ เริ่มกล้องแล้วอัปเดต guide (ขนาด viewfinder พร้อม)
+      requestAnimationFrame(updatePresetGuide);
     } catch (e){
       vfHint.textContent = "เปิดกล้องไม่สำเร็จ (ต้องอนุญาตกล้อง + ใช้ HTTPS / GitHub Pages) — ยังสามารถ Import รูปได้";
       showToast("เปิดกล้องไม่สำเร็จ");
       addLog("camera start failed: " + String(e?.message||e));
       await stopCamera();
-      // still usable via import
     }
   }
 
   async function switchCamera(){
     try{
       if (state.cam.devices.length >= 2){
-        // cycle deviceId
         state.cam.deviceIndex = (state.cam.deviceIndex + 1) % state.cam.devices.length;
         const next = state.cam.devices[state.cam.deviceIndex];
-        // best effort detect front/back by label
         const label = (next.label || "").toLowerCase();
         if (label.includes("front") || label.includes("user")) state.cam.facingMode = "user";
         else if (label.includes("back") || label.includes("rear") || label.includes("environment")) state.cam.facingMode = "environment";
@@ -1412,7 +1537,6 @@
         return;
       }
 
-      // fallback: toggle facingMode
       state.cam.facingMode = (state.cam.facingMode === "environment") ? "user" : "environment";
       await startCamera({facingMode: state.cam.facingMode});
       updateMirrorClass();
@@ -1439,9 +1563,7 @@
     }
   }
 
-  /* =========================
-     EXIF orientation fix (จากโค้ดเดิม)
-  ========================== */
+  /* EXIF fix */
   async function getExifOrientation(file){
     try{
       if (!file || !file.type || !file.type.toLowerCase().includes("jpeg")) return 1;
@@ -1531,7 +1653,6 @@
     }
     ctx.drawImage(img, 0, 0);
     ctx.restore();
-
     return c;
   }
 
@@ -1550,22 +1671,16 @@
     }
   }
 
-  /* =========================
-     Photos: add / delete / render
-  ========================== */
+  /* Photos */
   function getDefaultPhotoTime(){
-    // ✅ ปรับให้เป็นแนวกล้อง: ถ้าใช้เวลาปัจจุบัน => บันทึกเวลาตอนถ่าย/นำเข้า (คงที่ต่อรูป)
     if (state.settings.useNow){
       return { mode: "now", iso: new Date().toISOString() };
     }
-    // custom
     const v = state.settings.customTime;
     if (v){
-      // datetime-local => interpret as local time
       const d = new Date(v);
       return { mode: "custom", iso: d.toISOString() };
     }
-    // fallback
     return { mode: "now", iso: new Date().toISOString() };
   }
 
@@ -1576,12 +1691,10 @@
   }
 
   async function createThumbUrlFromBlob(blob){
-    const url = URL.createObjectURL(blob);
-    return url;
+    return URL.createObjectURL(blob);
   }
 
   async function addPhotoFromBaseCanvas(baseCanvas, {sourceName="camera", fromFrontMirror=false} = {}){
-    // baseCanvas already "final base pixels" (for front mirror, already mirrored to match preview)
     const baseBlob = await canvasToBlob(baseCanvas, "image/jpeg", 0.95); // strips EXIF
     const t = getDefaultPhotoTime();
     const p = {
@@ -1591,7 +1704,7 @@
       h: baseCanvas.height,
       thumbUrl: await createThumbUrlFromBlob(baseBlob),
       createdAtISO: new Date().toISOString(),
-      timeMode: t.mode, // "now" or "custom" (both are fixed per photo)
+      timeMode: t.mode,
       timeValueISO: t.iso,
       sourceName,
       fromFrontMirror: !!fromFrontMirror
@@ -1611,7 +1724,6 @@
         const img = await loadImageFromFile(f);
         const orient = await getExifOrientation(f);
         const corrected = drawWithOrientation(img, orient);
-        // convert corrected canvas => base blob (no EXIF)
         await addPhotoFromBaseCanvas(corrected, {sourceName: f.name || "file"});
       } catch (e){
         addLog("import failed: " + String(e?.message||e));
@@ -1623,7 +1735,6 @@
   function deletePhoto(id){
     const idx = state.photos.findIndex(p => p.id === id);
     if (idx < 0) return;
-    // revoke thumb URL
     try{ URL.revokeObjectURL(state.photos[idx].thumbUrl); } catch {}
     state.photos.splice(idx, 1);
     if (state.selectedId === id) state.selectedId = null;
@@ -1681,7 +1792,6 @@
       del.className = "del";
       del.title = "Delete";
       del.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4z"/></svg>`;
-
       del.addEventListener("click", (ev) => {
         ev.stopPropagation();
         deletePhoto(p.id);
@@ -1696,11 +1806,7 @@
     });
   }
 
-  /* =========================
-     Overlay + Render
-     - ไม่มีพื้นหลังดำ (ใช้ stroke/shadow)
-     - 2 บรรทัด: Network + Local (ตามที่คุณเลือก "2")
-  ========================== */
+  /* Overlay render */
   function computeFontSize(outW, outH){
     if (!state.settings.fontAuto){
       const px = Number(state.settings.fontPx) || 32;
@@ -1713,23 +1819,14 @@
   }
 
   function buildOverlayLines(date){
-    const lines = [];
     const s = formatBySetting(date);
-
-    // ✅ ตามตัวเลือก 2: มี label Network/Local 2 บรรทัด
-    lines.push(`Network: ${s}`);
-    lines.push(`Local: ${s}`);
+    const lines = [`Network: ${s}`, `Local: ${s}`];
 
     if (state.settings.enableLocation && hasValidLatLng()){
       const lat = Number(latEl.value);
       const lng = Number(lngEl.value);
-
-      if (state.settings.showLatLng){
-        lines.push(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-      }
-      if (state.settings.showAddress){
-        lines.push(state.addressText ? state.addressText : "(ที่อยู่ยังไม่พร้อม)");
-      }
+      if (state.settings.showLatLng) lines.push(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      if (state.settings.showAddress) lines.push(state.addressText ? state.addressText : "(ที่อยู่ยังไม่พร้อม)");
     }
     return lines;
   }
@@ -1748,7 +1845,6 @@
     ctx.textAlign = isRight ? "right" : "left";
     ctx.textBaseline = isTop ? "top" : "bottom";
 
-    // shadow + stroke (no background bar)
     ctx.shadowColor = "rgba(0,0,0,.85)";
     ctx.shadowBlur = Math.round(fontSize * 0.35);
     ctx.lineJoin = "round";
@@ -1768,7 +1864,6 @@
         y += lineGap;
       }
     } else {
-      // bottom: draw from bottom up
       for (let i = lines.length - 1; i >= 0; i--){
         const line = lines[i];
         ctx.strokeText(line, x, y);
@@ -1808,11 +1903,9 @@
   async function renderPhotoToCanvas(photo, canvas, {forPreview=false} = {}){
     const ctx = canvas.getContext("2d", { alpha:false });
 
-    // decide time for this photo
     let date = new Date(photo.timeValueISO || photo.createdAtISO || Date.now());
     if (!(date instanceof Date) || isNaN(date.getTime())) date = new Date();
 
-    // ensure address (lazy)
     if (state.settings.enableLocation && hasValidLatLng() && state.settings.showAddress && !state.addressText){
       try{
         state.addressText = await reverseGeocode(Number(latEl.value), Number(lngEl.value));
@@ -1833,7 +1926,6 @@
       outW = s.w; outH = s.h;
     }
 
-    // for preview: limit size to keep smooth
     if (forPreview){
       const maxW = 1280;
       if (outW > maxW){
@@ -1868,40 +1960,47 @@
     return { outW, outH, lines: lines.length };
   }
 
-  /* =========================
-     Capture (สำคัญ: mirror saved = เหมือน preview)
-  ========================== */
+  /* ✅ Capture: ครอปตาม “สิ่งที่เห็นใน viewfinder” (ทำให้ preset guide มีความหมาย) */
   async function captureFromCamera(){
     if (!state.cam.stream){
       showToast("ยังไม่มีกล้อง — ใช้ Import แทนได้");
       return;
     }
 
-    const vw = camVideo.videoWidth || 1280;
-    const vh = camVideo.videoHeight || 720;
+    const iw = camVideo.videoWidth || 1280;
+    const ih = camVideo.videoHeight || 720;
+
+    const vfW = viewfinder.clientWidth || 360;
+    const vfH = viewfinder.clientHeight || 640;
+
+    // object-fit: cover crop
+    const scale = Math.max(vfW / iw, vfH / ih);
+    const srcW = vfW / scale;
+    const srcH = vfH / scale;
+    const sx = (iw - srcW) / 2;
+    const sy = (ih - srcH) / 2;
+
+    const outW = Math.max(1, Math.round(srcW));
+    const outH = Math.max(1, Math.round(srcH));
 
     const c = document.createElement("canvas");
-    c.width = vw;
-    c.height = vh;
+    c.width = outW;
+    c.height = outH;
     const ctx = c.getContext("2d", { alpha:false });
 
     const isFront = (state.cam.facingMode === "user");
-
-    // ✅ ถ้ากล้องหน้า: mirror saved result ให้เหมือน preview (วาดแบบ flip แนวนอนก่อน)
     ctx.save();
     if (isFront){
-      ctx.translate(vw, 0);
+      ctx.translate(outW, 0);
       ctx.scale(-1, 1);
     }
-    ctx.drawImage(camVideo, 0, 0, vw, vh);
+    ctx.drawImage(camVideo, sx, sy, srcW, srcH, 0, 0, outW, outH);
     ctx.restore();
 
     await addPhotoFromBaseCanvas(c, { sourceName: isFront ? "camera(front)" : "camera(back)", fromFrontMirror: isFront });
   }
 
-  /* =========================
-     Preview Modal (per photo time)
-  ========================== */
+  /* Preview modal */
   function getSelectedPhoto(){
     return state.photos.find(p => p.id === state.selectedId) || null;
   }
@@ -1912,7 +2011,7 @@
     if (!p) return;
 
     previewTitle.textContent = `Photo #${state.photos.findIndex(x => x.id === id)+1}`;
-    // init per-photo time controls
+
     if (p.timeMode === "now"){
       photoTimeNow.classList.add("on");
       photoTimeCustom.classList.remove("on");
@@ -1923,7 +2022,6 @@
       photoCustomTime.disabled = false;
     }
 
-    // show datetime-local if custom
     const dt = new Date(p.timeValueISO || Date.now());
     const v = `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
     photoCustomTime.value = v;
@@ -1936,7 +2034,6 @@
   async function renderPreview(){
     const p = getSelectedPhoto();
     if (!p) return;
-
     try{
       const r = await renderPhotoToCanvas(p, previewCanvas, { forPreview: true });
       previewStatus.textContent = `Preview: ${r.outW}×${r.outH} • Overlay ${r.lines} บรรทัด`;
@@ -1957,7 +2054,7 @@
 
     if (mode === "now"){
       p.timeMode = "now";
-      p.timeValueISO = new Date().toISOString(); // lock to now at moment you choose
+      p.timeValueISO = new Date().toISOString();
       photoTimeNow.classList.add("on");
       photoTimeCustom.classList.remove("on");
       photoCustomTime.disabled = true;
@@ -1975,9 +2072,7 @@
     renderPreview();
   }
 
-  /* =========================
-     Download
-  ========================== */
+  /* Download */
   async function downloadPhoto(photo){
     const type = dlType.value || "image/jpeg";
     const q = clamp(Number(dlQuality.value) || 0.95, 0.7, 1);
@@ -2012,7 +2107,6 @@
     const ext = "jpg";
     const stamp = buildFileStamp(new Date());
 
-    // ✅ Primary: File System Access API (Chrome)
     if (window.showDirectoryPicker){
       try{
         const dir = await window.showDirectoryPicker({ mode: "readwrite" });
@@ -2040,7 +2134,6 @@
       }
     }
 
-    // Fallback 1: ZIP via JSZip (ถ้ามี)
     if (window.JSZip){
       try{
         showToast("กำลังทำ ZIP…");
@@ -2074,7 +2167,6 @@
       }
     }
 
-    // Fallback 2: Sequential downloads (บางเครื่องจะ block ถ้าหลายไฟล์)
     showToast("กำลังดาวน์โหลดทีละไฟล์…");
     for (let i=0;i<state.photos.length;i++){
       const p = state.photos[i];
@@ -2097,9 +2189,7 @@
     addLog("downloadAll: sequential fallback");
   }
 
-  /* =========================
-     Location (Nominatim)
-  ========================== */
+  /* Location */
   async function reverseGeocode(lat, lng){
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
     const res = await fetch(url, {
@@ -2179,9 +2269,7 @@
     }
   }
 
-  /* =========================
-     Map (Leaflet)
-  ========================== */
+  /* Map (Leaflet) */
   function openMap(){
     if (!window.L){
       showToast("Leaflet โหลดไม่สำเร็จ");
@@ -2216,9 +2304,7 @@
     mapHint.textContent = "แตะบนแผนที่เพื่อเลือกพิกัด";
   }
 
-  function closeMap(){
-    closeBackdrop(mapBackdrop);
-  }
+  function closeMap(){ closeBackdrop(mapBackdrop); }
 
   async function confirmMap(){
     if (!state.pendingPick) return;
@@ -2232,9 +2318,7 @@
     await refreshAddressIfNeeded();
   }
 
-  /* =========================
-     Events
-  ========================== */
+  /* Events */
   btnTorch.addEventListener("click", toggleTorch);
   btnImport.addEventListener("click", () => { fileInput.value = ""; fileInput.click(); });
   fileInput.addEventListener("change", (e) => {
@@ -2243,7 +2327,6 @@
   });
 
   btnShutter.addEventListener("click", captureFromCamera);
-
   btnSwitchCam.addEventListener("click", switchCamera);
 
   btnDeleteAll.addEventListener("click", () => {
@@ -2257,7 +2340,6 @@
   btnCloseSettings.addEventListener("click", () => closeBackdrop(settingsBackdrop));
   btnCloseSettings2.addEventListener("click", () => closeBackdrop(settingsBackdrop));
   btnSaveSettings.addEventListener("click", () => {
-    // already live-binding; just close
     scheduleSaveSettings();
     closeBackdrop(settingsBackdrop);
     showToast("บันทึกแล้ว");
@@ -2286,7 +2368,7 @@
     scheduleSaveSettings();
   });
 
-  // Settings time controls (sync back to main)
+  // Settings time controls
   useNow.addEventListener("change", () => {
     state.settings.useNow = useNow.checked;
     useNowMain.checked = state.settings.useNow;
@@ -2303,21 +2385,22 @@
   timeFormat.addEventListener("change", () => {
     state.settings.timeFormat = timeFormat.value;
     scheduleSaveSettings();
-    // update preview if open
     if (previewBackdrop.style.display === "flex") renderPreview();
   });
 
-  // Output
+  // Output + guide update
   outputMode.addEventListener("change", () => {
     state.settings.outputMode = outputMode.value;
     updateOutputUI();
     scheduleSaveSettings();
+    updatePresetGuide();
     if (previewBackdrop.style.display === "flex") renderPreview();
   });
   outputSize.addEventListener("change", () => {
     state.settings.outputSize = outputSize.value;
     updateOutputUI();
     scheduleSaveSettings();
+    updatePresetGuide();
     if (previewBackdrop.style.display === "flex") renderPreview();
   });
   fitMode.addEventListener("change", () => {
@@ -2327,7 +2410,7 @@
     if (previewBackdrop.style.display === "flex") renderPreview();
   });
 
-  // Overlay controls
+  // Overlay
   overlayPos.addEventListener("change", () => {
     state.settings.overlayPos = overlayPos.value;
     scheduleSaveSettings();
@@ -2355,7 +2438,7 @@
     if (previewBackdrop.style.display === "flex") renderPreview();
   });
 
-  // Location controls
+  // Location
   enableLocation.addEventListener("change", async () => {
     state.settings.enableLocation = enableLocation.checked;
     scheduleSaveSettings();
@@ -2453,7 +2536,6 @@
       scheduleSaveSettings();
       await refreshAddressIfNeeded();
 
-      // update map if exists
       if (state.map && window.L){
         state.map.setView([r.lat, r.lng], 17);
         state.marker?.setLatLng([r.lat, r.lng]);
@@ -2466,12 +2548,11 @@
     }
   });
 
-  // Map modal
   btnCloseMap.addEventListener("click", closeMap);
   btnCancelMap.addEventListener("click", closeMap);
   btnConfirmMap.addEventListener("click", confirmMap);
 
-  // Preview modal events
+  // Preview modal
   btnClosePreview.addEventListener("click", closePreview);
   previewBackdrop.addEventListener("click", (e) => { if (e.target === previewBackdrop) closePreview(); });
 
@@ -2488,8 +2569,7 @@
   });
 
   dlType.addEventListener("change", () => {
-    const isPng = dlType.value === "image/png";
-    dlQuality.disabled = isPng;
+    dlQuality.disabled = (dlType.value === "image/png");
   });
 
   btnDownloadOne.addEventListener("click", async () => {
@@ -2542,55 +2622,25 @@
     if (confirm("ลบรูปทั้งหมดใน session นี้?")) deleteAllPhotos();
   });
 
-  // Close settings when clicking outside modal
+  // close settings/map when click outside
   settingsBackdrop.addEventListener("click", (e) => { if (e.target === settingsBackdrop) closeBackdrop(settingsBackdrop); });
   mapBackdrop.addEventListener("click", (e) => { if (e.target === mapBackdrop) closeMap(); });
 
   window.addEventListener("beforeunload", () => { try{ stopCamera(); }catch{} });
 
-  /* =========================
-     Boot
-  ========================== */
-  addLog("boot camera-first");
+  /* Boot */
+  addLog("boot camera-first (bigger viewfinder)");
   applySettingsToUI();
   updateGallery();
   updateButtons();
 
-  // Apply defaults: timeFormat should default to thaiVerboseGmt (already)
-  // Ensure dlQuality disabled if PNG
   dlQuality.disabled = (dlType.value === "image/png");
 
-  // Start camera immediately (Camera-first)
-  startCamera({ facingMode: state.cam.facingMode }).then(() => {
-    // after permission, devices may change
-  });
+  // Start camera immediately
+  startCamera({ facingMode: state.cam.facingMode });
 
-  // Ensure location summary
   refreshAddressIfNeeded().catch(() => {});
 })();
 </script>
-
-<!--
-========================================================
-ใช้งานบนมือถือ (Chrome / GitHub Pages)
-========================================================
-1) เปิดหน้า Timestamp.html บน https (GitHub Pages) → จะเห็น “กล้องทันที”
-2) กด Shutter เพื่อถ่ายหลายรูป → thumbnail จะขึ้นด้านล่าง (กดดูพรีวิวได้)
-3) Import รูปจากเครื่องได้ (รองรับหลายไฟล์) → ระบบแก้ EXIF orientation และลบ metadata โดย export ผ่าน canvas
-4) เวลาหน้าหลัก: เลือก “ใช้เวลาปัจจุบัน” หรือ “เลือกเวลาเอง” (ยังมีใน Settings)
-5) ในพรีวิวของ “แต่ละรูป” สามารถตั้งเวลาแยกได้ (Use now / Custom)
-
-Mirror camera ทำงานยังไง
-- เมื่อสลับเป็นกล้องหน้า: preview จะ mirror (CSS scaleX(-1))
-- ตอนกด Shutter: ระบบวาด video ลง canvas แบบ flip แนวนอนก่อน (ทำให้ไฟล์ที่บันทึก/ดาวน์โหลด “เหมือนที่เห็น”)
-- จากนั้นจึงวาดตัวหนังสือ overlay แบบปกติ (ตัวอักษรไม่กลับด้าน)
-
-ข้อจำกัด/สิ่งที่อาจเจอ
-- ต้องเปิดผ่าน HTTPS เพื่อใช้กล้อง/ตำแหน่ง (GitHub Pages ใช้ได้)
-- Torch/Flash ใช้ได้เฉพาะเครื่องที่รองรับ (บางรุ่น/บางเบราว์เซอร์จะไม่มี)
-- Download All:
-  - Chrome Android รองรับ File System Access API → เลือกโฟลเดอร์แล้วบันทึกหลายไฟล์ได้ “ไม่ต้อง ZIP”
-  - ถ้าไม่รองรับ → fallback เป็น ZIP (JSZip) หรือดาวน์โหลดทีละไฟล์ (บางเครื่องอาจ block หลายไฟล์)
--->
 </body>
 </html>
