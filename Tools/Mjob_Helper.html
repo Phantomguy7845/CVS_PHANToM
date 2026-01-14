@@ -1,13 +1,23 @@
 <!--
   File: Selfie_TimeLogger_MintLight.html
   Single-file web app (HTML/CSS/JS) — Selfie + Time Logger (Mint Light style)
-  Works on GitHub Pages (no backend). Uses IndexedDB (Dexie preferred; native IndexedDB fallback)
-  ✅ Updated per your requests:
-    1) FIX Tag continuity after delete: fill missing slots (IN/OUT) based on existing records (no simple cursor)
-    2) Camera live view shows current counts + next tag + capture feedback (flash + toast)
-    3) Timer button = 2-step (Start/Reset) + locked behavior + Unlock window 3s with countdown on unlock button
-    4) Pending layout split: IN left / OUT right
-    5) Sticky bar remains bottom, but auto-adds bottom padding so it never blocks scrolling cards
+  Host on GitHub Pages (no backend). Uses IndexedDB (Dexie preferred; native fallback)
+
+  ✅ Changes per your latest request:
+  - Pending กลับเป็นแบบเดิม (ไม่แยก IN/OUT ซ้ายขวา)
+  - StickyBar: ปุ่มปลดล็อค + ลบทั้งหมด “เล็กลงและเป็นสี่เหลี่ยมจัตุรัส” (กว้าง=สูง) เหลือพื้นที่ให้ปุ่มเริ่มนับเวลาเต็ม
+  - ปุ่มเริ่มนับเวลา/สิ้นสุดเวลา “ตัวอักษรเด่นชัดขึ้น”
+  - การ์ด Progress ย้ายไป “ล่างสุด”
+  - “เพิ่มรูป” ย้ายไปไว้ “Header” และ “ล็อคติดบน” (กดถ่าย/อัปโหลดได้ตลอด ไม่ว่ากำลังเลื่อนอยู่ตรงไหน)
+  - ระบบแจ้งเตือน: อธิบายข้อจำกัด + เพิ่ม best-effort (Notification + in-app banner + vibrate + beep)
+  - ปรับ logic เวลาแจ้งเตือนหลัง Download ให้ “แปรผันตามเป้าหมาย 9ชม10นาที”
+      * หลังดาวน์โหลด IN => gap 3–25 นาที
+      * หลังดาวน์โหลด OUT => gap 4–30 นาที
+      * ต้องให้ IN gap < OUT gap เสมอ
+      * คำนวณเฉลี่ยให้พอดีกับ target (frontend ล้วน ปรับทันทีเมื่อเพิ่ม/ลบ/ดาวน์โหลด)
+      * ถ้ารูปไม่พอ/หรือเวลาไม่เหมาะสม => แสดงสถานะเด่นๆที่ Header
+      * ถ้ารูปพอ => แสดงเวลาที่ควรโหลดรูปถัดไป (Now + gap = เวลาแนะนำ)
+  - การ์ด Pending: แสดง “ควรโหลดเวลาใด” ต่อรายการ (Time use HH:MM) แบบคำนวณสด
 -->
 
 <!doctype html>
@@ -21,7 +31,7 @@
   <!-- Optional: Noto Sans Thai -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap" rel="stylesheet">
 
   <!-- Dexie via CDN (preferred) -->
   <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
@@ -41,8 +51,8 @@
       --shadow:0 10px 28px rgba(14,42,35,.10);
       --radius:18px;
 
-      /* dynamic sticky height set by JS */
-      --stickH: 0px;
+      --stickH: 0px; /* bottom bar height */
+      --topH: 0px;   /* top bar height */
     }
 
     *{ box-sizing:border-box; }
@@ -54,36 +64,18 @@
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
 
-      /* IMPORTANT: prevent sticky bar from blocking scroll content */
-      padding-bottom: calc(var(--stickH) + 10px);
+      /* prevent fixed bars from blocking scroll content */
+      padding-top: calc(var(--topH) + 10px);
+      padding-bottom: calc(var(--stickH) + 12px);
     }
 
-    a{ color:inherit; }
     .wrap{
       max-width: 980px;
       margin: 0 auto;
-      padding: 16px 14px 24px;
+      padding: 0 14px 24px;
     }
 
-    header{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      padding: 6px 2px 14px;
-    }
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-    }
-    .title h1{
-      margin:0;
-      font-size: 18px;
-      letter-spacing: .2px;
-      line-height:1.15;
-    }
-    .title .muted{ font-size: 12px; }
+    a{ color:inherit; }
 
     .mini{ font-size: 12px; color: var(--muted2); }
     .muted{ color: var(--muted); }
@@ -105,43 +97,15 @@
       justify-content:space-between;
       gap:10px;
     }
-    .label{
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
 
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    .grid3{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
+    .row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .row.spread{ justify-content:space-between; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr; gap: 10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr; gap: 10px; }
     @media (min-width: 720px){
       .grid2{ grid-template-columns: 1fr 1fr; }
       .grid3{ grid-template-columns: 1fr 1fr 1fr; }
-    }
-
-    .row{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .row.spread{ justify-content:space-between; }
-
-    .field{
-      width:100%;
-      border:1px solid var(--line);
-      background: #fbfffd;
-      border-radius: 14px;
-      padding: 10px 12px;
-      font-size: 14px;
-      outline:none;
     }
 
     .btn{
@@ -150,7 +114,7 @@
       color: var(--text);
       padding: 12px 14px;
       border-radius: 999px;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 14px;
       cursor:pointer;
       box-shadow: 0 8px 18px rgba(14,42,35,.10);
@@ -162,6 +126,7 @@
       gap:8px;
       min-height: 44px;
       width: 100%;
+      white-space: nowrap;
     }
     .btn:active{ transform: translateY(1px); }
     .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
@@ -206,7 +171,7 @@
       padding: 4px 8px;
       border-radius: 999px;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 900;
       border: 1px solid var(--line);
       background: #fbfffd;
       white-space: nowrap;
@@ -242,11 +207,7 @@
       transition: width .25s ease;
     }
 
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
+    .list{ display:flex; flex-direction:column; gap:10px; }
 
     .photoItem{
       display:grid;
@@ -265,12 +226,7 @@
       object-fit: cover;
       background: #0b1d18;
     }
-    .info{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      min-width:0;
-    }
+    .info{ display:flex; flex-direction:column; gap:8px; min-width:0; }
     .metaTop{
       display:flex;
       align-items:center;
@@ -278,16 +234,10 @@
       gap:8px;
       flex-wrap:wrap;
     }
-    .metaLine{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .timeText{
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .metaLine{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .timeText{ font-size: 12px; color: var(--muted); }
+    .recoText{ font-size: 12px; color: #0b5f4a; font-weight: 800; }
+    .recoText.late{ color:#7c1313; }
     .actions{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -295,34 +245,93 @@
     }
     .actions .btn{ padding: 10px 12px; min-height: 40px; font-size: 13px; }
 
-    /* Pending split IN | OUT */
-    .pendingSplit{
-      display:grid;
-      grid-template-columns: 1fr 1fr; /* user wants IN left, OUT right */
-      gap: 10px;
+    .spin{
+      width: 14px; height:14px;
+      border: 2px solid #cfeee4;
+      border-top-color: #1fbf9a;
+      border-radius: 999px;
+      display:inline-block;
+      animation: spin 1s linear infinite;
+      vertical-align:-2px;
     }
-    @media (max-width: 360px){
-      /* ultra-small devices: still keep split but tighter */
-      .pendingSplit{ gap: 8px; }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    /* TopBar (fixed, always visible for Add) */
+    .topBar{
+      position: fixed;
+      left:0; right:0; top:0;
+      z-index: 70;
+      padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+      background: rgba(246,255,251,.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
     }
-    .pendingCol{
-      border: 1px dashed #cfeee4;
-      background:#fbfffd;
-      border-radius: 16px;
-      padding: 10px;
+    .topInner{
+      max-width: 980px;
+      margin: 0 auto;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .topLeft{
+      min-width:0;
+      flex: 1 1 auto;
       display:flex;
       flex-direction:column;
-      gap:10px;
-      min-width:0;
+      gap: 8px;
     }
-    .pendingColHeader{
+    .topTitleRow{
       display:flex;
       align-items:center;
-      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .topTitle{
+      font-weight: 900;
+      letter-spacing: .2px;
+      font-size: 16px;
+      line-height: 1.1;
+      margin:0;
+    }
+    .topRight{
+      flex: 0 0 auto;
+      display:flex;
+      flex-direction:column;
       gap:8px;
+      align-items:flex-end;
+      min-width: 120px;
+    }
+    .topBtns{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+    }
+    .topBtn{
+      width:auto;
+      min-width: 54px;
+      padding: 10px 12px;
+      min-height: 44px;
+      box-shadow: 0 8px 18px rgba(14,42,35,.08);
+    }
+    @media (max-width: 380px){
+      .topBtn{ min-width: 48px; padding: 10px 10px; }
     }
 
-    /* Sticky bar */
+    .headerAlert{
+      display:none;
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: 1px solid #ffd1d1;
+      background: #fff1f1;
+      color: #7c1313;
+      font-weight: 900;
+      box-shadow: 0 10px 22px rgba(14,42,35,.10);
+      line-height: 1.25;
+    }
+    .headerAlert.show{ display:block; }
+
+    /* Sticky bar bottom */
     .stickyBar{
       position: fixed;
       left: 0; right: 0; bottom: 0;
@@ -330,27 +339,78 @@
       background: rgba(246,255,251,.92);
       backdrop-filter: blur(10px);
       border-top: 1px solid var(--line);
-      z-index: 50;
+      z-index: 60;
     }
     .stickyInner{
       max-width: 980px;
       margin: 0 auto;
       display:grid;
-      grid-template-columns: 1fr auto auto; /* big start + 2 small buttons */
+      grid-template-columns: 1fr auto auto; /* big start + 2 square buttons */
       gap:10px;
       align-items:stretch;
     }
-    .stickyInner .btn{ min-height: 50px; }
-    .stickyInner .btn.small{
-      width:auto;
-      min-width: 118px;
-      padding-left: 12px;
-      padding-right: 12px;
-      box-shadow: 0 8px 18px rgba(14,42,35,.08);
+
+    /* Start button: more prominent text */
+    .stickyInner .btn.bigPrimary{
+      min-height: 56px;
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 22px rgba(14,42,35,.14);
+    }
+
+    /* Square buttons (unlock + delete) */
+    .btn.square{
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      padding: 0;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 900;
+      box-shadow: 0 10px 22px rgba(14,42,35,.10);
     }
     @media (max-width: 420px){
       .stickyInner{ gap:8px; }
-      .stickyInner .btn.small{ min-width: 98px; font-size: 13px; }
+      .btn.square{ width: 52px; height: 52px; min-width:52px; min-height:52px; border-radius: 14px; }
+      .stickyInner .btn.bigPrimary{ min-height: 52px; font-size: 16px; }
+    }
+
+    /* Alarm banner */
+    .alarmBanner{
+      position: fixed;
+      left: 10px; right: 10px;
+      top: calc(10px + env(safe-area-inset-top));
+      z-index: 120;
+      display:none;
+    }
+    .alarmBanner.show{ display:block; }
+    .alarmCard{
+      background: #fff1f1;
+      border: 1px solid #ffd1d1;
+      color: #7c1313;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 12px 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .alarmText{
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 900;
+    }
+    .alarmSub{ font-size: 12px; font-weight: 700; opacity:.9; margin-top: 4px; }
+    .alarmCard .btn{
+      width:auto;
+      min-height: 40px;
+      padding: 10px 12px;
+      box-shadow:none;
+      border-color:#ffd1d1;
+      background:#fff7f7;
     }
 
     /* Modal */
@@ -362,7 +422,7 @@
       align-items:center;
       justify-content:center;
       padding: 16px;
-      z-index: 80;
+      z-index: 90;
     }
     .modalBackdrop.show{ display:flex; }
     .modal{
@@ -386,7 +446,7 @@
     .modalHeader .row{ flex-wrap:nowrap; }
     .modalBody{ padding: 12px 14px 14px; }
 
-    /* Camera viewfinder (portrait 4:3 => aspect ratio 3/4) */
+    /* Camera viewfinder (portrait 4:3) */
     .viewfinderWrap{
       width: 100%;
       border-radius: 18px;
@@ -394,7 +454,7 @@
       background: #061a15;
       overflow:hidden;
       position: relative;
-      aspect-ratio: 3 / 4; /* portrait 4:3 */
+      aspect-ratio: 3 / 4;
     }
     video#camVideo{
       width:100%;
@@ -404,7 +464,7 @@
       transform: none;
     }
     video#camVideo.mirror{
-      transform: scaleX(-1); /* mirror preview (UI text unaffected) */
+      transform: scaleX(-1);
     }
     .vfOverlay{
       position:absolute;
@@ -413,11 +473,10 @@
       border: 1px solid rgba(255,255,255,.08);
     }
 
-    /* Camera HUD overlay (counts + next tag) */
+    /* Camera HUD overlay */
     .camHUD{
       position:absolute;
-      left:10px;
-      right:10px;
+      left:10px; right:10px;
       top:10px;
       display:flex;
       justify-content:space-between;
@@ -432,11 +491,9 @@
       color: #1f4a3f;
       pointer-events:none;
     }
-
     .camToast{
       position:absolute;
-      left:10px;
-      right:10px;
+      left:10px; right:10px;
       bottom:10px;
       display:none;
       z-index: 3;
@@ -449,7 +506,7 @@
       border-radius: 16px;
       padding: 10px 12px;
       box-shadow: 0 10px 24px rgba(0,0,0,.12);
-      font-weight: 800;
+      font-weight: 900;
       font-size: 13px;
       line-height: 1.25;
     }
@@ -463,53 +520,6 @@
     }
     .camFlash.on{ background: rgba(255,255,255,.55); }
 
-    .spin{
-      width: 14px; height:14px;
-      border: 2px solid #cfeee4;
-      border-top-color: #1fbf9a;
-      border-radius: 999px;
-      display:inline-block;
-      animation: spin 1s linear infinite;
-      vertical-align:-2px;
-    }
-    @keyframes spin{ to{ transform: rotate(360deg); } }
-
-    /* Alarm banner */
-    .alarmBanner{
-      position: fixed;
-      left: 10px; right: 10px;
-      top: 10px;
-      z-index: 120;
-      display:none;
-    }
-    .alarmBanner.show{ display:block; }
-    .alarmCard{
-      background: #fff1f1;
-      border: 1px solid #ffd1d1;
-      color: #7c1313;
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      padding: 12px 12px;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .alarmText{
-      font-size: 13px;
-      line-height: 1.3;
-      font-weight: 700;
-    }
-    .alarmSub{ font-size: 12px; font-weight: 600; opacity:.9; margin-top: 4px; }
-    .alarmCard .btn{
-      width:auto;
-      min-height: 40px;
-      padding: 10px 12px;
-      box-shadow:none;
-      border-color:#ffd1d1;
-      background:#fff7f7;
-    }
-
     details.logPanel{
       border: 1px dashed #cfeee4;
       border-radius: 16px;
@@ -518,7 +528,7 @@
     }
     details.logPanel summary{
       cursor:pointer;
-      font-weight: 800;
+      font-weight: 900;
       color: var(--muted);
     }
     pre#logBox{
@@ -532,6 +542,45 @@
 </head>
 
 <body>
+  <!-- Top header (locked) -->
+  <div class="topBar" id="topBar">
+    <div class="topInner">
+      <div class="topLeft">
+        <div class="topTitleRow">
+          <div class="topTitle">Selfie + Time Logger</div>
+          <span class="pill" id="dbBadge">DB: …</span>
+          <span class="pill" id="permBadge">🔔 Permission: ?</span>
+          <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
+        </div>
+
+        <div class="row" style="gap:8px">
+          <span class="pill" id="headerNextSlotPill">Next slot: <b id="nextSlotText">-</b></span>
+          <span class="pill" id="headerNextDownloadPill">ควรโหลด: <b id="headerNextDownloadText">-</b></span>
+          <span class="pill" id="headerNextCountdownPill">อีก: <b id="headerNextCountdownText">-</b></span>
+        </div>
+
+        <!-- Prominent header alert when schedule impossible / photos missing / etc -->
+        <div class="headerAlert" id="headerAlert"></div>
+
+        <div class="mini muted" id="headerHint">
+          * แจ้งเตือนนอก Chrome/เมื่อปิดแท็บ: เว็บทั่วไป “ไม่การันตี” (ดูคำอธิบายใน Progress)
+        </div>
+      </div>
+
+      <div class="topRight">
+        <div class="topBtns">
+          <button class="btn primary topBtn" id="openCameraBtn" title="เปิดกล้องเซลฟี่">📷</button>
+          <button class="btn soft topBtn" id="uploadBtn" title="อัปโหลดจากแกลเลอรี่">🖼️</button>
+        </div>
+        <div class="topBtns">
+          <button class="btn soft topBtn" id="requestNotifBtn" title="ขอสิทธิ์แจ้งเตือน">🔔</button>
+          <button class="btn topBtn" id="testBeepBtn" title="ทดสอบเสียง/สั่น">🔊</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alarm banner -->
   <div class="alarmBanner" id="alarmBanner">
     <div class="alarmCard">
       <div>
@@ -543,45 +592,27 @@
   </div>
 
   <div class="wrap">
-    <header>
-      <div class="title">
-        <h1>Selfie + Time Logger</h1>
-        <div class="muted mini">Mint Light • เก็บรูปถาวรในเครื่อง (IndexedDB) • ใช้บนมือถือ Chrome</div>
-      </div>
-      <div class="row" style="justify-content:flex-end">
-        <span class="pill" id="dbBadge">DB: กำลังโหลด…</span>
-        <span class="pill" id="permBadge">🔔 Permission: ?</span>
-      </div>
-    </header>
-
-    <!-- A) Add Photo -->
+    <!-- Pending -->
     <section class="card">
       <h2>
-        <span>เพิ่มรูป</span>
-        <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
+        <span>Pending (ยังไม่โหลด)</span>
+        <span class="badge wait" id="pendingBadge">0</span>
       </h2>
-
-      <div class="grid2">
-        <button class="btn primary" id="openCameraBtn">📷 เปิดกล้องเซลฟี่</button>
-        <button class="btn soft" id="uploadBtn">🖼️ อัปโหลดจากแกลเลอรี่</button>
-      </div>
-
-      <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
-
-      <div style="height:10px"></div>
-      <div class="row spread">
-        <div class="pill">Next slot: <b id="nextSlotText">-</b></div>
-        <div class="pill">สถานะ: <span id="statusText" class="muted">-</span></div>
-      </div>
-
-      <div style="height:10px"></div>
-      <div class="row spread">
-        <button class="btn soft" id="requestNotifBtn">🔔 ขอสิทธิ์แจ้งเตือน</button>
-        <button class="btn" id="testBeepBtn">🔊 ทดสอบเสียง</button>
-      </div>
+      <div class="list" id="pendingList"></div>
+      <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
     </section>
 
-    <!-- B) Progress -->
+    <!-- Downloaded -->
+    <section class="card">
+      <h2>
+        <span>Downloaded (โหลดแล้ว)</span>
+        <span class="badge ok" id="downloadedBadge">0</span>
+      </h2>
+      <div class="list" id="downloadedList"></div>
+      <div class="mini muted" id="downloadedEmpty" style="display:none">ยังไม่มีรายการ Downloaded</div>
+    </section>
+
+    <!-- Progress (moved to bottom) -->
     <section class="card">
       <h2>
         <span>Progress</span>
@@ -592,24 +623,24 @@
         <div class="switch">
           <input type="checkbox" id="mirrorHintToggle" checked />
           <div>
-            <div style="font-weight:800;font-size:13px">กล้องหน้าแบบกระจก (Mirror)</div>
+            <div style="font-weight:900;font-size:13px">กล้องหน้าแบบกระจก (Mirror)</div>
             <div class="mini muted">พรีวิว & ภาพที่บันทึกจะเหมือนกัน (flip ซ้าย-ขวา)</div>
-          </div>
-        </div>
-
-        <div class="switch">
-          <input type="checkbox" id="logToggle" />
-          <div>
-            <div style="font-weight:800;font-size:13px">เปิด Log panel</div>
-            <div class="mini muted">ใช้ debug บนมือถือ</div>
           </div>
         </div>
 
         <div class="switch">
           <input type="checkbox" id="autoWakeToggle" checked />
           <div>
-            <div style="font-weight:800;font-size:13px">Catch-up เมื่อกลับมาเปิด</div>
+            <div style="font-weight:900;font-size:13px">Catch-up เมื่อกลับมาเปิด</div>
             <div class="mini muted">ถ้าเลยเวลาแล้ว จะขึ้น “ครบเวลาแล้ว” ทันที</div>
+          </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="logToggle" />
+          <div>
+            <div style="font-weight:900;font-size:13px">เปิด Log panel</div>
+            <div class="mini muted">ใช้ debug บนมือถือ</div>
           </div>
         </div>
       </div>
@@ -628,23 +659,29 @@
 
       <div class="grid2">
         <div class="card" style="margin:0; box-shadow:none">
-          <div class="label">ตัวนับเวลา 9:10</div>
           <div class="row spread">
             <span class="badge" id="timerLockBadge">-</span>
             <span class="pill" id="timerLeftPill">เหลือ: -</span>
           </div>
           <div style="height:8px"></div>
           <div class="mini muted" id="timerMeta">startAt: - • targetAt: -</div>
+          <div style="height:8px"></div>
+          <div class="mini muted">
+            หมายเหตุ: “ปลุกนอก Chrome/ปิดแท็บ” เว็บทั่วไปไม่การันตี (ไม่มี backend/push) — แนะนำให้เปิดหน้านี้ค้างไว้เมื่ออยากให้ปลุกแม่น
+          </div>
         </div>
 
         <div class="card" style="margin:0; box-shadow:none">
-          <div class="label">Alarm หลังดาวน์โหลด</div>
           <div class="row spread">
             <span class="badge" id="alarmBadge">ยังไม่ตั้ง</span>
             <span class="pill" id="alarmLeftPill">เหลือ: -</span>
           </div>
           <div style="height:8px"></div>
-          <div class="mini muted" id="alarmMeta">ล่าสุด: - • next: -</div>
+          <div class="mini muted" id="alarmMeta">next: - • dueAt: -</div>
+          <div style="height:8px"></div>
+          <div class="mini muted">
+            เสียง: บางเครื่องบล็อคเสียงในพื้นหลัง → เราใช้ “เสียง + สั่น + แถบแดง” แบบ best-effort
+          </div>
         </div>
       </div>
 
@@ -655,63 +692,26 @@
         <pre id="logBox"></pre>
       </details>
     </section>
-
-    <!-- C) Pending -->
-    <section class="card">
-      <h2>
-        <span>Pending (ยังไม่โหลด)</span>
-        <span class="badge wait" id="pendingBadge">0</span>
-      </h2>
-
-      <div class="pendingSplit" id="pendingSplit">
-        <div class="pendingCol">
-          <div class="pendingColHeader">
-            <span class="badge ok">IN</span>
-            <span class="pill">ค้าง: <b id="pendingInCount">0</b></span>
-          </div>
-          <div class="list" id="pendingInList"></div>
-          <div class="mini muted" id="pendingInEmpty" style="display:none">ยังไม่มี IN ที่ค้างดาวน์โหลด</div>
-        </div>
-
-        <div class="pendingCol">
-          <div class="pendingColHeader">
-            <span class="badge ok">OUT</span>
-            <span class="pill">ค้าง: <b id="pendingOutCount">0</b></span>
-          </div>
-          <div class="list" id="pendingOutList"></div>
-          <div class="mini muted" id="pendingOutEmpty" style="display:none">ยังไม่มี OUT ที่ค้างดาวน์โหลด</div>
-        </div>
-      </div>
-
-      <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
-    </section>
-
-    <!-- D) Downloaded -->
-    <section class="card">
-      <h2>
-        <span>Downloaded (โหลดแล้ว)</span>
-        <span class="badge ok" id="downloadedBadge">0</span>
-      </h2>
-      <div class="list" id="downloadedList"></div>
-      <div class="mini muted" id="downloadedEmpty" style="display:none">ยังไม่มีรายการ Downloaded</div>
-    </section>
   </div>
 
-  <!-- E) Sticky Bar -->
+  <!-- Sticky Bar bottom -->
   <div class="stickyBar" id="stickyBar">
     <div class="stickyInner">
-      <!-- IMPORTANT: This button is 2-step:
-         - Step 1: Start -> lock -> show target time (disabled while locked)
-         - Step 2: Reset -> back to "เริ่มนับเวลา" (requires unlock window or auto unlock via downloaded>=40)
+      <!-- 2-step button:
+         Step 1: Start -> lock -> label "สิ้นสุด <target>"
+         Step 2: Reset -> label back to "เริ่มนับเวลา" (requires unlock 3s OR auto unlock via downloaded>=40)
       -->
-      <button class="btn primary" id="start910Btn">⏱️ เริ่มนับเวลา</button>
+      <button class="btn primary bigPrimary" id="start910Btn">⏱️ เริ่มนับเวลา</button>
 
-      <!-- Unlock button opens a 3-second window (countdown shown on this button) -->
-      <button class="btn warn small" id="unlockBtn" disabled>🔓 ปลดล็อค</button>
+      <!-- unlock window 3s countdown on this button -->
+      <button class="btn warn square" id="unlockBtn" disabled title="ปลดล็อค (3 วินาที)">🔓</button>
 
-      <button class="btn danger small" id="deleteAllBtn">🧨 ลบทั้งหมด</button>
+      <button class="btn danger square" id="deleteAllBtn" title="ลบทั้งหมด">🧨</button>
     </div>
   </div>
+
+  <!-- Hidden file input -->
+  <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
 
   <!-- Camera Modal -->
   <div class="modalBackdrop" id="camModalBackdrop">
@@ -723,8 +723,8 @@
           <span class="pill" id="camMirrorPill">mirror: -</span>
         </div>
         <div class="row" style="gap:10px">
-          <button class="btn soft" id="switchCamBtn" style="width:auto">🔄 สลับกล้อง</button>
-          <button class="btn" id="closeCamBtn" style="width:auto">✖ ปิด</button>
+          <button class="btn soft" id="switchCamBtn" style="width:auto">🔄</button>
+          <button class="btn" id="closeCamBtn" style="width:auto">✖</button>
         </div>
       </div>
 
@@ -732,32 +732,28 @@
         <div class="viewfinderWrap">
           <video id="camVideo" playsinline autoplay muted></video>
 
-          <!-- HUD: counts + next slot -->
           <div class="camHUD">
             <span class="pill" id="camCountPill">📸 Total: 0</span>
             <span class="pill" id="camNextPill">Next: -</span>
           </div>
 
-          <!-- Toast after capture -->
           <div class="camToast" id="camToast">
             <div class="camToastInner" id="camToastInner">บันทึกแล้ว</div>
           </div>
 
-          <!-- Flash feedback -->
           <div class="camFlash" id="camFlash"></div>
-
           <div class="vfOverlay"></div>
         </div>
 
         <div style="height:12px"></div>
         <div class="grid2">
           <button class="btn primary" id="captureBtn">📸 ถ่ายภาพ</button>
-          <button class="btn soft" id="fallbackUploadBtn">🖼️ ใช้อัปโหลดแทน</button>
+          <button class="btn soft" id="fallbackUploadBtn">🖼️ อัปโหลดแทน</button>
         </div>
 
         <div style="height:10px"></div>
         <div class="mini muted" id="camHint">
-          ถ้ากล้องหน้า: พรีวิวเป็นกระจก และภาพที่บันทึกจะ “เหมือนที่เห็น” • ถ้ากล้องใช้ไม่ได้ กดอัปโหลดแทน
+          กล้องหน้า: พรีวิวเป็นกระจก และภาพที่บันทึกจะ “เหมือนที่เห็น” • ถ้ากล้องใช้ไม่ได้ กดอัปโหลดแทน
         </div>
       </div>
     </div>
@@ -765,13 +761,13 @@
 
   <script>
     /**********************************************************************
-     * (A) Utilities + Logger
+     * Utilities + State
      **********************************************************************/
     const $ = (id) => document.getElementById(id);
 
     const LS = {
       timer910: "stl_timer910_state",   // {running, locked, startAt, targetAt}
-      alarm: "stl_alarm_state",         // {dueAt, nextTag, lastDownloadedTag, lastDownloadedAt, firedDueAt}
+      alarm: "stl_alarm_state",         // {dueAt, nextTag, firedDueAt}
       ui: "stl_ui_state"                // {logEnabled, autoWake, mirrorPref}
     };
 
@@ -781,22 +777,30 @@
       photos: [],
       thumbUrl: new Map(), // id -> objectURL
       busy: { saving: false },
-      cam: {
-        stream: null,
-        facing: "user", // 'user' or 'environment'
-      },
+      cam: { stream: null, facing: "user" },
+
       ui: { logEnabled:false, autoWake:true, mirrorPref:true },
 
       // 9:10 timer
       timer910: { running:false, locked:false, startAt:null, targetAt:null },
 
-      // Unlock window 3s
+      // Unlock window
       unlock: { until:null, ticker:null },
 
-      // Alarm
-      alarm: { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null },
+      // Alarm (best-effort)
+      alarm: { dueAt:null, nextTag:null, firedDueAt:null },
+      alarmTimeout: null,
       tickInterval: null,
-      alarmTimeout: null
+
+      // Computed schedule (frontend only)
+      schedule: {
+        ok:false,
+        reason:"",
+        missingTag:null,
+        nextTag:null,
+        nextAt:null,
+        planAtById: new Map(), // pending photo id -> recommended time
+      }
     };
 
     function now(){ return Date.now(); }
@@ -812,7 +816,6 @@
         return new Date(ts).toString();
       }
     }
-
     function fmtTimeOnly(ts){
       if(!ts) return "-";
       try{
@@ -822,7 +825,6 @@
         return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
       }
     }
-
     function fmtHMS(ms){
       if(ms == null) return "-";
       const sign = ms < 0 ? "-" : "";
@@ -834,6 +836,30 @@
       return `${sign}${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
     }
 
+    function loadJSON(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        return JSON.parse(raw);
+      }catch(_){ return fallback; }
+    }
+    function saveJSON(key, obj){
+      try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(_){}
+    }
+
+    function setNotifBadge(){
+      const p = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
+      const el = $("permBadge");
+      el.className = "pill";
+      el.textContent = `🔔 Permission: ${p}`;
+    }
+
+    function setSaveState(text, mode){
+      const b = $("saveStateBadge");
+      b.className = "badge " + (mode || "wait");
+      b.innerHTML = text;
+    }
+
     function log(...args){
       const line = `[${new Date().toLocaleTimeString("th-TH")}] ` + args.map(a=>{
         if(typeof a === "string") return a;
@@ -843,64 +869,26 @@
         const box = $("logBox");
         box.textContent = (line + "\n" + box.textContent).slice(0, 16000);
       }
-      $("statusText").textContent = args.join(" ").slice(0, 120);
       console.log(...args);
     }
 
-    function loadJSON(key, fallback){
-      try{
-        const raw = localStorage.getItem(key);
-        if(!raw) return fallback;
-        return JSON.parse(raw);
-      }catch(_){
-        return fallback;
-      }
-    }
-
-    function saveJSON(key, obj){
-      try{
-        localStorage.setItem(key, JSON.stringify(obj));
-      }catch(_){}
-    }
-
-    function setSaveState(text, mode){
-      const b = $("saveStateBadge");
-      b.className = "badge " + (mode || "wait");
-      b.innerHTML = text;
-    }
-
     /**********************************************************************
-     * (B) TAG logic (FIXED)
-     * Tag is NOT just a label; it is a fixed sequence slot:
-     * IN-1, OUT-1, IN-2, OUT-2, ...
-     *
-     * ✅ New rule: When adding a new photo, we always fill the earliest missing slot.
-     * - If IN-k missing => next = IN-k
-     * - Else if OUT-k missing => next = OUT-k
-     * - Else go to k+1
-     *
-     * This guarantees: if user deletes OUT-1 then adds new photo => it becomes OUT-1 (not IN-2)
+     * Tag logic: fill earliest missing slot
      **********************************************************************/
     function parseTag(tag){
       const m = String(tag || "").trim().match(/^(IN|OUT)-(\d+)$/i);
       if(!m) return null;
       return { kind: m[1].toUpperCase(), idx: parseInt(m[2], 10) };
     }
-
     function ensureKindIdx(photo){
-      // Some old records might miss kind/idx; infer from tag
       if(photo && (!photo.kind || !photo.idx) && photo.tag){
         const p = parseTag(photo.tag);
-        if(p){
-          photo.kind = p.kind;
-          photo.idx = p.idx;
-        }
+        if(p){ photo.kind = p.kind; photo.idx = p.idx; }
       }
       return photo;
     }
-
     function computeNextSlot(photos){
-      const occ = new Map(); // idx -> {IN:bool, OUT:bool}
+      const occ = new Map(); // idx -> {IN, OUT}
       for(const raw of photos){
         const p = ensureKindIdx(raw);
         if(!p || !p.kind || !p.idx) continue;
@@ -917,17 +905,20 @@
         i++;
       }
     }
-
     function peekNextTag(){
       return computeNextSlot(state.photos).tag;
     }
+    function nextTagInSequence(tag){
+      const p = parseTag(tag);
+      if(!p) return null;
+      if(p.kind === "IN") return `OUT-${p.idx}`;
+      return `IN-${p.idx + 1}`;
+    }
 
     /**********************************************************************
-     * (C) IndexedDB schema (Dexie preferred, fallback native)
-     *
-     * Dexie schema:
-     *   photos: ++id, tag, kind, idx, createdAt, downloaded
-     *   (stores blob + metadata fields)
+     * IndexedDB: Dexie preferred, native fallback
+     * Schema notes:
+     *  - photos: ++id, tag, kind, idx, createdAt, downloaded, downloadedAt
      **********************************************************************/
     async function initDB(){
       const hasDexie = typeof window.Dexie !== "undefined";
@@ -937,6 +928,20 @@
           db.version(1).stores({
             photos: "++id, tag, kind, idx, createdAt, downloaded"
           });
+          // v2: add downloadedAt index
+          db.version(2).stores({
+            photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt"
+          }).upgrade(async tx=>{
+            const table = tx.table("photos");
+            await table.toCollection().modify(p=>{
+              if(!("downloadedAt" in p)) p.downloadedAt = null;
+              if((!p.kind || !p.idx) && p.tag){
+                const q = parseTag(p.tag);
+                if(q){ p.kind = q.kind; p.idx = q.idx; }
+              }
+            });
+          });
+
           await db.open();
           state.dbType = "Dexie";
           state.db = db;
@@ -992,7 +997,6 @@
               });
             }
           };
-
           resolve(api);
         };
         req.onerror = () => reject(req.error);
@@ -1017,7 +1021,6 @@
       }
     }
 
-    // DB abstraction
     async function dbAddPhoto(photo){
       if(state.dbType === "Dexie") return state.db.photos.add(photo);
       return state.db.addPhoto(photo);
@@ -1040,36 +1043,8 @@
     }
 
     /**********************************************************************
-     * (D) Image processing
-     * - Re-encode via canvas (JPEG) to reduce metadata (removes EXIF)
+     * Image processing: re-encode via canvas to strip EXIF
      **********************************************************************/
-    async function imageFileToCleanJpegBlob(file, targetMax = 1600){
-      const url = URL.createObjectURL(file);
-      try{
-        const img = await loadImage(url);
-        const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, targetMax);
-
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d", { alpha:false });
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const blob = await canvasToJpegBlob(canvas, 0.92);
-        return { blob, width:w, height:h, mime:"image/jpeg" };
-      }finally{
-        URL.revokeObjectURL(url);
-      }
-    }
-
-    function fitWithin(w, h, maxSide){
-      if(!maxSide) return { w, h };
-      const max = Math.max(w, h);
-      if(max <= maxSide) return { w, h };
-      const scale = maxSide / max;
-      return { w: Math.round(w*scale), h: Math.round(h*scale) };
-    }
-
     function loadImage(src){
       return new Promise((resolve, reject)=>{
         const img = new Image();
@@ -1078,19 +1053,37 @@
         img.src = src;
       });
     }
-
+    function fitWithin(w, h, maxSide){
+      const max = Math.max(w, h);
+      if(max <= maxSide) return { w, h };
+      const scale = maxSide / max;
+      return { w: Math.round(w*scale), h: Math.round(h*scale) };
+    }
     function canvasToJpegBlob(canvas, quality=0.92){
       return new Promise((resolve)=>{
         canvas.toBlob((b)=> resolve(b), "image/jpeg", quality);
       });
     }
+    async function imageFileToCleanJpegBlob(file, targetMax = 1600){
+      const url = URL.createObjectURL(file);
+      try{
+        const img = await loadImage(url);
+        const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, targetMax);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d", { alpha:false });
+        ctx.drawImage(img, 0, 0, w, h);
+        const blob = await canvasToJpegBlob(canvas, 0.92);
+        return { blob, width:w, height:h, mime:"image/jpeg" };
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+    }
 
     /**********************************************************************
-     * (E) Add photo (camera/upload) -> store to IndexedDB immediately
-     * - Uses computeNextSlot() to fill missing slot safely
+     * Add photo: store immediately, tag continuity ensured
      **********************************************************************/
     async function addPhotoFromBlob(blob, meta = {}){
-      // Prevent race (two adds at same time) to avoid duplicate tags
       if(state.busy.saving){
         log("Busy: wait saving…");
         return;
@@ -1104,7 +1097,8 @@
       const record = {
         tag, kind, idx,
         createdAt,
-        downloaded: 0,           // 0 pending, 1 downloaded
+        downloaded: 0,
+        downloadedAt: null,
         mime: meta.mime || blob.type || "image/jpeg",
         width: meta.width || null,
         height: meta.height || null,
@@ -1112,18 +1106,14 @@
         blob
       };
 
-      setSaveState(`<span class="spin"></span> กำลังบันทึก…`, "wait");
+      setSaveState(`<span class="spin"></span> บันทึก…`, "wait");
       try{
         const id = await dbAddPhoto(record);
         record.id = id;
 
-        // Update in-memory list immediately (so next tag is correct instantly)
         state.photos.push(record);
         state.photos.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
 
-        log("Saved", tag, "id=", id);
-
-        // Update UI + camera HUD/Toast quickly
         setSaveState("บันทึกแล้ว ✅", "ok");
         setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
 
@@ -1131,16 +1121,33 @@
         updateCamHUD();
         showCamToast(`บันทึกแล้ว: ${tag} • Total: ${state.photos.length}`);
       }catch(e){
-        log("Save error:", e && (e.message||e.name) ? (e.message||e.name) : e);
         setSaveState("บันทึกล้มเหลว", "err");
         setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+        log("Save error:", e && (e.message||e.name) ? (e.message||e.name) : e);
       }finally{
         state.busy.saving = false;
       }
     }
 
+    async function handleFiles(files){
+      if(!files || !files.length) return;
+      setSaveState(`<span class="spin"></span> แปลงรูป…`, "wait");
+
+      for(const file of files){
+        try{
+          const clean = await imageFileToCleanJpegBlob(file, 1600);
+          await addPhotoFromBlob(clean.blob, clean);
+        }catch(e){
+          log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
+          setSaveState("บันทึกล้มเหลว", "err");
+          setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+        }
+      }
+      render();
+    }
+
     /**********************************************************************
-     * (F) UI render + objectURL management
+     * ObjectURL thumbs
      **********************************************************************/
     function getThumbUrl(photo){
       if(state.thumbUrl.has(photo.id)) return state.thumbUrl.get(photo.id);
@@ -1162,227 +1169,8 @@
       state.thumbUrl.clear();
     }
 
-    function setNotifBadge(){
-      const p = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
-      const el = $("permBadge");
-      el.className = "pill";
-      el.textContent = `🔔 Permission: ${p}`;
-    }
-
-    function computeCounts(){
-      const total = state.photos.length;
-      const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
-      const pending = total - downloaded;
-      return { total, downloaded, pending };
-    }
-
-    function render(){
-      const { total, downloaded, pending } = computeCounts();
-
-      $("totalCount").textContent = total;
-      $("downloadedCount").textContent = downloaded;
-      $("pendingCount").textContent = pending;
-
-      $("pendingBadge").textContent = pending;
-      $("downloadedBadge").textContent = downloaded;
-
-      const prog = Math.min(40, total);
-      $("progressBar").style.width = `${(prog/40)*100}%`;
-
-      if(total >= 40){
-        $("goalBadge").style.display = "";
-        $("goalBadge").textContent = "ถึงเป้าหมายแล้ว ✅";
-      }else{
-        $("goalBadge").style.display = "none";
-      }
-
-      $("nextSlotText").textContent = peekNextTag();
-
-      // Timer 9:10 status + auto unlock if downloaded >= 40
-      renderTimer910(downloaded);
-
-      // Alarm status
-      renderAlarm();
-
-      // Lists
-      renderList();
-
-      // Keep camera HUD fresh
-      updateCamHUD();
-    }
-
-    function renderList(){
-      const inList = $("pendingInList");
-      const outList = $("pendingOutList");
-      const downloadedList = $("downloadedList");
-      inList.innerHTML = "";
-      outList.innerHTML = "";
-      downloadedList.innerHTML = "";
-
-      const pendingAll = state.photos.filter(p=>p.downloaded === 0);
-      const downloaded = state.photos.filter(p=>p.downloaded === 1);
-
-      // Pending split
-      const pendingIN = pendingAll.filter(p=>String(p.kind).toUpperCase() === "IN")
-        .sort((a,b)=> (a.idx||0)-(b.idx||0) || (a.createdAt||0)-(b.createdAt||0));
-      const pendingOUT = pendingAll.filter(p=>String(p.kind).toUpperCase() === "OUT")
-        .sort((a,b)=> (a.idx||0)-(b.idx||0) || (a.createdAt||0)-(b.createdAt||0));
-
-      $("pendingInCount").textContent = pendingIN.length;
-      $("pendingOutCount").textContent = pendingOUT.length;
-
-      $("pendingEmpty").style.display = pendingAll.length ? "none" : "";
-      $("pendingInEmpty").style.display = pendingIN.length ? "none" : "";
-      $("pendingOutEmpty").style.display = pendingOUT.length ? "none" : "";
-
-      for(const photo of pendingIN) inList.appendChild(renderPhotoItem(photo, false));
-      for(const photo of pendingOUT) outList.appendChild(renderPhotoItem(photo, false));
-
-      // Downloaded list (keep combined)
-      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
-      for(const photo of downloaded){
-        downloadedList.appendChild(renderPhotoItem(photo, true));
-      }
-    }
-
-    function renderPhotoItem(photo, isDownloaded){
-      const wrap = document.createElement("div");
-      wrap.className = "photoItem";
-
-      const img = document.createElement("img");
-      img.className = "thumb";
-      img.src = getThumbUrl(photo);
-      img.alt = photo.tag;
-
-      const info = document.createElement("div");
-      info.className = "info";
-
-      const metaTop = document.createElement("div");
-      metaTop.className = "metaTop";
-
-      const left = document.createElement("div");
-      left.className = "metaLine";
-
-      const tagBadge = document.createElement("span");
-      tagBadge.className = "badge ok";
-      tagBadge.textContent = photo.tag;
-
-      const dlBadge = document.createElement("span");
-      dlBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
-      dlBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
-
-      left.appendChild(tagBadge);
-      left.appendChild(dlBadge);
-
-      const time = document.createElement("div");
-      time.className = "timeText";
-      time.textContent = fmtDT(photo.createdAt);
-
-      metaTop.appendChild(left);
-      metaTop.appendChild(time);
-
-      const actions = document.createElement("div");
-      actions.className = "actions";
-
-      const dlBtn = document.createElement("button");
-      dlBtn.className = "btn primary";
-      dlBtn.textContent = "⬇ Download";
-      dlBtn.onclick = async () => {
-        dlBtn.disabled = true;
-        try{
-          await downloadPhoto(photo);
-        }finally{
-          dlBtn.disabled = false;
-        }
-      };
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "btn danger";
-      delBtn.textContent = "🗑 Delete";
-      delBtn.onclick = async () => {
-        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
-        if(!ok) return;
-        delBtn.disabled = true;
-        try{
-          await deletePhoto(photo.id, photo.tag);
-        }finally{
-          delBtn.disabled = false;
-        }
-      };
-
-      actions.appendChild(dlBtn);
-      actions.appendChild(delBtn);
-
-      info.appendChild(metaTop);
-      info.appendChild(actions);
-
-      wrap.appendChild(img);
-      wrap.appendChild(info);
-
-      return wrap;
-    }
-
     /**********************************************************************
-     * (G) Download + mark downloaded + trigger alarm
-     * - File name = TAG.jpg
-     * - Mark downloaded=1 but can download again
-     **********************************************************************/
-    async function downloadPhoto(photo){
-      const filename = `${photo.tag}.jpg`;
-
-      // Download
-      const url = URL.createObjectURL(photo.blob);
-      try{
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }finally{
-        URL.revokeObjectURL(url);
-      }
-
-      // Mark downloaded
-      if(photo.downloaded !== 1){
-        await dbUpdatePhoto(photo.id, { downloaded: 1 });
-        photo.downloaded = 1; // update in memory
-        log("Marked downloaded:", photo.tag);
-      }else{
-        log("Downloaded again:", photo.tag);
-      }
-
-      // Alarm scheduling based on latest downloaded tag
-      scheduleAlarmFromDownloadedTag(photo.tag);
-
-      render(); // update counts and unlock logic
-    }
-
-    async function deletePhoto(id, tag){
-      await dbDeletePhoto(id);
-      revokeThumbUrl(id);
-
-      // remove from memory
-      state.photos = state.photos.filter(p => p.id !== id);
-
-      log("Deleted", tag, "id=", id);
-      render();
-    }
-
-    /**********************************************************************
-     * (H) 9:10 Timer Lock (persist)
-     *
-     * Schema:
-     *  state.timer910 = { running, locked, startAt, targetAt }
-     *
-     * Behavior (per your spec):
-     *  - Start button has 2-step toggle:
-     *    Step 1: Start -> lock -> label becomes "สิ้นสุด <targetTime>"
-     *    Step 2: Reset -> label back to "เริ่มนับเวลา" (ready to start again)
-     *
-     *  - After Step 1, button is locked (cannot press) until:
-     *    a) downloadedCount >= 40 => auto unlock (button becomes pressable for reset)
-     *    b) user presses Unlock => opens 3-sec window => during that 3 sec, Start button becomes pressable (for Step 2 reset)
+     * 9:10 Timer (persist)
      **********************************************************************/
     const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
 
@@ -1399,16 +1187,590 @@
         state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
       }
     }
-    function saveTimer910(){
-      saveJSON(LS.timer910, state.timer910);
-    }
+    function saveTimer910(){ saveJSON(LS.timer910, state.timer910); }
 
     function isUnlockWindowActive(){
       return !!state.unlock.until && now() < state.unlock.until;
     }
+    function clearUnlockWindow(){
+      state.unlock.until = null;
+      if(state.unlock.ticker){
+        clearInterval(state.unlock.ticker);
+        state.unlock.ticker = null;
+      }
+      $("unlockBtn").textContent = "🔓";
+    }
+    function openUnlockWindow3s(){
+      clearUnlockWindow();
+      state.unlock.until = now() + 3000;
+
+      const tick = () => {
+        const leftMs = state.unlock.until - now();
+        const leftSec = Math.max(0, Math.ceil(leftMs / 1000));
+        if(leftSec <= 0){
+          clearUnlockWindow();
+          render();
+          return;
+        }
+        $("unlockBtn").textContent = `🔓${leftSec}`;
+        render();
+      };
+
+      tick();
+      state.unlock.ticker = setInterval(tick, 200);
+      log("Unlock window opened: 3s");
+    }
+
+    function startTimer910(){
+      const startAt = now();
+      const targetAt = startAt + TIMER_910_MS;
+      state.timer910 = { running:true, locked:true, startAt, targetAt };
+      saveTimer910();
+      log("Timer start", fmtDT(startAt), "->", fmtDT(targetAt));
+    }
+    function resetTimer910ToReady(){
+      state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
+      saveTimer910();
+      clearUnlockWindow();
+      // also clear alarm schedule (best-effort)
+      state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
+      saveJSON(LS.alarm, state.alarm);
+      stopAlarmTimeout();
+      log("Timer reset -> READY");
+    }
+
+    async function onStartButtonClick(){
+      const { downloaded } = computeCounts();
+
+      // Step 1: Start
+      if(!state.timer910.running){
+        startTimer910();
+        render();
+        return;
+      }
+
+      // Step 2: Reset (only when unlocked or within unlock window)
+      const allowed = (!state.timer910.locked) || isUnlockWindowActive();
+      if(!allowed) return;
+      resetTimer910ToReady();
+      render();
+    }
+
+    /**********************************************************************
+     * Dynamic schedule (key change)
+     * - Compute recommended download times to fit targetAt
+     * - After IN: gap 3–25 min
+     * - After OUT: gap 4–30 min
+     * - Ensure IN gap < OUT gap
+     * - If not feasible => header alert (prominent)
+     **********************************************************************/
+    function computeCounts(){
+      const total = state.photos.length;
+      const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
+      const pending = total - downloaded;
+      return { total, downloaded, pending };
+    }
+
+    function sortSlot(a,b){
+      const ai = a.idx||0, bi = b.idx||0;
+      if(ai !== bi) return ai - bi;
+      const ak = (String(a.kind).toUpperCase()==="IN") ? 0 : 1;
+      const bk = (String(b.kind).toUpperCase()==="IN") ? 0 : 1;
+      return ak - bk;
+    }
+
+    function getLastDownloaded(){
+      const downloaded = state.photos.filter(p=>p.downloaded===1);
+      if(!downloaded.length) return null;
+      // prefer downloadedAt; fallback to createdAt
+      downloaded.sort((a,b)=> ((a.downloadedAt||a.createdAt||0) - (b.downloadedAt||b.createdAt||0)));
+      return downloaded[downloaded.length-1] || null;
+    }
+
+    function minGapMinutes(kind){
+      return (kind==="IN") ? 3 : 4;
+    }
+    function maxGapMinutes(kind){
+      return (kind==="IN") ? 25 : 30;
+    }
+
+    function buildContiguousPlanPending(){
+      // Build contiguous chain starting from next expected tag
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      const pendingByTag = new Map(pending.map(p=>[p.tag, p]));
+
+      const last = getLastDownloaded();
+      let nextTag = null;
+
+      if(last && last.tag){
+        nextTag = nextTagInSequence(last.tag);
+      }else{
+        nextTag = "IN-1";
+      }
+
+      const plan = [];
+      let missingTag = null;
+
+      let cur = nextTag;
+      for(let i=0;i<200;i++){
+        const p = pendingByTag.get(cur);
+        if(!p){
+          missingTag = cur;
+          break;
+        }
+        plan.push(p);
+        // advance
+        cur = nextTagInSequence(cur);
+        if(!cur) break;
+      }
+
+      return { plan, missingTag, nextExpected: nextTag, lastDownloaded:last };
+    }
+
+    function solveKindAverages(totalMin, nIn, nOut){
+      // Find a (IN gap) and b (OUT gap) such that:
+      // a*nIn + b*nOut = totalMin
+      // 3<=a<=25, 4<=b<=30, a<b (strict with at least 0.25)
+      const mean = totalMin / Math.max(1,(nIn+nOut));
+
+      const best = { a:null, b:null, score: 1e18 };
+
+      if(nIn===0 && nOut===0){
+        return { a: null, b: null, ok:false };
+      }
+      if(nOut===0){
+        let a = totalMin / nIn;
+        a = Math.max(3, Math.min(25, a));
+        return { a, b:null, ok:true };
+      }
+      if(nIn===0){
+        let b = totalMin / nOut;
+        b = Math.max(4, Math.min(30, b));
+        return { a:null, b, ok:true };
+      }
+
+      // search a in steps of 0.25 min
+      for(let a=3; a<=25; a+=0.25){
+        const b = (totalMin - a*nIn) / nOut;
+        if(b < 4 || b > 30) continue;
+        if(!(b - a >= 0.25)) continue; // enforce IN < OUT
+        const score = Math.abs(a-mean) + Math.abs(b-mean);
+        if(score < best.score){
+          best.a = a; best.b = b; best.score = score;
+        }
+      }
+
+      if(best.a==null){
+        // fallback: clamp mean and force inequality minimally
+        let a = Math.max(3, Math.min(25, mean-1));
+        let b = Math.max(4, Math.min(30, mean+1));
+        if(!(b - a >= 0.25)){
+          b = Math.min(30, a + 0.25);
+        }
+        return { a, b, ok:false };
+      }
+      return { a: best.a, b: best.b, ok:true };
+    }
+
+    function distributeDiffWithinBounds(gapsMs, kinds, totalMs){
+      // After rounding, adjust last gaps to match totalMs while staying within bounds
+      let sum = gapsMs.reduce((s,x)=>s+x,0);
+      let diff = totalMs - sum;
+      if(Math.abs(diff) < 500) return gapsMs; // within 0.5s
+
+      // Try adjust from last to first
+      for(let i=gapsMs.length-1;i>=0;i--){
+        if(diff === 0) break;
+        const kind = kinds[i];
+        const minMs = minGapMinutes(kind)*60000;
+        const maxMs = maxGapMinutes(kind)*60000;
+
+        const current = gapsMs[i];
+        const target = current + diff;
+
+        const clamped = Math.max(minMs, Math.min(maxMs, target));
+        const applied = clamped - current;
+        if(applied !== 0){
+          gapsMs[i] = clamped;
+          diff -= applied;
+        }
+      }
+
+      return gapsMs;
+    }
+
+    function computeSchedule(){
+      const sched = {
+        ok:false,
+        reason:"",
+        missingTag:null,
+        nextTag:null,
+        nextAt:null,
+        planAtById: new Map(),
+      };
+
+      // If timer not running -> no smart schedule
+      if(!state.timer910.running || !state.timer910.targetAt){
+        sched.reason = "ยังไม่ได้เริ่มนับเวลา";
+        return sched;
+      }
+
+      const { plan, missingTag, nextExpected, lastDownloaded } = buildContiguousPlanPending();
+      sched.missingTag = missingTag;
+      sched.nextTag = plan[0]?.tag || nextExpected || null;
+
+      // Determine base time
+      const startFloor = state.timer910.startAt || 0;
+      const baseFromLast = lastDownloaded ? (lastDownloaded.downloadedAt || lastDownloaded.createdAt || 0) : 0;
+
+      // If there was a download, schedule from last download time; else schedule from "now" (first pending is recommended now)
+      let baseTime = lastDownloaded ? baseFromLast : now();
+      baseTime = Math.max(baseTime, startFloor);
+
+      const targetAt = state.timer910.targetAt;
+
+      // If no pending in contiguous chain
+      if(plan.length === 0){
+        // If missingTag exists, it means nextExpected photo not available
+        if(missingTag){
+          sched.reason = `ขาดรูป ${missingTag} — เพิ่ม/ถ่ายรูปก่อน`;
+        }else{
+          sched.reason = "ไม่มี Pending ให้คำนวณ";
+        }
+        // nextAt: if no lastDownloaded, recommend now; if lastDownloaded, can't recommend without next photo
+        if(!lastDownloaded){
+          sched.nextAt = now();
+          sched.ok = false;
+        }
+        return sched;
+      }
+
+      // Build gap kinds (the kind of the PREVIOUS download that determines the wait)
+      let gapKinds = [];
+      let gapCount = 0;
+
+      if(lastDownloaded){
+        // need a gap before EACH next planned download (length = plan.length)
+        gapCount = plan.length;
+        const lastKind = (parseTag(lastDownloaded.tag)?.kind) || "IN";
+        gapKinds.push(lastKind);
+        for(let i=1;i<plan.length;i++){
+          gapKinds.push(String(plan[i-1].kind).toUpperCase());
+        }
+      }else{
+        // first planned download is "now"; gaps between subsequent planned downloads (length = plan.length - 1)
+        gapCount = Math.max(0, plan.length - 1);
+        for(let i=0;i<gapCount;i++){
+          gapKinds.push(String(plan[i].kind).toUpperCase());
+        }
+      }
+
+      const totalMs = targetAt - baseTime;
+
+      // If target already passed
+      if(totalMs <= 0){
+        sched.reason = "เลยเวลาเป้าหมายแล้ว";
+        // recommend immediate for next
+        sched.ok = false;
+        sched.nextAt = now();
+        // map at least first pending as now (to show overdue)
+        sched.planAtById.set(plan[0].id, now());
+        return sched;
+      }
+
+      // If no gaps to distribute
+      if(gapCount === 0){
+        // Only one pending (or no last download => first is now). Can't “average” across remaining time.
+        sched.reason = `รูปยังไม่พอสำหรับเฉลี่ยถึงเป้าหมาย (ต้องมีอย่างน้อย 2 รูปในลำดับ)`;
+        sched.ok = false;
+
+        // recommended time for first pending:
+        const t0 = lastDownloaded ? (baseTime + minGapMinutes(parseTag(lastDownloaded.tag)?.kind || "IN")*60000) : baseTime;
+        sched.nextAt = t0;
+        sched.planAtById.set(plan[0].id, t0);
+        return sched;
+      }
+
+      // Feasibility window
+      let minTotalMs = 0, maxTotalMs = 0;
+      for(const k of gapKinds){
+        minTotalMs += minGapMinutes(k)*60000;
+        maxTotalMs += maxGapMinutes(k)*60000;
+      }
+
+      // Also enforce IN gap < OUT gap via average solve (we do that when feasible; if infeasible, we still show warning)
+      let feasible = (totalMs >= minTotalMs - 2000) && (totalMs <= maxTotalMs + 2000);
+
+      // count nIn/nOut gaps
+      let nIn = 0, nOut = 0;
+      for(const k of gapKinds){ if(k==="IN") nIn++; else nOut++; }
+
+      // Choose gaps minutes
+      let gapsMs = new Array(gapCount).fill(0);
+
+      if(feasible){
+        const totalMin = totalMs / 60000;
+        const { a, b } = solveKindAverages(totalMin, nIn, nOut);
+
+        // Build
+        for(let i=0;i<gapKinds.length;i++){
+          const k = gapKinds[i];
+          const mins = (k==="IN") ? (a ?? 10) : (b ?? 12);
+          // clamp to bounds
+          const clamped = Math.max(minGapMinutes(k), Math.min(maxGapMinutes(k), mins));
+          gapsMs[i] = Math.round(clamped * 60000);
+        }
+        gapsMs = distributeDiffWithinBounds(gapsMs, gapKinds, totalMs);
+        sched.ok = true;
+      }else{
+        // Not feasible:
+        // - if totalMs > maxTotalMs => "รูปไม่พอ/ช่วงเวลายาวเกิน" (need more photos)
+        // - if totalMs < minTotalMs => "รูปเยอะเกินเวลา/ต้องโหลดถี่ขึ้น"
+        if(totalMs > maxTotalMs){
+          const extra = totalMs - maxTotalMs;
+          const needMore = Math.ceil(extra / (30*60000));
+          sched.reason = `รูป/ช่วงเวลาไม่พอให้เฉลี่ยถึงเป้าหมาย — ควรเพิ่มรูปอีกประมาณ ${needMore} รูป+`;
+          // Use max gaps to spread as far as possible
+          for(let i=0;i<gapKinds.length;i++){
+            gapsMs[i] = Math.round(maxGapMinutes(gapKinds[i]) * 60000);
+          }
+        }else{
+          sched.reason = `เวลาน้อยเกินไปสำหรับจำนวนรูปในลำดับ — ต้องโหลดถี่ขึ้น/ลดรูป หรือรีเซ็ตเวลา`;
+          // Use min gaps to be as fast as possible
+          for(let i=0;i<gapKinds.length;i++){
+            gapsMs[i] = Math.round(minGapMinutes(gapKinds[i]) * 60000);
+          }
+        }
+        sched.ok = false;
+      }
+
+      // Build recommended times
+      let t = baseTime;
+
+      if(lastDownloaded){
+        // plan[i] happens at baseTime + gapsMs[i]
+        for(let i=0;i<plan.length;i++){
+          t += gapsMs[i];
+          sched.planAtById.set(plan[i].id, t);
+        }
+        sched.nextAt = sched.planAtById.get(plan[0].id) || null;
+      }else{
+        // first pending recommended now (baseTime), then add gapsMs for subsequent
+        sched.planAtById.set(plan[0].id, t);
+        for(let i=1;i<plan.length;i++){
+          t += gapsMs[i-1];
+          sched.planAtById.set(plan[i].id, t);
+        }
+        sched.nextAt = sched.planAtById.get(plan[0].id) || null;
+      }
+
+      // If missingTag exists, show as prominent reason even if time feasible
+      if(missingTag){
+        const msg = `ขาดรูป ${missingTag} — เพิ่ม/ถ่ายรูปก่อน เพื่อให้ลำดับสมบูรณ์`;
+        sched.reason = sched.reason ? (msg + " • " + sched.reason) : msg;
+        sched.ok = false;
+      }
+
+      return sched;
+    }
+
+    /**********************************************************************
+     * Alarm + Notification (best-effort)
+     * IMPORTANT: Without backend Push, web cannot guarantee notify when Chrome is not active
+     **********************************************************************/
+    function loadAlarmState(){
+      const a = loadJSON(LS.alarm, null);
+      if(a && typeof a === "object"){
+        state.alarm = {
+          dueAt: a.dueAt || null,
+          nextTag: a.nextTag || null,
+          firedDueAt: a.firedDueAt || null
+        };
+      }
+    }
+    function saveAlarmState(){
+      saveJSON(LS.alarm, state.alarm);
+    }
+    function stopAlarmTimeout(){
+      if(state.alarmTimeout){
+        clearTimeout(state.alarmTimeout);
+        state.alarmTimeout = null;
+      }
+    }
+
+    function tryNotify(body){
+      if(typeof Notification === "undefined") return;
+      if(Notification.permission !== "granted") return;
+      try{
+        new Notification("Selfie Time Logger", { body });
+      }catch(_){}
+    }
+
+    function beepOnce(duration=0.16, freq=880){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+        o.connect(g); g.connect(ctx.destination);
+        g.gain.value = 0.08;
+        o.start();
+        setTimeout(()=>{ o.stop(); ctx.close(); }, duration*1000);
+      }catch(_){}
+    }
+    function vibratePattern(){
+      try{
+        if(navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 220]);
+      }catch(_){}
+    }
+    function beepTriple(){
+      // Best-effort: sound + vibrate
+      vibratePattern();
+      beepOnce(0.12, 880);
+      setTimeout(()=>beepOnce(0.12, 990), 180);
+      setTimeout(()=>beepOnce(0.14, 880), 360);
+    }
+
+    function showInAppAlarm(text, sub){
+      $("alarmText").textContent = text;
+      $("alarmSub").textContent = sub || "แตะเพื่อปิดการแจ้งเตือน";
+      $("alarmBanner").classList.add("show");
+    }
+    function hideInAppAlarm(){
+      $("alarmBanner").classList.remove("show");
+    }
+
+    function scheduleNextAlarmFromSchedule(){
+      stopAlarmTimeout();
+
+      const s = state.schedule;
+      if(!s || !s.nextAt || !s.nextTag){
+        state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
+        saveAlarmState();
+        return;
+      }
+
+      const dueAt = s.nextAt;
+      state.alarm.dueAt = dueAt;
+      state.alarm.nextTag = s.nextTag;
+      // do not reset firedDueAt unless dueAt changes
+      if(state.alarm.firedDueAt && state.alarm.firedDueAt !== dueAt){
+        state.alarm.firedDueAt = null;
+      }
+      saveAlarmState();
+
+      const delay = Math.max(0, dueAt - now());
+      state.alarmTimeout = setTimeout(()=>{
+        fireAlarmIfNeeded(true);
+      }, delay + 50);
+
+      // If overdue right now, fire immediately in foreground
+      fireAlarmIfNeeded(false);
+    }
+
+    function fireAlarmIfNeeded(fromTimeout){
+      const dueAt = state.alarm.dueAt;
+      if(!dueAt) return;
+
+      const isPast = (dueAt - now()) <= 0;
+      if(!isPast) return;
+
+      if(state.alarm.firedDueAt === dueAt) return;
+
+      // If not fromTimeout and autoWake is off, don't auto-fire
+      if(!fromTimeout && !state.ui.autoWake) return;
+
+      state.alarm.firedDueAt = dueAt;
+      saveAlarmState();
+
+      const nextTag = state.alarm.nextTag || "-";
+      const msg = nextTag.startsWith("OUT-") ? "ครบเวลา Check Out ได้แล้ว" : "ครบเวลา Check In ได้แล้ว";
+
+      showInAppAlarm(msg, `Next: ${nextTag}`);
+      tryNotify(`${msg} • Next: ${nextTag}`);
+      beepTriple();
+      log("ALARM FIRED:", msg, "dueAt=", fmtDT(dueAt));
+    }
+
+    /**********************************************************************
+     * Download + mark downloadedAt
+     **********************************************************************/
+    async function downloadPhoto(photo){
+      const filename = `${photo.tag}.jpg`;
+
+      const url = URL.createObjectURL(photo.blob);
+      try{
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+
+      const t = now();
+      if(photo.downloaded !== 1){
+        await dbUpdatePhoto(photo.id, { downloaded: 1, downloadedAt: t });
+        photo.downloaded = 1;
+        photo.downloadedAt = t;
+        log("Marked downloaded:", photo.tag);
+      }else{
+        // still update downloadedAt to treat as "latest action" (because schedule depends on the latest download)
+        await dbUpdatePhoto(photo.id, { downloadedAt: t });
+        photo.downloadedAt = t;
+        log("Downloaded again (update downloadedAt):", photo.tag);
+      }
+
+      render();
+    }
+
+    async function deletePhoto(id, tag){
+      await dbDeletePhoto(id);
+      revokeThumbUrl(id);
+      state.photos = state.photos.filter(p => p.id !== id);
+      log("Deleted", tag, "id=", id);
+      render();
+    }
+
+    /**********************************************************************
+     * Render
+     **********************************************************************/
+    function renderHeaderSchedule(){
+      const s = state.schedule;
+      const alert = $("headerAlert");
+
+      // Next slot (capture)
+      $("nextSlotText").textContent = peekNextTag();
+
+      // Header recommended next download
+      const nextTag = s.nextTag || "-";
+      $("headerNextDownloadText").textContent = nextTag;
+
+      if(s.nextAt){
+        const left = s.nextAt - now();
+        const when = left <= 0 ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
+        $("headerNextCountdownText").textContent = (left <= 0) ? "เลยเวลา/ถึงเวลาแล้ว" : fmtHMS(left);
+        $("headerNextDownloadPill").innerHTML = `ควรโหลด: <b>${nextTag}</b> @ <b>${when}</b>`;
+      }else{
+        $("headerNextCountdownText").textContent = "-";
+        $("headerNextDownloadPill").innerHTML = `ควรโหลด: <b>-</b>`;
+      }
+
+      // Alert
+      if(s.reason){
+        alert.classList.add("show");
+        alert.textContent = `⚠ ${s.reason}`;
+      }else{
+        alert.classList.remove("show");
+        alert.textContent = "";
+      }
+    }
 
     function renderTimer910(downloadedCount){
-      // Auto unlock if downloaded >= 40 (do not clear times; just unlock so user can reset)
+      // Auto unlock if downloaded >= 40
       if(state.timer910.running && state.timer910.locked && downloadedCount >= 40){
         state.timer910.locked = false;
         saveTimer910();
@@ -1447,266 +1809,261 @@
         startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
       }
 
-      // Start button enabled rules:
-      // - If not running => enabled (start Step 1)
-      // - If running => enabled only when NOT locked, OR within unlock window (to reset Step 2)
+      // Start button enabled rules
       const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
       startBtn.disabled = state.timer910.running ? !canResetNow : false;
 
-      // Unlock button enabled only when timer is running & locked & not already auto-unlocked
+      // Unlock button enabled rules
       const unlockBtn = $("unlockBtn");
       const canUnlock = state.timer910.running && state.timer910.locked && downloadedCount < 40;
       unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
-
-      // If unlock window active, label is set by ticker (countdown)
       if(!isUnlockWindowActive()){
-        unlockBtn.textContent = "🔓 ปลดล็อค";
+        unlockBtn.textContent = "🔓";
       }
     }
 
-    function startTimer910(){
-      const startAt = now();
-      const targetAt = startAt + TIMER_910_MS;
-
-      state.timer910 = { running:true, locked:true, startAt, targetAt };
-      saveTimer910();
-      log("Timer start", fmtDT(startAt), "->", fmtDT(targetAt));
-    }
-
-    function resetTimer910ToReady(){
-      state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
-      saveTimer910();
-      log("Timer reset -> READY");
-    }
-
-    async function onStartButtonClick(){
-      const { downloaded } = computeCounts();
-
-      // Step 1: Start
-      if(!state.timer910.running){
-        startTimer910();
-        // After starting, button becomes locked immediately (unless auto unlock condition already true via downloaded >= 40; render will handle)
-        render();
-        return;
-      }
-
-      // Step 2: Reset (requires unlocked or unlock window)
-      const allowed = (!state.timer910.locked) || isUnlockWindowActive();
-      if(!allowed){
-        // Should not happen because button disabled, but keep safe
-        log("Blocked: timer locked");
-        return;
-      }
-
-      // Reset back to READY
-      resetTimer910ToReady();
-
-      // Close unlock window if active
-      clearUnlockWindow();
-
-      render();
-    }
-
-    function clearUnlockWindow(){
-      state.unlock.until = null;
-      if(state.unlock.ticker){
-        clearInterval(state.unlock.ticker);
-        state.unlock.ticker = null;
-      }
-      $("unlockBtn").textContent = "🔓 ปลดล็อค";
-    }
-
-    function openUnlockWindow3s(){
-      // Restart if pressed again
-      clearUnlockWindow();
-
-      state.unlock.until = now() + 3000;
-      const unlockBtn = $("unlockBtn");
-
-      // Countdown text on unlock button
-      const tick = () => {
-        const leftMs = state.unlock.until - now();
-        const leftSec = Math.max(0, Math.ceil(leftMs / 1000)); // 3..2..1..0
-        if(leftSec <= 0){
-          clearUnlockWindow();
-          render();
-          return;
-        }
-        unlockBtn.textContent = `🔓 ปลดล็อค (${leftSec})`;
-        // While window active, start button becomes enabled for reset
-        render();
-      };
-
-      tick();
-      state.unlock.ticker = setInterval(tick, 200);
-      log("Unlock window opened: 3s");
-    }
-
-    /**********************************************************************
-     * (I) Alarm / Notification (unchanged)
-     **********************************************************************/
-    function loadAlarmState(){
-      const a = loadJSON(LS.alarm, null);
-      if(a && typeof a === "object"){
-        state.alarm = {
-          dueAt: a.dueAt || null,
-          nextTag: a.nextTag || null,
-          lastDownloadedTag: a.lastDownloadedTag || null,
-          lastDownloadedAt: a.lastDownloadedAt || null,
-          firedDueAt: a.firedDueAt || null
-        };
-      }else{
-        state.alarm = { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null };
-      }
-    }
-    function saveAlarmState(){
-      saveJSON(LS.alarm, state.alarm);
-    }
-
-    function nextTagFromDownloaded(tag){
-      const p = parseTag(tag);
-      if(!p) return null;
-      if(p.kind === "IN") return `OUT-${p.idx}`;
-      return `IN-${p.idx + 1}`;
-    }
-
-    function minutesForKind(kind){
-      return (kind === "IN") ? 15 : 25;
-    }
-
-    function scheduleAlarmFromDownloadedTag(downloadedTag){
-      const p = parseTag(downloadedTag);
-      if(!p) return;
-
-      const mins = minutesForKind(p.kind);
-      const dueAt = now() + mins*60*1000;
-      const nextTag = nextTagFromDownloaded(downloadedTag);
-
-      state.alarm = {
-        dueAt,
-        nextTag,
-        lastDownloadedTag: downloadedTag,
-        lastDownloadedAt: now(),
-        firedDueAt: null
-      };
-      saveAlarmState();
-
-      log("Alarm set", downloadedTag, `+${mins}m`, "dueAt=", fmtDT(dueAt), "next=", nextTag);
-      setupAlarmTimeout();
-      render();
-    }
-
-    function renderAlarm(){
+    function renderAlarmPanel(){
       const b = $("alarmBadge");
-      const dueAt = state.alarm.dueAt;
-
-      if(dueAt){
-        const left = dueAt - now();
+      if(state.alarm.dueAt){
+        const left = state.alarm.dueAt - now();
         if(left <= 0){
           b.className = "badge err";
           b.textContent = "ครบเวลาแล้ว";
-          $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
         }else{
           b.className = "badge wait";
           b.textContent = "กำลังนับเวลา…";
-          $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
         }
-        $("alarmMeta").textContent =
-          `ล่าสุด: ${state.alarm.lastDownloadedTag || "-"} @ ${fmtDT(state.alarm.lastDownloadedAt)} • next: ${state.alarm.nextTag || "-"}`;
+        $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+        $("alarmMeta").textContent = `next: ${state.alarm.nextTag || "-"} • dueAt: ${fmtDT(state.alarm.dueAt)}`;
       }else{
         b.className = "badge";
         b.textContent = "ยังไม่ตั้ง";
         $("alarmLeftPill").textContent = "เหลือ: -";
-        $("alarmMeta").textContent = "ล่าสุด: - • next: -";
+        $("alarmMeta").textContent = "next: - • dueAt: -";
       }
     }
 
-    function setupAlarmTimeout(){
-      if(state.alarmTimeout){
-        clearTimeout(state.alarmTimeout);
-        state.alarmTimeout = null;
+    function renderList(){
+      const pendingList = $("pendingList");
+      const downloadedList = $("downloadedList");
+      pendingList.innerHTML = "";
+      downloadedList.innerHTML = "";
+
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      const downloaded = state.photos.filter(p=>p.downloaded===1).map(ensureKindIdx);
+
+      // Keep stable order by slot for easier use
+      pending.sort(sortSlot);
+      downloaded.sort(sortSlot);
+
+      $("pendingEmpty").style.display = pending.length ? "none" : "";
+      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
+
+      for(const p of pending) pendingList.appendChild(renderPhotoItem(p, false));
+      for(const p of downloaded) downloadedList.appendChild(renderPhotoItem(p, true));
+    }
+
+    function renderPhotoItem(photo, isDownloaded){
+      const wrap = document.createElement("div");
+      wrap.className = "photoItem";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = getThumbUrl(photo);
+      img.alt = photo.tag;
+
+      const info = document.createElement("div");
+      info.className = "info";
+
+      const metaTop = document.createElement("div");
+      metaTop.className = "metaTop";
+
+      const left = document.createElement("div");
+      left.className = "metaLine";
+
+      const tagBadge = document.createElement("span");
+      tagBadge.className = "badge ok";
+      tagBadge.textContent = photo.tag;
+
+      const dlBadge = document.createElement("span");
+      dlBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
+      dlBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
+
+      left.appendChild(tagBadge);
+      left.appendChild(dlBadge);
+
+      const time = document.createElement("div");
+      time.className = "timeText";
+      time.textContent = fmtDT(photo.createdAt);
+
+      metaTop.appendChild(left);
+      metaTop.appendChild(time);
+
+      // Recommended time line for pending
+      const reco = document.createElement("div");
+      reco.className = "recoText";
+      if(!isDownloaded){
+        const t = state.schedule.planAtById.get(photo.id);
+        if(t){
+          const late = (t - now()) <= 0;
+          reco.classList.toggle("late", late);
+          reco.textContent = `Time use ${fmtTimeOnly(t)}${late ? " • ถึงเวลาแล้ว" : ""}`;
+        }else{
+          // Not in contiguous plan (missing earlier slot) or schedule not running
+          reco.textContent = state.timer910.running ? "Time use - (รอรูปก่อนหน้า/ยังคำนวณไม่ได้)" : "Time use - (ยังไม่ได้เริ่มนับเวลา)";
+          reco.classList.add("late");
+        }
+      }else{
+        reco.style.display = "none";
       }
 
-      const dueAt = state.alarm.dueAt;
-      if(!dueAt) return;
+      const actions = document.createElement("div");
+      actions.className = "actions";
 
-      const delay = Math.max(0, dueAt - now());
-      state.alarmTimeout = setTimeout(()=>{
-        fireAlarmIfNeeded(true);
-      }, delay + 30);
+      const dlBtn = document.createElement("button");
+      dlBtn.className = "btn primary";
+      dlBtn.textContent = "⬇ Download";
+      dlBtn.onclick = async () => {
+        dlBtn.disabled = true;
+        try{ await downloadPhoto(photo); }
+        finally{ dlBtn.disabled = false; }
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn danger";
+      delBtn.textContent = "🗑 Delete";
+      delBtn.onclick = async () => {
+        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
+        if(!ok) return;
+        delBtn.disabled = true;
+        try{ await deletePhoto(photo.id, photo.tag); }
+        finally{ delBtn.disabled = false; }
+      };
+
+      actions.appendChild(dlBtn);
+      actions.appendChild(delBtn);
+
+      info.appendChild(metaTop);
+      if(!isDownloaded) info.appendChild(reco);
+      info.appendChild(actions);
+
+      wrap.appendChild(img);
+      wrap.appendChild(info);
+      return wrap;
     }
 
-    function fireAlarmIfNeeded(fromTimeout){
-      const dueAt = state.alarm.dueAt;
-      if(!dueAt) return;
+    function render(){
+      const { total, downloaded, pending } = computeCounts();
 
-      const shouldCatchUp = state.ui.autoWake;
-      const isPast = (dueAt - now()) <= 0;
-      if(!isPast) return;
+      $("totalCount").textContent = total;
+      $("downloadedCount").textContent = downloaded;
+      $("pendingCount").textContent = pending;
 
-      if(state.alarm.firedDueAt === dueAt) return;
-      if(!fromTimeout && !shouldCatchUp) return;
+      $("pendingBadge").textContent = pending;
+      $("downloadedBadge").textContent = downloaded;
 
-      state.alarm.firedDueAt = dueAt;
-      saveAlarmState();
+      const prog = Math.min(40, total);
+      $("progressBar").style.width = `${(prog/40)*100}%`;
 
-      const msg = (state.alarm.nextTag && state.alarm.nextTag.startsWith("OUT-"))
-        ? "ครบเวลา Check Out ได้แล้ว"
-        : "ครบเวลา Check In ได้แล้ว";
+      if(total >= 40){
+        $("goalBadge").style.display = "";
+        $("goalBadge").textContent = "ถึงเป้าหมายแล้ว ✅";
+      }else{
+        $("goalBadge").style.display = "none";
+      }
 
-      showInAppAlarm(msg, `Next: ${state.alarm.nextTag || "-"}`);
-      tryNotify(msg);
-      beepTriple();
+      // recompute schedule every render (frontend dynamic)
+      state.schedule = computeSchedule();
+      renderHeaderSchedule();
 
-      log("ALARM FIRED:", msg, "dueAt=", fmtDT(dueAt));
-      render();
-    }
+      // apply alarm based on schedule
+      scheduleNextAlarmFromSchedule();
 
-    function tryNotify(body){
-      if(typeof Notification === "undefined") return;
-      if(Notification.permission !== "granted") return;
-      try{
-        new Notification("Selfie Time Logger", { body });
-      }catch(_){}
-    }
+      renderTimer910(downloaded);
+      renderAlarmPanel();
+      renderList();
 
-    function showInAppAlarm(text, sub){
-      $("alarmText").textContent = text;
-      $("alarmSub").textContent = sub || "แตะเพื่อปิดการแจ้งเตือน";
-      $("alarmBanner").classList.add("show");
-    }
-    function hideInAppAlarm(){
-      $("alarmBanner").classList.remove("show");
-    }
-
-    function beepOnce(duration=0.16, freq=880){
-      try{
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = "sine";
-        o.frequency.value = freq;
-        o.connect(g);
-        g.connect(ctx.destination);
-        g.gain.value = 0.08;
-        o.start();
-        setTimeout(()=>{
-          o.stop();
-          ctx.close();
-        }, duration*1000);
-      }catch(_){}
-    }
-    function beepTriple(){
-      beepOnce(0.12, 880);
-      setTimeout(()=>beepOnce(0.12, 990), 180);
-      setTimeout(()=>beepOnce(0.14, 880), 360);
+      updateCamHUD();
     }
 
     /**********************************************************************
-     * (J) Camera modal
-     * - getUserMedia
-     * - Mirror preview for user-facing camera
-     * - Saved image matches preview (mirror applied at capture)
+     * Delete all (2-step confirm)
+     **********************************************************************/
+    async function deleteAll(){
+      const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
+      if(!ok1) return;
+      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด\nการกระทำนี้ย้อนกลับไม่ได้");
+      if(!ok2) return;
+
+      setSaveState(`<span class="spin"></span> ลบ…`, "wait");
+      try{
+        await dbClearAll();
+        revokeAllThumbs();
+        state.photos = [];
+        resetTimer910ToReady();
+        hideInAppAlarm();
+        setSaveState("ลบแล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
+      }catch(e){
+        setSaveState("ลบล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+      }
+      render();
+    }
+
+    /**********************************************************************
+     * Refresh from DB (boot)
+     **********************************************************************/
+    async function refresh(){
+      const all = await dbGetAll();
+      all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+      for(const p of all) ensureKindIdx(p);
+      state.photos = all;
+      render();
+    }
+
+    /**********************************************************************
+     * UI state (persist)
+     **********************************************************************/
+    function loadUIState(){
+      const u = loadJSON(LS.ui, null);
+      if(u && typeof u === "object"){
+        state.ui.logEnabled = !!u.logEnabled;
+        state.ui.autoWake = (u.autoWake !== false);
+        state.ui.mirrorPref = (u.mirrorPref !== false);
+      }
+      $("logToggle").checked = state.ui.logEnabled;
+      $("autoWakeToggle").checked = state.ui.autoWake;
+      $("mirrorHintToggle").checked = state.ui.mirrorPref;
+      $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
+    }
+    function saveUIState(){
+      saveJSON(LS.ui, {
+        logEnabled: state.ui.logEnabled,
+        autoWake: state.ui.autoWake,
+        mirrorPref: state.ui.mirrorPref
+      });
+    }
+
+    /**********************************************************************
+     * Notifications
+     **********************************************************************/
+    async function requestNotificationPermission(){
+      if(typeof Notification === "undefined"){
+        alert("อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ Notification");
+        return;
+      }
+      try{
+        const p = await Notification.requestPermission();
+        log("Notification permission:", p);
+        setNotifBadge();
+      }catch(e){
+        log("Permission request error:", e);
+      }
+    }
+
+    /**********************************************************************
+     * Camera modal (mirror + saved matches preview)
      **********************************************************************/
     async function openCamera(){
       $("camModalBackdrop").classList.add("show");
@@ -1715,13 +2072,11 @@
       updateCamHUD();
       await startCameraStream();
     }
-
     function closeCamera(){
       stopCameraStream();
       $("camModalBackdrop").classList.remove("show");
       hideCamToast();
     }
-
     async function startCameraStream(){
       stopCameraStream();
 
@@ -1762,17 +2117,12 @@
         log("Camera error:", e && (e.name || e.message) ? (e.name || e.message) : e);
       }
     }
-
     function stopCameraStream(){
       const s = state.cam.stream;
-      if(s){
-        s.getTracks().forEach(t=>t.stop());
-      }
+      if(s) s.getTracks().forEach(t=>t.stop());
       state.cam.stream = null;
-      const video = $("camVideo");
-      video.srcObject = null;
+      $("camVideo").srcObject = null;
     }
-
     async function switchCamera(){
       state.cam.facing = (state.cam.facing === "user") ? "environment" : "user";
       await startCameraStream();
@@ -1783,19 +2133,15 @@
       el.classList.add("on");
       setTimeout(()=> el.classList.remove("on"), 140);
     }
-
     function showCamToast(text){
-      const box = $("camToast");
       $("camToastInner").textContent = text;
-      box.classList.add("show");
+      $("camToast").classList.add("show");
       setTimeout(()=> hideCamToast(), 900);
     }
     function hideCamToast(){
       $("camToast").classList.remove("show");
     }
-
     function updateCamHUD(){
-      // Counts + next tag shown in live view
       const { total, downloaded, pending } = computeCounts();
       $("camCountPill").textContent = `📸 Total: ${total} • Pending: ${pending} • DL: ${downloaded}`;
       $("camNextPill").textContent = `Next: ${peekNextTag()}`;
@@ -1808,21 +2154,19 @@
         return;
       }
 
-      // feedback immediately
       camFlash();
       if(navigator.vibrate) navigator.vibrate(15);
 
       const facing = state.cam.facing;
       const mirror = (facing === "user") && state.ui.mirrorPref;
 
-      // Output portrait 4:3 (w/h = 3/4)
+      // Output portrait 4:3 (aspect 3/4)
       const outAR = 3/4;
-
       const srcW = video.videoWidth;
       const srcH = video.videoHeight;
       const srcAR = srcW/srcH;
 
-      // crop source to match outAR
+      // crop to match outAR
       let cropW, cropH, sx, sy;
       if(srcAR > outAR){
         cropH = srcH;
@@ -1836,7 +2180,6 @@
         sy = (srcH - cropH)/2;
       }
 
-      // output size
       const maxH = 1600;
       let outH = Math.min(maxH, Math.round(cropH));
       let outW = Math.round(outH * outAR);
@@ -1846,11 +2189,10 @@
       }
 
       const canvas = document.createElement("canvas");
-      canvas.width = outW;
-      canvas.height = outH;
+      canvas.width = outW; canvas.height = outH;
       const ctx = canvas.getContext("2d", { alpha:false });
 
-      // IMPORTANT: mirror saved image to match mirror preview
+      // mirror saved image to match mirror preview
       if(mirror){
         ctx.save();
         ctx.translate(outW, 0);
@@ -1866,141 +2208,32 @@
     }
 
     /**********************************************************************
-     * (K) Upload handler
+     * Layout measurements: fixed top & bottom bars
      **********************************************************************/
-    async function handleFiles(files){
-      if(!files || !files.length) return;
-
-      setSaveState(`<span class="spin"></span> กำลังแปลงรูป…`, "wait");
-
-      // Process sequentially to keep slot filling predictable
-      for(const file of files){
-        try{
-          const clean = await imageFileToCleanJpegBlob(file, 1600);
-          await addPhotoFromBlob(clean.blob, clean);
-        }catch(e){
-          log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
-          setSaveState("บันทึกล้มเหลว", "err");
-          setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
-        }
-      }
-
-      render();
+    function measureBars(){
+      const top = $("topBar");
+      const bottom = $("stickyBar");
+      document.documentElement.style.setProperty("--topH", `${top ? top.offsetHeight : 0}px`);
+      document.documentElement.style.setProperty("--stickH", `${bottom ? bottom.offsetHeight : 0}px`);
     }
 
     /**********************************************************************
-     * (L) Delete all (2-step confirm) + clear states
-     **********************************************************************/
-    async function deleteAll(){
-      const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
-      if(!ok1) return;
-      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด\nการกระทำนี้ย้อนกลับไม่ได้");
-      if(!ok2) return;
-
-      setSaveState(`<span class="spin"></span> กำลังลบทั้งหมด…`, "wait");
-      try{
-        await dbClearAll();
-        revokeAllThumbs();
-        state.photos = [];
-
-        // reset timer/alarm
-        resetTimer910ToReady();
-        clearUnlockWindow();
-
-        state.alarm = { dueAt:null, nextTag:null, lastDownloadedTag:null, lastDownloadedAt:null, firedDueAt:null };
-        saveAlarmState();
-        hideInAppAlarm();
-
-        log("Deleted ALL");
-      }finally{
-        setSaveState("ลบแล้ว ✅", "ok");
-        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
-      }
-
-      render();
-    }
-
-    /**********************************************************************
-     * (M) Refresh from DB (on boot)
-     **********************************************************************/
-    async function refresh(){
-      const all = await dbGetAll();
-      all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
-      // Ensure kind/idx is present in memory
-      for(const p of all) ensureKindIdx(p);
-      state.photos = all;
-      render();
-    }
-
-    /**********************************************************************
-     * (N) UI State (log toggle / mirror pref / autoWake)
-     **********************************************************************/
-    function loadUIState(){
-      const u = loadJSON(LS.ui, null);
-      if(u && typeof u === "object"){
-        state.ui.logEnabled = !!u.logEnabled;
-        state.ui.autoWake = (u.autoWake !== false);
-        state.ui.mirrorPref = (u.mirrorPref !== false);
-      }
-      $("logToggle").checked = state.ui.logEnabled;
-      $("autoWakeToggle").checked = state.ui.autoWake;
-      $("mirrorHintToggle").checked = state.ui.mirrorPref;
-
-      $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
-    }
-    function saveUIState(){
-      saveJSON(LS.ui, {
-        logEnabled: state.ui.logEnabled,
-        autoWake: state.ui.autoWake,
-        mirrorPref: state.ui.mirrorPref
-      });
-    }
-
-    /**********************************************************************
-     * (O) Notifications permission
-     **********************************************************************/
-    async function requestNotificationPermission(){
-      if(typeof Notification === "undefined"){
-        alert("อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ Notification");
-        return;
-      }
-      try{
-        const p = await Notification.requestPermission();
-        log("Notification permission:", p);
-        setNotifBadge();
-      }catch(e){
-        log("Permission request error:", e);
-      }
-    }
-
-    /**********************************************************************
-     * (P) Ticking UI (countdowns)
+     * Ticking: update countdowns + catch-up alarm
      **********************************************************************/
     function startTick(){
       if(state.tickInterval) clearInterval(state.tickInterval);
       state.tickInterval = setInterval(()=>{
-        // alarm catch-up check (while open)
-        if(state.alarm.dueAt){
-          fireAlarmIfNeeded(true);
-        }
-        renderTimer910(computeCounts().downloaded);
-        renderAlarm();
-        updateCamHUD();
+        // Re-render schedule countdowns smoothly without heavy DOM rebuild
+        // (render() recalculates and updates lists; ok for mobile with few items)
+        render();
+
+        // Catch-up alarm when overdue
+        fireAlarmIfNeeded(true);
       }, 1000);
     }
 
     /**********************************************************************
-     * (Q) Sticky bar height -> body padding (so cards never blocked)
-     **********************************************************************/
-    function measureSticky(){
-      const el = $("stickyBar");
-      if(!el) return;
-      const h = el.offsetHeight || 0;
-      document.documentElement.style.setProperty("--stickH", `${h}px`);
-    }
-
-    /**********************************************************************
-     * (R) Init
+     * Boot
      **********************************************************************/
     async function boot(){
       loadUIState();
@@ -2011,29 +2244,13 @@
       await initDB();
       await refresh();
 
-      // Catch-up alarm if overdue
-      setupAlarmTimeout();
-      if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
-        fireAlarmIfNeeded(false);
-      }
+      measureBars();
+      window.addEventListener("resize", ()=>{ measureBars(); render(); });
+      window.addEventListener("orientationchange", ()=> setTimeout(()=>{ measureBars(); render(); }, 250));
 
-      // Sticky bar measurement
-      measureSticky();
-      window.addEventListener("resize", ()=> {
-        measureSticky();
-        render();
-      });
-      window.addEventListener("orientationchange", ()=> {
-        setTimeout(()=>{ measureSticky(); render(); }, 250);
-      });
-
-      // Wire events
-      $("requestNotifBtn").onclick = requestNotificationPermission;
-      $("testBeepBtn").onclick = ()=> beepTriple();
-
+      // Wire
       $("uploadBtn").onclick = ()=> $("fileInput").click();
       $("fallbackUploadBtn").onclick = ()=> $("fileInput").click();
-
       $("fileInput").addEventListener("change", async (e)=>{
         const files = Array.from(e.target.files || []);
         e.target.value = "";
@@ -2045,12 +2262,11 @@
       $("switchCamBtn").onclick = switchCamera;
       $("captureBtn").onclick = captureFromCamera;
 
-      // Timer buttons
-      $("start910Btn").onclick = onStartButtonClick;
-      $("unlockBtn").onclick = () => {
-        openUnlockWindow3s();
-      };
+      $("requestNotifBtn").onclick = requestNotificationPermission;
+      $("testBeepBtn").onclick = ()=> beepTriple();
 
+      $("start910Btn").onclick = onStartButtonClick;
+      $("unlockBtn").onclick = ()=> openUnlockWindow3s();
       $("deleteAllBtn").onclick = deleteAll;
 
       $("alarmDismissBtn").onclick = hideInAppAlarm;
@@ -2062,13 +2278,11 @@
         saveUIState();
         log("Log enabled:", state.ui.logEnabled);
       });
-
       $("autoWakeToggle").addEventListener("change", ()=>{
         state.ui.autoWake = $("autoWakeToggle").checked;
         saveUIState();
         log("AutoWake:", state.ui.autoWake);
       });
-
       $("mirrorHintToggle").addEventListener("change", ()=>{
         state.ui.mirrorPref = $("mirrorHintToggle").checked;
         saveUIState();
@@ -2081,22 +2295,20 @@
       });
 
       $("camModalBackdrop").addEventListener("click", (e)=>{
-        if(e.target === $("camModalBackdrop")){
-          closeCamera();
-        }
+        if(e.target === $("camModalBackdrop")) closeCamera();
       });
 
-      $("statusText").textContent = "พร้อมใช้งาน";
       setSaveState("พร้อมใช้งาน", "wait");
-
-      log("BOOT OK", "dbType=", state.dbType, "next=", peekNextTag());
       render();
+      startTick();
+
+      log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
     }
 
     document.addEventListener("visibilitychange", ()=>{
       if(!document.hidden){
-        measureSticky();
-        if(state.alarm.dueAt && (state.alarm.dueAt - now()) <= 0){
+        measureBars();
+        if(state.ui.autoWake){
           fireAlarmIfNeeded(false);
         }
         render();
