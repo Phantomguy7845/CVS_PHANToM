@@ -456,7 +456,7 @@
     .tabbtn:active{ transform:scale(.99); }
 
     /* =========================
-       ✅ SIDEBAR (ใหม่)
+       ✅ SIDEBAR
        ========================= */
     .sb-overlay{
       position:fixed;
@@ -556,7 +556,7 @@
     }
 
     /* =========================
-       ✅ REPORT POPUP (ใหม่)
+       ✅ REPORT POPUP
        ========================= */
     .rep-overlay{
       position:fixed;
@@ -633,21 +633,20 @@
 
     <div class="sb-section">เครื่องมือ</div>
 
-    <!-- Tool #1 -->
-    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Report.html">
+    <!-- ✅ เปิดหน้าเต็ม (ไม่เรียก popup) -->
+    <a class="sb-link" href="Tools/Report.html">
       <div class="sb-ico">🧾</div>
       <div class="sb-text">
         Report Script
-        <small>เปิดหน้า Report.html</small>
+        <small>เปิดหน้า Report.html (เต็มหน้า)</small>
       </div>
     </a>
 
-    <!-- Tool #2 -->
-    <a class="sb-link" href="https://phantomguy7845.github.io/CVS_PHANToM/Tools/Timestamp.html">
+    <a class="sb-link" href="Tools/Timestamp.html">
       <div class="sb-ico">⏱️</div>
       <div class="sb-text">
         Timestamp Camera
-        <small>เปิดหน้า Timestamp.html</small>
+        <small>เปิดหน้า Timestamp.html (เต็มหน้า)</small>
       </div>
     </a>
   </aside>
@@ -748,9 +747,14 @@
   const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec',
 
-    // ✅ path ของ Report.html (ให้เป็น "relative path" เพื่อ same-origin และคุม iframe ได้)
-    // ถ้า index.html อยู่ root ของ repo และ Report อยู่ /Tools/Report.html → ใช้แบบนี้ได้เลย
+    // ✅ path ของ Report.html (relative path → same-origin เพื่อคุม iframe ได้)
     REPORT_PATH: 'Tools/Report.html'
+  };
+
+  // ✅ keys ของ Report.html (จากไฟล์ Report.html ที่คุณใช้)
+  const REPORT_KEYS = {
+    FORM: 'PT_REPORT_FORM_V1',
+    HISTORY: 'PT_REPORT_HISTORY_V1'
   };
 
   function $(id){ return document.getElementById(id); }
@@ -825,6 +829,17 @@
       closeSidebar();
     }
   });
+
+  // คลิกบนลิงก์ใน sidebar → ปิด sidebar (แล้วปล่อยให้เปลี่ยนหน้าเต็มตามปกติ)
+  (function(){
+    var links = $('sbOverlay').querySelectorAll('a.sb-link');
+    links.forEach(function(a){
+      a.addEventListener('click', function(){
+        // ปิดก่อนเปลี่ยนหน้า (optional)
+        closeSidebar();
+      });
+    });
+  })();
 
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && sidebarIsOpen()){
@@ -965,8 +980,8 @@
     function toRad(x){ return x*Math.PI/180; }
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
-    var la1 = toRad(a.lat), la2 = toRad(a.lat);
-    la2 = toRad(b.lat);
+    var la1 = toRad(a.lat);
+    var la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -994,7 +1009,7 @@
 
     if(q){
       arr = arr.filter(function(p){
-        var id = (p && p.id) ? String(p.id) : '';
+        var id = (p && p.id) ? String(p.id).toLowerCase() : '';
         var name = (p && p.name) ? String(p.name).toLowerCase() : '';
         return (id.indexOf(q) !== -1) || (name.indexOf(q) !== -1);
       });
@@ -1037,14 +1052,8 @@
   var REPORT_FRAME_READY = false;
   var REPORT_TRIMMED = false;
 
-  // ✅ defaults (จะถูก “ตรวจจับของจริง” จาก Tools/Report.html แล้วแทนค่าให้อัตโนมัติ)
-  var REPORT_KEYS = {
-    FORM: 'PT_REPORT_FORM_V1',
-    HISTORY: 'PT_REPORT_HISTORY_V1',
-    UI: 'PT_REPORT_UI_V1'
-  };
-  var REPORT_KEYS_DETECTED = false;
-  var REPORT_HISTORY_FIELDS = null;
+  var REPORT_EMBED_PATCHED = false;
+  var REPORT_COPY_HOOKED = false;
 
   function normText(s){
     return String(s || '').replace(/\s+/g,' ').trim().toLowerCase();
@@ -1053,12 +1062,13 @@
   function openReport(place){
     REPORT_CTX = place || null;
 
-    var subtitle = '';
+    // subtitle
     if(place){
-      subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
+      var subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
       var a = place.account ? (' | ' + place.account) : '';
       var n = place.number ? (' | ' + place.number) : '';
-      $('repSub').textContent = subtitle + a + n;
+      var an = place.account_name ? (' | ' + place.account_name) : '';
+      $('repSub').textContent = subtitle + a + n + an;
     }else{
       $('repSub').textContent = '—';
     }
@@ -1077,15 +1087,10 @@
     if(needsLoad){
       frame.onload = function(){
         REPORT_FRAME_READY = true;
-
-        // ✅ ตรวจจับคีย์ localStorage ของ Tools/Report.html “ของจริง”
-        detectReportStorageKeysOnce();
-
         // ทำงานฝั่ง iframe: ตัด UI + patch storage + hook copy
         tryTrimReportUI();
         patchReportEmbedStorageOnce();
         attachCopyHistoryHookOnce();
-
         // เคลียร์ช่อง 3 ช่องก่อน แล้วค่อย prefill
         clearRestrictedFieldsOnce();
         startPrefillLoop();
@@ -1096,10 +1101,6 @@
     }else{
       // เปิดซ้ำ: ไม่ต้อง reload แค่ prefill ใหม่
       REPORT_FRAME_READY = true;
-
-      // ✅ ตรวจจับคีย์ localStorage ของ Tools/Report.html “ของจริง”
-      detectReportStorageKeysOnce();
-
       tryTrimReportUI();
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
@@ -1132,160 +1133,36 @@
       return null;
     }
   }
-
   function getReportWin(){
-    var frame = $('repFrame');
-    try{ return frame.contentWindow || null; }catch(e){ return null; }
+    try{ return $('repFrame').contentWindow; }catch(e){ return null; }
   }
 
-  // ✅ “ตรวจจับคีย์จริง” จาก Tools/Report.html เพื่อให้ history ไปอยู่คีย์เดียวกัน 100%
-  function detectReportStorageKeysOnce(){
-    if(REPORT_KEYS_DETECTED) return;
-
-    var doc = getReportDoc();
-    if(!doc) return;
-
-    try{
-      var scripts = Array.prototype.slice.call(doc.querySelectorAll('script')) || [];
-      var all = '';
-      scripts.forEach(function(s){
-        all += '\n' + (s && s.textContent ? s.textContent : '');
-      });
-      if(!all.trim()) return;
-
-      // 1) ดึง key จาก localStorage.getItem/setItem('KEY'...)
-      var directKeys = [];
-      var m;
-      var directRe = /localStorage\.(?:setItem|getItem|removeItem)\(\s*['"]([^'"]+)['"]/gi;
-      while((m = directRe.exec(all))){
-        directKeys.push({ name:'', value:m[1] });
-      }
-
-      // 2) ดึงจาก const/let/var XXX = 'KEY'
-      var varKeys = [];
-      var declRe = /\b(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*['"]([^'"]{3,180})['"]/g;
-      while((m = declRe.exec(all))){
-        varKeys.push({ name:m[1], value:m[2] });
-      }
-
-      function pick(type){
-        var best = '';
-        var bestScore = -1;
-
-        var wantByName = (type === 'HISTORY') ? ['hist','history']
-                      : (type === 'FORM') ? ['form','draft']
-                      : ['ui','pref','setting','state'];
-
-        var wantByValue = (type === 'HISTORY') ? ['hist','history']
-                      : (type === 'FORM') ? ['form','draft']
-                      : ['ui','pref','setting','state'];
-
-        function score(val, name){
-          val = String(val || '');
-          name = String(name || '');
-          var v = val.toLowerCase();
-          var n = name.toLowerCase();
-          var s = 0;
-
-          // value
-          if(v.indexOf('report') !== -1) s += 3;
-          if(v.indexOf('pt_') !== -1) s += 2;
-          if(v.indexOf('phantom') !== -1) s += 2;
-          wantByValue.forEach(function(w){ if(v.indexOf(w) !== -1) s += 6; });
-
-          // name
-          wantByName.forEach(function(w){ if(n.indexOf(w) !== -1) s += 7; });
-          if(n.indexOf('key') !== -1) s += 1;
-
-          // กันเลือก key สุ่มๆ สั้นเกิน
-          if(val.length < 6) s -= 4;
-
-          return s;
-        }
-
-        varKeys.forEach(function(k){
-          var s = score(k.value, k.name);
-          if(s > bestScore){
-            bestScore = s;
-            best = k.value;
-          }
-        });
-
-        directKeys.forEach(function(k){
-          var s = score(k.value, '');
-          if(s > bestScore){
-            bestScore = s;
-            best = k.value;
-          }
-        });
-
-        return best || '';
-      }
-
-      var hk = pick('HISTORY');
-      var fk = pick('FORM');
-      var uk = pick('UI');
-
-      if(hk) REPORT_KEYS.HISTORY = hk;
-      if(fk) REPORT_KEYS.FORM = fk;
-      if(uk) REPORT_KEYS.UI = uk;
-
-      // ดึง field ของ history entry จากโค้ด (เพื่อสร้าง entry ให้เข้ารูปแบบเดิม)
-      REPORT_HISTORY_FIELDS = extractHistoryFields(all);
-
-      REPORT_KEYS_DETECTED = true;
-    }catch(e){
-      console.warn('detectReportStorageKeysOnce failed', e);
-    }
-  }
-
-  function extractHistoryFields(allText){
-    try{
-      // แบบ history.unshift({ ... })
-      var m = /(?:history|hist)\s*\.\s*(?:unshift|push)\s*\(\s*\{([\s\S]{0,800}?)\}\s*\)/i.exec(allText);
-      if(m){
-        return extractKeysFromObjectLiteral(m[1]);
-      }
-
-      // แบบ const entry = { ... }; history.unshift(entry)
-      m = /\b(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*\{([\s\S]{0,1000}?)\}\s*;[\s\S]{0,500}?(?:history|hist)\s*\.\s*(?:unshift|push)\s*\(\s*\1\s*\)/i.exec(allText);
-      if(m){
-        return extractKeysFromObjectLiteral(m[2]);
-      }
-    }catch(e){}
-    return null;
-  }
-
-  function extractKeysFromObjectLiteral(objText){
-    var keys = [];
-    try{
-      var re = /([A-Za-z0-9_$]+)\s*:/g;
-      var m;
-      while((m = re.exec(objText))){
-        var k = m[1];
-        if(keys.indexOf(k) === -1) keys.push(k);
-      }
-    }catch(e){}
-    return keys.length ? keys : null;
-  }
-
-  // ✅ ตัดปุ่ม "สรุปยอด" และการ์ด "ประวัติ" ออกเฉพาะ popup
+  // ✅ ตัดปุ่ม "สรุปยอด" และซ่อนการ์ด "ประวัติ" เฉพาะ popup
   function tryTrimReportUI(){
     if(REPORT_TRIMMED) return;
     var doc = getReportDoc();
     if(!doc || !doc.body) return;
 
     try{
-      // ซ่อนปุ่มสรุปยอด (id="btnSummary")
-      var bs = doc.getElementById('btnSummary');
-      if(bs) bs.style.display = 'none';
+      // 1) ซ่อนปุ่มสรุปยอดตาม id (ถ้ามี)
+      var btnSum = doc.getElementById('btnSummary');
+      if(btnSum) btnSum.style.display = 'none';
 
-      // ซ่อนการ์ดประวัติ (อิงจาก #histList)
+      // 2) ซ่อนการ์ดประวัติ: ถ้ามี histList ให้ซ่อน card ที่ครอบ
       var histList = doc.getElementById('histList');
       if(histList){
         var card = histList.closest ? histList.closest('.card') : null;
         if(card) card.style.display = 'none';
       }
+
+      // 3) fallback: ซ่อน element ที่มีข้อความ "สรุปยอด"
+      var btns = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
+      btns.forEach(function(el){
+        var t = normText(el.textContent || el.value || '');
+        if(t.indexOf('สรุปยอด') !== -1){
+          el.style.display = 'none';
+        }
+      });
 
       REPORT_TRIMMED = true;
     }catch(e){
@@ -1293,23 +1170,23 @@
     }
   }
 
-  // ✅ Patch localStorage ของ Report.html เฉพาะ FORM:
-  // ให้ save ได้ตามปกติ แต่บังคับให้ account/branchCode/branchName เป็น "" เสมอ
-  var REPORT_EMBED_PATCHED = false;
+  // ✅ คุม LocalStorage ใน iframe เฉพาะ embed=1:
+  // - FORM (PT_REPORT_FORM_V1) จะถูก sanitize ให้ account/branchCode/branchName = '' เสมอ
+  // - HISTORY ยังเซฟได้ตามปกติ (เพราะคุณต้องใช้สรุปยอดใน Report.html เต็มหน้า)
   function patchReportEmbedStorageOnce(){
     if(REPORT_EMBED_PATCHED) return;
-
-    detectReportStorageKeysOnce();
-
     var win = getReportWin();
     if(!win || !win.localStorage) return;
 
     try{
       var LS = win.localStorage;
-      if(LS.__pt_embed_patched) { REPORT_EMBED_PATCHED = true; return; }
+      if(LS.__pt_embed_patched){
+        REPORT_EMBED_PATCHED = true;
+        return;
+      }
 
       var origSet = LS.setItem.bind(LS);
-      var formKey = String(REPORT_KEYS.FORM || '').trim();
+      var origGet = LS.getItem.bind(LS);
 
       function sanitizeForm(raw){
         try{
@@ -1318,17 +1195,24 @@
             obj.account = '';
             obj.branchCode = '';
             obj.branchName = '';
+            return JSON.stringify(obj);
           }
-          return JSON.stringify(obj);
-        }catch(e){
-          return raw;
-        }
+        }catch(e){}
+        return raw;
       }
+
+      LS.getItem = function(k){
+        var v = origGet(k);
+        if(String(k) === REPORT_KEYS.FORM && v){
+          return sanitizeForm(v);
+        }
+        return v;
+      };
 
       LS.setItem = function(k, v){
         try{
-          if(formKey && String(k) === formKey){
-            return origSet(k, sanitizeForm(v));
+          if(String(k) === REPORT_KEYS.FORM){
+            v = sanitizeForm(v);
           }
         }catch(e){}
         return origSet(k, v);
@@ -1341,246 +1225,82 @@
     }
   }
 
-  // ✅ หา “ปุ่มคัดลอก+เปิดกลุ่มไลน์” (กันกรณี id เปลี่ยน)
-  function findCopyOpenLineButton(doc){
+  // ✅ หา input แบบ "id ก่อน" แล้วค่อย semantic (กัน report.html เปลี่ยน class)
+  function findField(doc, ids, keywords){
+    doc = doc || getReportDoc();
     if(!doc) return null;
-    var b = doc.getElementById('btnCopyOpenLine');
-    if(b) return b;
 
-    var nodes = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
-    for(var i=0;i<nodes.length;i++){
-      var el = nodes[i];
-      var t = '';
-      if(el.tagName === 'INPUT') t = String(el.value || '');
-      else t = String(el.textContent || '');
-      var tt = normText(t);
-      if(tt.indexOf('คัดลอก') !== -1 && (tt.indexOf('ไลน์') !== -1 || tt.indexOf('line') !== -1)){
-        return el;
+    // 0) id
+    if(Array.isArray(ids)){
+      for(var i=0;i<ids.length;i++){
+        var el0 = doc.getElementById(ids[i]);
+        if(el0) return el0;
       }
     }
+
+    // 1) label
+    keywords = (keywords || []).map(function(x){ return normText(x); }).filter(Boolean);
+
+    var labels = doc.querySelectorAll('label');
+    for(var a=0;a<labels.length;a++){
+      var lb = labels[a];
+      var lt = normText(lb.textContent || '');
+      if(!lt) continue;
+
+      var hit = keywords.some(function(k){ return lt.indexOf(k) !== -1; });
+      if(!hit) continue;
+
+      var forId = lb.getAttribute('for');
+      if(forId){
+        var el1 = doc.getElementById(forId);
+        if(el1) return el1;
+      }
+
+      var inside = lb.querySelector('input, textarea, select');
+      if(inside) return inside;
+
+      var near = lb.parentElement ? lb.parentElement.querySelector('input, textarea, select') : null;
+      if(near) return near;
+    }
+
+    // 2) placeholder / aria-label
+    var fields = doc.querySelectorAll('input, textarea, select');
+    for(var j=0;j<fields.length;j++){
+      var f = fields[j];
+      var meta = normText((f.getAttribute('placeholder')||'') + ' ' + (f.getAttribute('aria-label')||''));
+      if(!meta) continue;
+      var hit2 = keywords.some(function(k){ return meta.indexOf(k) !== -1; });
+      if(hit2) return f;
+    }
+
     return null;
   }
 
-  function readHistoryArrayFromKey(LS, key){
-    try{
-      var raw = LS.getItem(key);
-      var arr = JSON.parse(raw || '[]');
-      return Array.isArray(arr) ? arr : [];
-    }catch(e){
-      return [];
-    }
-  }
-
-  function safeGetFieldValue(doc, id){
-    var el = doc ? doc.getElementById(id) : null;
-    return el ? String(el.value || '').trim() : '';
-  }
-
-  function safeGetPreview(doc){
-    if(!doc) return '';
-    var p = doc.getElementById('previewText');
-    if(p) return String(p.textContent || '').trim();
-
-    // fallback เผื่อ Report เปลี่ยน id
-    var ta = doc.querySelector('textarea#previewText, textarea#resultText, textarea#outputText');
-    if(ta) return String(ta.value || '').trim();
-
-    return '';
-  }
-
-  function buildHistoryEntry(doc){
-    var placeId = (REPORT_CTX && REPORT_CTX.id != null) ? String(REPORT_CTX.id) : '';
-    var placeName = (REPORT_CTX && REPORT_CTX.name != null) ? String(REPORT_CTX.name) : '';
-
-    var vals = {
-      ts: new Date().toISOString(),
-      date: safeGetFieldValue(doc, 'dateText'),
-      account: safeGetFieldValue(doc, 'account'),
-      branchCode: safeGetFieldValue(doc, 'branchCode'),
-      branchName: safeGetFieldValue(doc, 'branchName'),
-      preview: safeGetPreview(doc),
-      placeId: placeId,
-      placeName: placeName
-    };
-
-    // ถ้า Tool ใช้ field pattern ของตัวเอง → สร้างให้เข้าทรงเดิม
-    if(REPORT_HISTORY_FIELDS && REPORT_HISTORY_FIELDS.length){
-      var entry = {};
-      REPORT_HISTORY_FIELDS.forEach(function(k){ entry[k] = ''; });
-
-      REPORT_HISTORY_FIELDS.forEach(function(k){
-        var lk = String(k).toLowerCase();
-
-        if(lk === 'ts' || lk.indexOf('timestamp') !== -1 || lk.indexOf('created') !== -1 || lk.indexOf('time') !== -1){
-          entry[k] = vals.ts;
-          return;
-        }
-
-        if(lk.indexOf('date') !== -1){
-          entry[k] = vals.date;
-          return;
-        }
-
-        if(lk.indexOf('account') !== -1){
-          entry[k] = vals.account;
-          return;
-        }
-
-        // code/number/store id
-        if((lk.indexOf('branch') !== -1 || lk.indexOf('store') !== -1 || lk.indexOf('shop') !== -1) &&
-           (lk.indexOf('code') !== -1 || lk.indexOf('no') !== -1 || lk.indexOf('num') !== -1 || lk === 'id' || lk.indexOf('id') !== -1)){
-          entry[k] = vals.branchCode || vals.placeId;
-          return;
-        }
-
-        // name
-        if((lk.indexOf('branch') !== -1 || lk.indexOf('store') !== -1 || lk.indexOf('shop') !== -1) && lk.indexOf('name') !== -1){
-          entry[k] = vals.branchName;
-          return;
-        }
-        if(lk === 'name'){
-          entry[k] = vals.branchName || vals.placeName;
-          return;
-        }
-
-        if(lk === 'id'){
-          entry[k] = vals.placeId;
-          return;
-        }
-
-        // report text
-        if(lk.indexOf('preview') !== -1 || lk.indexOf('text') !== -1 || lk.indexOf('summary') !== -1 ||
-           lk.indexOf('report') !== -1 || lk.indexOf('msg') !== -1 || lk.indexOf('message') !== -1 || lk.indexOf('content') !== -1){
-          entry[k] = vals.preview;
-          return;
-        }
-      });
-
-      // ถ้ายังไม่มีช่องใดรับ preview เลย แต่มี preview จริง → ใส่ลง key ที่เหมาะสุด
-      if(vals.preview){
-        var has = false;
-        for(var kk in entry){
-          if(entry.hasOwnProperty(kk) && String(entry[kk]) === String(vals.preview)){ has = true; break; }
-        }
-        if(!has){
-          for(var i=0;i<REPORT_HISTORY_FIELDS.length;i++){
-            var k = REPORT_HISTORY_FIELDS[i];
-            if(/preview|text|summary|report|msg|message|content/i.test(k)){
-              entry[k] = vals.preview;
-              break;
-            }
-          }
-        }
-      }
-
-      return entry;
-    }
-
-    // fallback (ถ้าเดา schema ไม่ได้)
-    if(!vals.preview && !vals.branchCode && !vals.branchName && !vals.account) return null;
-    return {
-      ts: vals.ts,
-      date: vals.date,
-      account: vals.account,
-      branchCode: vals.branchCode,
-      branchName: vals.branchName,
-      preview: vals.preview,
-      id: vals.placeId,
-      name: vals.placeName
-    };
-  }
-
-  function historySignature(x){
-    try{
-      if(!x || typeof x !== 'object') return '';
-      var date = (x.date || x.Date || x.d || '');
-      var code = (x.branchCode || x.branch_code || x.code || x.branch || x.number || x.id || '');
-      var name = (x.branchName || x.branch_name || x.storeName || x.name || '');
-      var text = (x.preview || x.text || x.summary || x.report || x.message || x.msg || '');
-      return normText(String(date) + '|' + String(code) + '|' + String(name) + '|' + String(text).slice(0,80));
-    }catch(e){
-      return '';
-    }
-  }
-
-  // ✅ เมื่อกด “คัดลอก+เปิดกลุ่มไลน์” ใน popup:
-  // จะ “เพิ่ม history” ลง localStorage ด้วย “คีย์เดียวกับ Tools/Report.html”
-  // และกันซ้ำ: ถ้า Tools/Report.html เพิ่มให้แล้ว จะไม่เพิ่มซ้ำ
-  var REPORT_COPY_HOOKED = false;
-  function attachCopyHistoryHookOnce(){
-    if(REPORT_COPY_HOOKED) return;
-
-    detectReportStorageKeysOnce();
-
-    var doc = getReportDoc();
-    if(!doc) return;
-
-    var win = getReportWin();
-    if(!win || !win.localStorage) return;
-
-    try{
-      var btn = findCopyOpenLineButton(doc);
-      if(!btn) return;
-
-      if(btn.__pt_hooked) { REPORT_COPY_HOOKED = true; return; }
-      btn.__pt_hooked = true;
-
-      btn.addEventListener('click', function(){
-        try{
-          detectReportStorageKeysOnce();
-          var hk = String(REPORT_KEYS.HISTORY || '').trim();
-          if(!hk) return;
-
-          var LS = win.localStorage;
-          var before = readHistoryArrayFromKey(LS, hk);
-          var beforeLen = before.length;
-
-          // รอให้ handler เดิมของ Report.html ทำงานก่อน
-          setTimeout(function(){
-            try{
-              detectReportStorageKeysOnce();
-              hk = String(REPORT_KEYS.HISTORY || '').trim();
-              if(!hk) return;
-
-              var after = readHistoryArrayFromKey(LS, hk);
-              if(after.length !== beforeLen){
-                // Report.html เพิ่มให้แล้ว → ไม่เพิ่มซ้ำ
-                return;
-              }
-
-              // ยังไม่เพิ่ม → เราเพิ่มให้ในคีย์เดียวกัน
-              var entry = buildHistoryEntry(doc);
-              if(!entry) return;
-
-              var arr = after; // ล่าสุด
-              var sig = historySignature(entry);
-              var exists = arr.some(function(x){ return historySignature(x) === sig; });
-              if(exists) return;
-
-              arr.unshift(entry);
-              if(arr.length > 200) arr = arr.slice(0,200);
-              LS.setItem(hk, JSON.stringify(arr));
-            }catch(e){}
-          }, 90);
-
-        }catch(e){}
-      }, true);
-
-      REPORT_COPY_HOOKED = true;
-    }catch(e){
-      console.warn('attachCopyHistoryHookOnce failed', e);
-    }
-  }
-
-  // ✅ เคลียร์ 3 ช่องใน iframe (เพื่อกันค้างจากครั้งก่อน)
+  // ✅ เคลียร์ 3 ช่องทุกครั้งที่เปิด popup (กันค่าเก่าจาก full-page)
+  var _clearedOnce = false;
   function clearRestrictedFieldsOnce(){
+    // เคลียร์ทุกครั้งที่ openReport ถูกเรียก (ไม่ใช้ _clearedOnce)
     var doc = getReportDoc();
-    if(!doc) return;
-    try{
-      var a = doc.getElementById('account'); if(a) a.value = '';
-      var b = doc.getElementById('branchCode'); if(b) b.value = '';
-      var c = doc.getElementById('branchName'); if(c) c.value = '';
-    }catch(e){}
+    var win = getReportWin();
+    if(!doc || !win) return;
+
+    var accEl  = findField(doc, ['account'], ['แอคเคาท์','account']);
+    var numEl  = findField(doc, ['branchCode'], ['เลขสาขา','สาขา','branch','store no','number']);
+    var nameEl = findField(doc, ['branchName'], ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+
+    [accEl, numEl, nameEl].forEach(function(el){
+      if(!el) return;
+      try{
+        el.removeAttribute('readonly');
+        el.removeAttribute('disabled');
+        el.style.pointerEvents = 'auto';
+      }catch(e){}
+      try{
+        el.value = '';
+        el.dispatchEvent(new win.Event('input', { bubbles:true }));
+        el.dispatchEvent(new win.Event('change', { bubbles:true }));
+      }catch(e){}
+    });
   }
 
   function prefillReportOnce(){
@@ -1593,13 +1313,14 @@
     var win = getReportWin();
     if(!win) return false;
 
+    // ค่าจากคอลัม F/G/H → place.account / place.number / place.account_name
     var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
     var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
     var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
 
-    var accEl = doc.getElementById('account');
-    var numEl = doc.getElementById('branchCode');
-    var nameEl= doc.getElementById('branchName');
+    var accEl  = findField(doc, ['account'], ['แอคเคาท์','account']);
+    var numEl  = findField(doc, ['branchCode'], ['เลขสาขา','สาขา','branch','store no','number']);
+    var nameEl = findField(doc, ['branchName'], ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
 
     function setVal(el, val){
       if(!el) return false;
@@ -1617,11 +1338,12 @@
       return true;
     }
 
-    // patch/trim/hook
+    // ตัด UI + patch storage + hook copy
     tryTrimReportUI();
     patchReportEmbedStorageOnce();
     attachCopyHistoryHookOnce();
 
+    // เซ็ตค่า (ถ้าไม่มี/หาไม่เจอ → ปล่อยว่าง)
     var okA = setVal(accEl, acc);
     var okN = setVal(numEl, num);
     var okS = setVal(nameEl, nam);
@@ -1631,7 +1353,7 @@
 
   function startPrefillLoop(){
     var tries = 0;
-    var maxTries = 40;        // ~40*120ms = 4.8s
+    var maxTries = 50;        // ~50*120ms = 6s
     var interval = 120;
 
     var t = setInterval(function(){
@@ -1649,6 +1371,187 @@
         }
       }
     }, interval);
+  }
+
+  // ✅ Hook: กด "COPY + เปิด LINE กลุ่ม" แล้วต้องมี history อยู่ใน localStorage (Report.html จะเห็นด้วย)
+  // ✅ Hook: กดปุ่มคัดลอก (ใน popup) แล้ว “ต้อง” เขียนประวัติลง localStorage (ให้ Report.html หน้าเต็มเห็นด้วย)
+  // ทำแบบไม่ไปยุ่งกับ logic ใน Report.html มาก: แค่ sync history หลังคลิก และกันซ้ำด้วย reportText
+  function attachCopyHistoryHookOnce(){
+    if(REPORT_COPY_HOOKED) return;
+    var doc = getReportDoc();
+    var win = getReportWin();
+    if(!doc || !win || !win.localStorage) return;
+
+    // 1) หา “ปุ่มคัดลอก” ให้ได้ก่อน (รองรับทั้ง id และค้นจากข้อความ)
+    var btns = [];
+    var b1 = doc.getElementById('btnCopy');
+    if(b1) btns.push(b1);
+    var b2 = doc.getElementById('btnCopyOnly');
+    if(b2) btns.push(b2);
+
+    if(btns.length === 0){
+      var all = doc.querySelectorAll('button');
+      for(var i=0;i<all.length;i++){
+        var t = normText(all[i].textContent || '');
+        // เจาะคำว่า copy + line / หรือ คัดลอก + ไลน์
+        if((t.indexOf('copy') !== -1 && t.indexOf('line') !== -1) || (t.indexOf('คัดลอก') !== -1 && t.indexOf('ไลน์') !== -1)){
+          btns.push(all[i]);
+        }
+      }
+    }
+
+    if(!btns.length) return;
+
+    function firstNonEmpty(){
+      for(var i=0;i<arguments.length;i++){
+        var v = (arguments[i] === null || arguments[i] === undefined) ? '' : String(arguments[i]).trim();
+        if(v) return v;
+      }
+      return '';
+    }
+
+    function valFromId(id){
+      var el = doc.getElementById(id);
+      if(!el) return '';
+      var v = (el.value !== undefined) ? el.value : '';
+      return String(v || '').trim();
+    }
+
+    function getPreviewText(){
+      var pre = doc.getElementById('preview');
+      if(pre) return String(pre.textContent || '').trim();
+      // fallback: บางเวอร์ชันอาจใช้ <textarea id="preview">
+      var ta = doc.querySelector('#preview');
+      if(ta && ta.value !== undefined) return String(ta.value || '').trim();
+      return '';
+    }
+
+    function syncHistoryOnce(){
+      // 0) ให้แน่ใจว่ามี key history
+      ensureHistoryExistsFallback();
+
+      var reportText = getPreviewText();
+      if(!reportText) return false;
+
+      var arr = readHistoryArray(win);
+      // กันซ้ำ: ถ้า 5 อันแรกมี reportText เดียวกัน → ไม่เพิ่ม
+      for(var i=0;i<Math.min(arr.length,5);i++){
+        if(String(arr[i] && arr[i].reportText || '').trim() === reportText){
+          return true;
+        }
+      }
+
+      // ดึงค่าฟอร์มใน iframe (ถ้ามี) + fallback จาก REPORT_CTX
+      var reportDateISO = firstNonEmpty(valFromId('reportDate'), todayISO());
+      var account = firstNonEmpty(valFromId('account'), REPORT_CTX && REPORT_CTX.account);
+      var branchCode = firstNonEmpty(valFromId('branchCode'), REPORT_CTX && REPORT_CTX.number);
+      var branchName = firstNonEmpty(valFromId('branchName'), REPORT_CTX && (REPORT_CTX.account_name || REPORT_CTX.branchName));
+
+      var entry = {
+        id: (Date.now() + '_' + Math.random().toString(16).slice(2)),
+        createdAt: Date.now(),
+        reportDateISO: reportDateISO,
+        reportText: reportText,
+        account: String(account || '').trim(),
+        branchCode: String(branchCode || '').trim(),
+        branchName: String(branchName || '').trim()
+      };
+
+      arr.unshift(entry);
+      if(arr.length > 120) arr = arr.slice(0,120);
+      writeHistoryArray(win, arr);
+      return true;
+    }
+
+    function scheduleSyncHistory(){
+      // ให้ Report.html ทำงานของมันก่อน (คัดลอก/เปิดไลน์/อัปเดต preview)
+      var tries = 0;
+      var maxTries = 10;
+      function step(){
+        tries++;
+        var ok = false;
+        try{ ok = syncHistoryOnce(); }catch(e){ ok = false; }
+        if(ok) return;
+        if(tries < maxTries) setTimeout(step, 180);
+      }
+      setTimeout(step, 250);
+    }
+
+    // bind ทุกปุ่มที่เจอ และกัน bind ซ้ำ
+    btns.forEach(function(btn){
+      if(!btn || btn.__pt_hooked) return;
+      btn.__pt_hooked = true;
+      btn.addEventListener('click', scheduleSyncHistory, true);
+    });
+
+    REPORT_COPY_HOOKED = true;
+  }
+  function readHistoryArray(win){
+    try{
+      var raw = win.localStorage.getItem(REPORT_KEYS.HISTORY);
+      if(!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  function writeHistoryArray(win, arr){
+    try{
+      win.localStorage.setItem(REPORT_KEYS.HISTORY, JSON.stringify(arr));
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function ensureHistoryExistsFallback(){
+    var doc = getReportDoc();
+    var win = getReportWin();
+    if(!doc || !win || !win.localStorage) return;
+
+    // อ่าน preview text (ตัวจริงของรายงาน)
+    var previewEl = doc.getElementById('preview');
+    var reportText = previewEl ? String(previewEl.textContent || '').trim() : '';
+    if(!reportText){
+      // ถ้าไม่มี preview ก็ไม่ฝืน (กันบัค)
+      return;
+    }
+
+    var now = Date.now();
+    var arr = readHistoryArray(win);
+
+    // ถ้ามีรายการที่ reportText เหมือนกันอยู่แล้ว (ภายใน 10 วิ) → ไม่ต้องเพิ่มซ้ำ
+    for(var i=0;i<Math.min(arr.length, 12);i++){
+      var it = arr[i];
+      if(!it) continue;
+      var sameText = String(it.reportText || '') === reportText;
+      var t = Number(it.createdAt || 0);
+      if(sameText && (Math.abs(now - t) <= 10000 || t === 0)){
+        return;
+      }
+    }
+
+    // สร้าง entry แบบเดียวกับ Report.html (เท่าที่ทำได้)
+    function gv(id){ var el = doc.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+
+    var entry = {
+      id: String(Date.now()) + '_' + Math.random().toString(16).slice(2),
+      createdAt: now,
+      reportDateISO: gv('reportDate'),
+      reportText: reportText,
+      account: gv('account'),
+      branchCode: gv('branchCode'),
+      branchName: gv('branchName')
+    };
+
+    arr.unshift(entry);
+
+    // กันบวม (เก็บซัก 80 รายการพอ)
+    if(arr.length > 80) arr = arr.slice(0, 80);
+
+    writeHistoryArray(win, arr);
   }
 
   /** =========================
@@ -1713,7 +1616,7 @@
       el.querySelector('[data-act="done"]').onclick = async function(){
         var ok = await openModal({
           title:'ยืนยันว่าไปแล้ว',
-          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจนจำค่า visited และรายการจะหายไปทันที',
+          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจำค่า visited และรายการจะหายไปทันที',
           okText:'ยืนยัน',
           cancelText:'ยกเลิก',
           danger:false
