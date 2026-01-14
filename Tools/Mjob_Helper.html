@@ -1,51 +1,3 @@
-<!--
-  File: Selfie_TimeLogger_MintLight.html
-  Single-file web app (HTML/CSS/JS) — Selfie + Time Logger (Mint Light style)
-  Host on GitHub Pages (no backend). Uses IndexedDB (Dexie preferred; native fallback)
-
-  ✅ Changes in this version (per your latest review):
-  1) Header Next/เวลา/อีก อยู่ "บรรทัดเดียว" โดยไม่ใช้ horizontal scroll
-     - ใช้ CSS Grid 3 ช่อง + clamp() ลด padding/font ตามจออัตโนมัติ
-     - ไม่มีการเลื่อนแนวนอน
-
-  2) ปรับการคำนวณเวลาให้ “ภาพสุดท้ายที่ต้องโหลด” ตรงกับ targetAt เป๊ะ (Exact-fit)
-     - สร้างชุด “Pending ต่อเนื่องตามลำดับ tag” จาก nextExpected ไปจนสุดที่มี
-     - ถ้าเป็นไปได้ตามกฎ min/max => กระจายช่วงเวลาให้ผลรวมพอดี ทำให้ “ใบสุดท้าย = targetAt”
-     - ถ้าไม่เป็นไปได้ => แจ้งเตือนตามเหตุผล (รูปไม่พอ / เวลาน้อยเกิน / ขาดรูปที่จำเป็น)
-     - ข้อความ “ขาดรูป …” จะเกิดก็ต่อเมื่อ “จำเป็น” ต่อการทำให้ถึง targetAt เท่านั้น
-
-  3) เพิ่ม Google Calendar Sync โหมด A2 (เปิด-ปิดด้วยสวิตช์)
-     - สร้าง/อัปเดต Event เดิม (ไม่ซ้อน) ด้วย Calendar API (events.patch / insert)
-     - ต้องตั้งค่า Google OAuth Client ID (Web) และอนุญาต scope calendar.events
-     - จะ Sync เมื่อมี lastDownloadedAt + schedule ไม่มี error + มี nextAt/nextTag
-     - ถ้า offline/ไม่ได้เชื่อมต่อ จะโชว์สถานะ แต่แอปยังใช้งานได้ตามปกติ
-
-  Notes:
-  - เว็บทั่วไปไม่มี backend/push => นอก Chrome/ปิดแท็บ “ไม่การันตี” การแจ้งเตือน
-  - Calendar Sync (A2) = ใช้ notification engine ของ OS ผ่าน Google Calendar (เสถียรกว่าเว็บ) แต่ต้องออนไลน์ตอน sync
-
-  -----------------------------------------
-  DB Schema (Dexie):
-    photos: ++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt, blob, mime, width, height, size
-
-  Tag assignment:
-    - "เติมช่องว่างก่อน" = หา slot ที่ว่างที่สุดจากข้อมูลทั้งหมด (IN ก่อน OUT)
-    - ลบรูปแล้ว slot ว่าง => ถ่าย/อัปโหลดใหม่จะได้กลับไปเติม slot นั้น
-
-  Mark downloaded + move list:
-    - กด Download ครั้งแรก: downloaded=1, downloadedAt=now
-    - กด Download ซ้ำ: ไม่แก้ downloadedAt (เพื่อไม่รีเซ็ต schedule)
-
-  9:10 Timer lock:
-    - กดครั้งที่ 1: เริ่มนับ + ล็อค + ปุ่มเปลี่ยนเป็น "สิ้นสุด HH:MM"
-    - กดครั้งที่ 2: รีเซ็ตได้เฉพาะเมื่อ UNLOCKED หรืออยู่ในหน้าต่าง 3 วิหลัง “🔓”
-    - Auto unlock เมื่อ downloadedCount >= 40
-
-  Notification + fallback + catch-up:
-    - In-app: setTimeout + catch-up เมื่อกลับมาเปิด
-    - Calendar Sync (A2): ทำให้แจ้งเตือนนอกแอปได้ (ผ่าน Google Calendar)
--->
-
 <!doctype html>
 <html lang="th">
 <head>
@@ -54,15 +6,11 @@
   <meta name="theme-color" content="#dff7ef" />
   <title>Selfie + Time Logger (Mint Light)</title>
 
-  <!-- Optional: Noto Sans Thai -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap" rel="stylesheet">
 
-  <!-- Dexie via CDN (preferred) -->
   <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
-
-  <!-- Google Identity Services (OAuth token for Calendar API) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
@@ -317,7 +265,6 @@
     }
     @keyframes spin{ to{ transform: rotate(360deg); } }
 
-    /* TopBar (compact, fixed) */
     .topBar{
       position: fixed;
       left:0; right:0; top:0;
@@ -373,7 +320,7 @@
       .topTitle{ font-size: 15px; }
     }
 
-    /* Header status row: single line, no horizontal scroll */
+    /* single line status (no horizontal scroll) */
     .statusGrid{
       display:grid;
       grid-template-columns: 1.2fr .9fr .9fr;
@@ -407,7 +354,6 @@
       text-overflow: ellipsis;
     }
 
-    /* Sticky bar bottom */
     .stickyBar{
       position: fixed;
       left: 0; right: 0; bottom: 0;
@@ -449,7 +395,6 @@
       .stickyInner .btn.bigPrimary{ min-height: 52px; font-size: 16px; }
     }
 
-    /* Toast (small, not blocking) */
     .toastWrap{
       position: fixed;
       left: 12px;
@@ -493,7 +438,6 @@
       box-shadow:none;
     }
 
-    /* Downloaded Drawer */
     .drawerBackdrop{
       position: fixed;
       inset: 0;
@@ -537,7 +481,6 @@
       overflow:auto;
     }
 
-    /* Modal (camera/replace) */
     .modalBackdrop{
       position: fixed;
       inset: 0;
@@ -570,7 +513,6 @@
     .modalHeader .row{ flex-wrap:nowrap; }
     .modalBody{ padding: 12px 14px 14px; }
 
-    /* Camera viewfinder (portrait 4:3) */
     .viewfinderWrap{
       width: 100%;
       border-radius: 18px;
@@ -663,7 +605,6 @@
 </head>
 
 <body>
-  <!-- Top header (sticky, always access Add + Downloaded drawer) -->
   <div class="topBar" id="topBar">
     <div class="topInner">
       <div class="topLeft">
@@ -674,7 +615,6 @@
           <span class="badge" id="calMiniBadge" style="display:none">📅</span>
         </div>
 
-        <!-- single line status -->
         <div class="statusGrid" id="headerStatusGrid">
           <div class="pill statusPill">
             <span class="k">Next</span>
@@ -705,7 +645,6 @@
     </div>
   </div>
 
-  <!-- Toast (small) -->
   <div class="toastWrap" id="toastWrap">
     <div class="toastCard">
       <div>
@@ -716,9 +655,7 @@
     </div>
   </div>
 
-  <!-- Main content -->
   <div class="wrap">
-    <!-- Pending -->
     <section class="card">
       <h2>
         <span>Pending (ยังไม่โหลด)</span>
@@ -728,7 +665,6 @@
       <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
     </section>
 
-    <!-- Progress (bottom) -->
     <section class="card">
       <h2>
         <span>Progress</span>
@@ -779,12 +715,12 @@
         </div>
       </div>
 
-      <!-- Calendar config -->
       <div id="calConfig" class="card" style="margin:12px 0 0; box-shadow:none; display:none">
         <div class="row spread">
           <div class="row" style="gap:8px">
             <span class="badge" id="calStatusBadge">📅 ปิด</span>
             <span class="pill" id="calEventPill">event: -</span>
+            <span class="pill" id="calLastErrPill">last: -</span>
           </div>
           <div class="row" style="gap:8px">
             <button class="btn soft btnMini" id="calConnectBtn" style="width:auto">เชื่อมต่อ</button>
@@ -798,7 +734,7 @@
           <div class="field">
             <label>Google OAuth Client ID (Web)</label>
             <input id="calClientIdInput" placeholder="เช่น 1234abcd.apps.googleusercontent.com" />
-            <div class="mini muted">ต้องเพิ่ม Authorized JavaScript origins เป็นโดเมน GitHub Pages ของคุณ</div>
+            <div class="mini muted">Authorized JavaScript origins ใส่แค่โดเมน เช่น <b>https://phantomguy7845.github.io</b></div>
           </div>
           <div class="field">
             <label>Calendar ID</label>
@@ -809,7 +745,7 @@
 
         <div style="height:10px"></div>
         <div class="mini muted" id="calInfoLine">
-          * จะ Sync เมื่อมีการ “Download ครั้งแรก” แล้วมี Next time ที่คำนวณได้ • ต้องออนไลน์ขณะ Sync
+          * จะ Sync หลัง “Download ครั้งแรก” แล้วมี Next time ที่คำนวณได้ • ต้องออนไลน์ขณะ Sync
         </div>
       </div>
 
@@ -849,7 +785,6 @@
     </section>
   </div>
 
-  <!-- Sticky Bar bottom -->
   <div class="stickyBar" id="stickyBar">
     <div class="stickyInner">
       <button class="btn primary bigPrimary" id="start910Btn">⏱️ เริ่มนับเวลา</button>
@@ -858,7 +793,6 @@
     </div>
   </div>
 
-  <!-- Downloaded Drawer -->
   <div class="drawerBackdrop" id="drawerBackdrop"></div>
   <div class="drawer" id="drawer">
     <div class="drawerPanel">
@@ -878,11 +812,9 @@
     </div>
   </div>
 
-  <!-- Hidden file inputs -->
   <input id="fileInputAdd" type="file" accept="image/*" multiple style="display:none" />
   <input id="fileInputReplace" type="file" accept="image/*" style="display:none" />
 
-  <!-- Camera / Replace Modal -->
   <div class="modalBackdrop" id="camModalBackdrop">
     <div class="modal">
       <div class="modalHeader">
@@ -930,9 +862,6 @@
   </div>
 
   <script>
-    /**********************************************************************
-     * Utilities + State
-     **********************************************************************/
     const $ = (id) => document.getElementById(id);
 
     const LS = {
@@ -965,7 +894,8 @@
 
       schedule: {
         ok:false,
-        reason:"",
+        error:"",
+        warn:"",
         nextTag:null,
         nextAt:null,
         planAtById: new Map(),
@@ -981,7 +911,7 @@
         eventId:null,
         lastSyncedDueAt:null,
         lastSyncedTag:null,
-        status:"ปิด"
+        lastError:"",
       },
       calTokenClient: null,
       calSyncBusy: false,
@@ -1023,6 +953,17 @@
       return `${sign}${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
     }
 
+    function rfc3339Local(ts){
+      const d = new Date(ts);
+      const pad = (n)=>String(n).padStart(2,"0");
+      const offMin = -d.getTimezoneOffset(); // minutes east
+      const sign = offMin >= 0 ? "+" : "-";
+      const abs = Math.abs(offMin);
+      const oh = pad(Math.floor(abs/60));
+      const om = pad(abs%60);
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${oh}:${om}`;
+    }
+
     function loadJSON(key, fallback){
       try{
         const raw = localStorage.getItem(key);
@@ -1052,9 +993,6 @@
       console.log(...args);
     }
 
-    /**********************************************************************
-     * Tag logic: fill earliest missing slot (IN before OUT)
-     **********************************************************************/
     function parseTag(tag){
       const m = String(tag || "").trim().match(/^(IN|OUT)-(\d+)$/i);
       if(!m) return null;
@@ -1093,9 +1031,6 @@
       return `IN-${p.idx + 1}`;
     }
 
-    /**********************************************************************
-     * IndexedDB: Dexie preferred, native fallback
-     **********************************************************************/
     async function initDB(){
       const hasDexie = typeof window.Dexie !== "undefined";
       if(hasDexie){
@@ -1216,9 +1151,6 @@
       return state.db.getAll();
     }
 
-    /**********************************************************************
-     * Image processing: re-encode via canvas to strip EXIF
-     **********************************************************************/
     function loadImage(src){
       return new Promise((resolve, reject)=>{
         const img = new Image();
@@ -1252,9 +1184,6 @@
       }
     }
 
-    /**********************************************************************
-     * ObjectURL thumbs
-     **********************************************************************/
     function getThumbUrl(photo){
       if(state.thumbUrl.has(photo.id)) return state.thumbUrl.get(photo.id);
       const u = URL.createObjectURL(photo.blob);
@@ -1273,9 +1202,6 @@
       state.thumbUrl.clear();
     }
 
-    /**********************************************************************
-     * Add photo (tag continuity ensured)
-     **********************************************************************/
     async function addPhotoFromBlob(blob, meta = {}){
       if(state.busy.saving) return;
       state.busy.saving = true;
@@ -1382,9 +1308,6 @@
       }
     }
 
-    /**********************************************************************
-     * 9:10 Timer (persist)
-     **********************************************************************/
     const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
 
     function loadTimer910(){
@@ -1450,37 +1373,35 @@
       stopAlarmTimeout();
       hideToast();
 
-      // Calendar: optionally delete old event (best-effort)
       if(state.cal.enabled && state.cal.eventId){
         calendarDeleteEvent(state.cal.eventId).catch(()=>{});
       }
       state.cal.eventId = null;
       state.cal.lastSyncedDueAt = null;
       state.cal.lastSyncedTag = null;
+      state.cal.lastError = "";
       saveCalendarState();
 
       log("Timer reset -> READY");
     }
 
     async function onStartButtonClick(){
-      const { downloaded } = computeCounts();
-
       if(!state.timer910.running){
         startTimer910();
         heavyRender();
         return;
       }
 
+      const { downloaded } = computeCounts();
       const allowed = (!state.timer910.locked) || isUnlockWindowActive();
       if(!allowed) return;
 
+      // reset ready
       resetTimer910ToReady();
       heavyRender();
+      // unlock button will reflect state
     }
 
-    /**********************************************************************
-     * Counts / Sorting
-     **********************************************************************/
     function computeCounts(){
       const total = state.photos.length;
       const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
@@ -1501,9 +1422,6 @@
       return downloaded[downloaded.length-1] || null;
     }
 
-    /**********************************************************************
-     * Schedule (Exact-fit): last required photo hits targetAt exactly
-     **********************************************************************/
     function minGapMinutes(kind){ return (kind==="IN") ? 3 : 4; }
     function maxGapMinutes(kind){ return (kind==="IN") ? 25 : 30; }
 
@@ -1525,12 +1443,9 @@
       return { chain, missingTag };
     }
 
-    // Find feasible constants a (IN gap), b (OUT gap) to satisfy sum exactly
-    // constraints: a in [3,25], b in [4,30], b > a, and a*nIn + b*nOut = totalMin
     function solveExactAB(totalMin, nIn, nOut){
       if(nIn===0 && nOut===0) return { ok:false, a:null, b:null };
 
-      // Only one kind -> single value
       if(nOut===0){
         const a = totalMin / Math.max(1,nIn);
         const ok = (a >= 3 && a <= 25);
@@ -1545,12 +1460,10 @@
       const mean = totalMin / (nIn + nOut);
       let best = { ok:false, a:null, b:null, score: 1e18 };
 
-      // scan a in [3..25] with step 0.01
       for(let a=3; a<=25.0001; a+=0.01){
         const b = (totalMin - a*nIn) / nOut;
         if(b < 4 || b > 30) continue;
-        if(!(b > a + 0.001)) continue; // IN must be < OUT
-        // score: keep near mean + keep gap between a/b not extreme
+        if(!(b > a + 0.001)) continue;
         const score = Math.abs(a-mean) + Math.abs(b-mean) + 0.08*Math.abs(b-a);
         if(score < best.score){
           best = { ok:true, a, b, score };
@@ -1558,8 +1471,6 @@
       }
 
       if(best.ok) return best;
-
-      // no exact feasible a,b -> return closest clamped suggestion
       const a0 = Math.max(3, Math.min(25, mean-1));
       const b0 = Math.max(4, Math.min(30, mean+1));
       const bAdj = (b0 <= a0) ? Math.min(30, a0 + 0.25) : b0;
@@ -1567,12 +1478,11 @@
     }
 
     function distributeMsToMatchTotal(gapsMs, kinds, totalMs){
-      // gapsMs are integers (ms). Adjust +/- 1ms within min/max to match totalMs exactly.
       let sum = gapsMs.reduce((s,x)=>s+x,0);
       let diff = totalMs - sum;
       if(diff === 0) return gapsMs;
 
-      let safety = 200000; // prevent infinite
+      let safety = 200000;
       while(diff !== 0 && safety-- > 0){
         let moved = false;
         for(let i=gapsMs.length-1; i>=0 && diff !== 0; i--){
@@ -1594,10 +1504,12 @@
       return gapsMs;
     }
 
+    // ✅ NEW: schedule.error vs schedule.warn
     function computeScheduleExactFit(){
       const sched = {
         ok:false,
-        reason:"",
+        error:"",
+        warn:"",
         nextTag:null,
         nextAt:null,
         planAtById: new Map(),
@@ -1605,7 +1517,7 @@
       };
 
       if(!state.timer910.running || !state.timer910.targetAt){
-        sched.reason = "ยังไม่ได้เริ่มนับเวลา";
+        sched.error = "เริ่มนับเวลาก่อน";
         sched.nextTag = peekNextTag();
         return sched;
       }
@@ -1622,29 +1534,25 @@
       sched.nextTag = chain[0]?.tag || nextExpected || "-";
 
       if(chain.length === 0){
-        sched.reason = `ขาดรูป ${nextExpected}`;
+        sched.error = `ขาดรูป ${nextExpected}`;
         return sched;
       }
 
       const targetAt = state.timer910.targetAt;
-
-      // baseTime: if last downloaded exists => lastDownloadedAt, else now (not earlier than startAt)
       let baseTime = last ? last.downloadedAt : now();
       baseTime = Math.max(baseTime, state.timer910.startAt || 0);
 
       let totalMs = targetAt - baseTime;
       if(totalMs <= 0){
-        sched.reason = "เลยเวลาเป้าหมายแล้ว";
+        sched.error = "เลยเวลาเป้าหมายแล้ว";
         sched.nextAt = now();
         return sched;
       }
 
-      // Determine intervals
-      let kinds = []; // each interval is kind of "previous downloaded"
+      let kinds = [];
       let intervals = 0;
 
       if(last){
-        // intervals count = chain.length (from last->first + between chain)
         intervals = chain.length;
         const lastKind = (parseTag(last.tag)?.kind) || "IN";
         kinds.push(lastKind);
@@ -1653,35 +1561,30 @@
         }
       }else{
         if(chain.length === 1){
-          // only 1 photo to load: to satisfy "last = target", set its time to targetAt
           sched.planAtById.set(chain[0].id, targetAt);
           sched.nextAt = targetAt;
           sched.ok = true;
           return sched;
         }
-        // intervals count = chain.length - 1 (first at baseTime)
         intervals = chain.length - 1;
         for(let i=0;i<chain.length-1;i++){
           kinds.push(String(chain[i].kind).toUpperCase());
         }
       }
 
-      // min/max sum
       let minSum = 0, maxSum = 0;
       for(const k of kinds){
         minSum += minGapMinutes(k)*60000;
         maxSum += maxGapMinutes(k)*60000;
       }
 
-      // If missingTag exists but chain might still be enough to reach target via maxSum
-      // Show missing only if it becomes necessary (i.e., cannot reach target with current intervals)
+      // show missing only if necessary to reach target
       const missingNeeded = !!missingTag && (totalMs > maxSum + 1);
 
       if(totalMs > maxSum + 1){
-        sched.reason = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
-        // best-effort: use max gaps
+        sched.error = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
+        // best-effort max
         const gapsMs = kinds.map(k => Math.round(maxGapMinutes(k)*60000));
-        // build times
         let t = baseTime;
         if(last){
           for(let i=0;i<chain.length;i++){
@@ -1697,13 +1600,11 @@
           }
           sched.nextAt = sched.planAtById.get(chain[0].id) || null;
         }
-        sched.ok = false;
         return sched;
       }
 
       if(totalMs < minSum - 1){
-        sched.reason = `เวลาน้อยเกินสำหรับจำนวนรูปในลำดับ`;
-        // best-effort: use min gaps
+        sched.error = `เวลาน้อยเกินสำหรับจำนวนรูปในลำดับ`;
         const gapsMs = kinds.map(k => Math.round(minGapMinutes(k)*60000));
         let t = baseTime;
         if(last){
@@ -1720,18 +1621,15 @@
           }
           sched.nextAt = sched.planAtById.get(chain[0].id) || null;
         }
-        sched.ok = false;
         return sched;
       }
 
-      // Feasible in min/max => compute exact-fit a/b to make sum == totalMs
       let nIn=0, nOut=0;
       for(const k of kinds){ if(k==="IN") nIn++; else nOut++; }
       const totalMin = totalMs / 60000;
 
       const { ok:abOk, a, b } = solveExactAB(totalMin, nIn, nOut);
 
-      // build gaps in ms (float), then round and distribute ms to match totalMs exactly
       let gapsMs = new Array(kinds.length).fill(0).map((_,i)=>{
         const k = kinds[i];
         const mins = (k==="IN") ? (a ?? 10) : (b ?? 12);
@@ -1741,7 +1639,6 @@
 
       gapsMs = distributeMsToMatchTotal(gapsMs, kinds, Math.round(totalMs));
 
-      // Build plan times
       let t = baseTime;
       if(last){
         for(let i=0;i<chain.length;i++){
@@ -1758,26 +1655,19 @@
         sched.nextAt = sched.planAtById.get(chain[0].id) || null;
       }
 
-      // At this point, if feasible, last should hit targetAt exactly (within ms)
-      // But keep "missingTag" hidden if not needed (per requirement)
+      // Only warn (not error) when IN<OUT constraint couldn't be solved perfectly by a/b search
+      if(!abOk){
+        sched.warn = "เฉลี่ยแบบ IN<OUT เป๊ะไม่ได้ (ใช้ค่าใกล้เคียง)";
+      }
       if(missingNeeded){
-        // should not happen here because totalMs <= maxSum, but safe
-        sched.reason = `ขาดรูป ${missingTag}`;
-      }else if(!abOk){
-        // theoretically feasible by min/max but IN<OUT exact constraint might be tight
-        // treat as warning (still we created a best effort)
-        sched.reason = `เงื่อนไข IN<OUT ทำให้เฉลี่ยเป๊ะได้ยาก`;
-      }else{
-        sched.reason = "";
+        // safety
+        sched.error = `ขาดรูป ${missingTag}`;
       }
 
-      sched.ok = (sched.reason === "");
+      sched.ok = !sched.error;
       return sched;
     }
 
-    /**********************************************************************
-     * Alarm / Notification (best-effort)
-     **********************************************************************/
     function loadAlarmState(){
       const a = loadJSON(LS.alarm, null);
       if(a && typeof a === "object"){
@@ -1842,7 +1732,6 @@
 
     function scheduleNextAlarmFromSchedule(){
       stopAlarmTimeout();
-
       const last = getLastDownloadedFirstTime();
       if(!last){
         state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
@@ -1851,8 +1740,7 @@
       }
 
       const s = state.schedule;
-      // ✅ do not schedule alarm when schedule has error reason
-      if(!s || !s.nextAt || !s.nextTag || s.reason){
+      if(!s || !s.nextAt || !s.nextTag || s.error){
         state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
         saveAlarmState();
         return;
@@ -1908,9 +1796,6 @@
       }
     }
 
-    /**********************************************************************
-     * Download + mark downloaded (NO overwrite downloadedAt on re-download)
-     **********************************************************************/
     async function downloadPhoto(photo){
       const filename = `${photo.tag}.jpg`;
 
@@ -1933,9 +1818,7 @@
         photo.downloadedAt = t;
         log("Marked downloaded (first time):", photo.tag);
 
-        heavyRender(); // move to downloaded immediately + schedule update
-
-        // Calendar sync (A2) should happen after schedule update
+        heavyRender();
         maybeCalendarSync("download").catch(()=>{});
       }else{
         log("Downloaded again (no schedule reset):", photo.tag);
@@ -1951,9 +1834,6 @@
       maybeCalendarSync("delete").catch(()=>{});
     }
 
-    /**********************************************************************
-     * Drawer (Downloaded)
-     **********************************************************************/
     function openDrawer(){
       $("drawerBackdrop").classList.add("show");
       $("drawer").classList.add("show");
@@ -1963,9 +1843,6 @@
       $("drawer").classList.remove("show");
     }
 
-    /**********************************************************************
-     * Calendar Sync (A2) — Google Calendar API via OAuth token (GIS)
-     **********************************************************************/
     function loadCalendarState(){
       const c = loadJSON(LS.cal, null);
       if(c && typeof c === "object"){
@@ -1975,7 +1852,7 @@
         state.cal.eventId = c.eventId || null;
         state.cal.lastSyncedDueAt = c.lastSyncedDueAt || null;
         state.cal.lastSyncedTag = c.lastSyncedTag || null;
-        // token isn't persisted for safety; user reconnects after reload
+        state.cal.lastError = c.lastError || "";
         state.cal.token = null;
         state.cal.tokenExp = 0;
       }
@@ -1987,7 +1864,8 @@
         calendarId: state.cal.calendarId,
         eventId: state.cal.eventId,
         lastSyncedDueAt: state.cal.lastSyncedDueAt,
-        lastSyncedTag: state.cal.lastSyncedTag
+        lastSyncedTag: state.cal.lastSyncedTag,
+        lastError: state.cal.lastError
       });
     }
 
@@ -2001,6 +1879,8 @@
       const badge = $("calStatusBadge");
       const mini = $("calMiniBadge");
 
+      $("calLastErrPill").textContent = `last: ${state.cal.lastError ? state.cal.lastError : "-"}`;
+
       if(!state.cal.enabled){
         badge.className = "badge";
         badge.textContent = "📅 ปิด";
@@ -2011,10 +1891,18 @@
 
       mini.style.display = "";
       if(state.cal.token && now() < state.cal.tokenExp){
-        badge.className = "badge ok";
-        badge.textContent = "📅 Connected";
-        mini.className = "badge ok";
-        mini.textContent = "📅";
+        // token ok
+        if(state.schedule && state.schedule.error){
+          badge.className = "badge wait";
+          badge.textContent = "📅 รอข้อมูล";
+          mini.className = "badge wait";
+          mini.textContent = "📅";
+        }else{
+          badge.className = "badge ok";
+          badge.textContent = "📅 Connected";
+          mini.className = "badge ok";
+          mini.textContent = "📅";
+        }
       }else{
         badge.className = "badge wait";
         badge.textContent = "📅 ยังไม่เชื่อมต่อ";
@@ -2040,11 +1928,12 @@
           if(resp && resp.access_token){
             state.cal.token = resp.access_token;
             const expiresIn = (resp.expires_in ? Number(resp.expires_in) : 3600);
-            state.cal.tokenExp = now() + expiresIn*1000 - 60*1000; // keep 1 min buffer
+            state.cal.tokenExp = now() + expiresIn*1000 - 60*1000;
             log("Calendar token OK, exp in", expiresIn, "sec");
+            state.cal.lastError = "";
+            saveCalendarState();
             renderCalendarUI();
             showToast("Calendar", "เชื่อมต่อแล้ว ✅", 2500);
-            // sync immediately if possible
             maybeCalendarSync("connect").catch(()=>{});
           }else{
             showToast("Calendar", "เชื่อมต่อไม่สำเร็จ", 2500);
@@ -2092,7 +1981,6 @@
       const m = String(d.getMonth()+1).padStart(2,"0");
       const day = String(d.getDate()).padStart(2,"0");
       const key = `${y}${m}${day}`;
-      // custom id (keeps updates non-duplicated)
       return `stl-${key}-next`;
     }
 
@@ -2125,28 +2013,26 @@
       if(state.calSyncBusy) return;
       if(!state.cal.enabled) return;
 
-      // Need token
       if(!state.cal.token || now() >= state.cal.tokenExp){
         renderCalendarUI();
         return;
       }
 
-      // Only sync when we have lastDownloadedAt and schedule is clean
       const last = getLastDownloadedFirstTime();
       if(!last) return;
 
       const s = state.schedule;
-      if(!s || !s.nextAt || !s.nextTag || s.reason){
-        // no valid schedule -> don't create misleading event
+      // ✅ FIX: block only on "error" (not warn)
+      if(!s || !s.nextAt || !s.nextTag || s.error){
         $("calStatusBadge").className = "badge wait";
-        $("calStatusBadge").textContent = "📅 รอข้อมูล (มีข้อผิดพลาด)";
+        $("calStatusBadge").textContent = "📅 รอข้อมูล";
+        renderCalendarUI();
         return;
       }
 
       const dueAt = s.nextAt;
       const nextTag = s.nextTag;
 
-      // skip if nothing changed
       if(state.cal.lastSyncedDueAt === dueAt && state.cal.lastSyncedTag === nextTag){
         return;
       }
@@ -2157,14 +2043,12 @@
       state.calSyncBusy = true;
       try{
         const calId = encodeURIComponent(state.cal.calendarId || "primary");
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Bangkok";
-
-        const startISO = new Date(dueAt).toISOString();
-        const endISO = new Date(dueAt + 5*60*1000).toISOString();
+        const startStr = rfc3339Local(dueAt);
+        const endStr = rfc3339Local(dueAt + 5*60*1000);
 
         const { total, downloaded, pending } = computeCounts();
 
-        const patchBody = {
+        const body = {
           id: eventId,
           summary: `STL Next: ${nextTag}`,
           description:
@@ -2172,44 +2056,64 @@
             `Next: ${nextTag}\n` +
             `When: ${fmtDT(dueAt)}\n` +
             `Target: ${fmtDT(state.timer910.targetAt)}\n` +
-            `Downloaded: ${downloaded} / Pending: ${pending} / Total: ${total}\n\n` +
+            `Downloaded: ${downloaded} / Pending: ${pending} / Total: ${total}\n` +
+            (s.warn ? `\nWarn: ${s.warn}\n` : "\n") +
             `* อีเวนต์นี้ถูกอัปเดตอัตโนมัติจากเว็บ (A2)`,
-          start: { dateTime: startISO, timeZone: tz },
-          end: { dateTime: endISO, timeZone: tz },
+          start: { dateTime: startStr },
+          end: { dateTime: endStr },
           reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] }
         };
 
         const base = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`;
         const patchUrl = `${base}/${encodeURIComponent(eventId)}`;
 
-        // PATCH (update if exists); if 404 then INSERT (create)
-        let res = await calendarFetch(patchUrl, { method:"PATCH", body: JSON.stringify(patchBody) });
+        $("calStatusBadge").className = "badge wait";
+        $("calStatusBadge").textContent = "📅 Syncing…";
+
+        let res = await calendarFetch(patchUrl, { method:"PATCH", body: JSON.stringify(body) });
 
         if(res.status === 404){
-          res = await calendarFetch(base, { method:"POST", body: JSON.stringify(patchBody) });
+          res = await calendarFetch(base, { method:"POST", body: JSON.stringify(body) });
         }
 
         if(res.ok){
           state.cal.eventId = eventId;
           state.cal.lastSyncedDueAt = dueAt;
           state.cal.lastSyncedTag = nextTag;
+          state.cal.lastError = "";
           saveCalendarState();
 
           $("calStatusBadge").className = "badge ok";
           $("calStatusBadge").textContent = "📅 Synced";
           $("calEventPill").textContent = `event: ${eventId}`;
-          renderCalendarUI();
+          $("calLastErrPill").textContent = `last: -`;
 
           log("Calendar synced", { trigger, eventId, nextTag, dueAt: fmtDT(dueAt) });
         }else{
-          const txt = await res.text().catch(()=> "");
+          let msg = `HTTP ${res.status}`;
+          try{
+            const j = await res.json();
+            msg = j?.error?.message || msg;
+          }catch(_){
+            const t = await res.text().catch(()=> "");
+            if(t) msg = t.slice(0,120);
+          }
+          state.cal.lastError = msg;
+          saveCalendarState();
+
           $("calStatusBadge").className = "badge err";
           $("calStatusBadge").textContent = "📅 Sync fail";
-          log("Calendar sync failed", res.status, txt);
+          $("calLastErrPill").textContent = `last: ${msg}`;
+          log("Calendar sync failed", res.status, msg);
         }
       }catch(e){
+        const msg = (e && (e.message||e.name)) ? (e.message||e.name) : "SYNC_ERROR";
+        state.cal.lastError = msg;
+        saveCalendarState();
+
         $("calStatusBadge").className = "badge err";
         $("calStatusBadge").textContent = "📅 Sync error";
+        $("calLastErrPill").textContent = `last: ${msg}`;
         log("Calendar sync error", e);
       }finally{
         state.calSyncBusy = false;
@@ -2217,9 +2121,6 @@
       }
     }
 
-    /**********************************************************************
-     * Render: heavy vs light
-     **********************************************************************/
     function renderTopCounts(){
       const { downloaded } = computeCounts();
       $("dlCountTop").textContent = downloaded;
@@ -2295,9 +2196,10 @@
         $("headerCountdownText").textContent = "-";
       }
 
-      if(s.reason){
+      // show only ERROR (not warn)
+      if(s.error){
         $("headerWarnLine").style.display = "";
-        $("headerWarnLine").textContent = `⚠ ${s.reason}`;
+        $("headerWarnLine").textContent = `⚠ ${s.error}`;
       }else{
         $("headerWarnLine").style.display = "none";
         $("headerWarnLine").textContent = "";
@@ -2464,7 +2366,6 @@
     }
 
     function heavyRender(){
-      // compute schedule exact-fit
       state.schedule = computeScheduleExactFit();
 
       renderTopCounts();
@@ -2479,7 +2380,6 @@
       renderHeaderStatus();
       renderCalendarUI();
 
-      // try sync calendar when schedule updated (non-blocking)
       maybeCalendarSync("render").catch(()=>{});
 
       requestAnimationFrame(()=>measureBars());
@@ -2492,9 +2392,6 @@
       fireAlarmIfNeeded(false);
     }
 
-    /**********************************************************************
-     * Delete all (2-step confirm)
-     **********************************************************************/
     async function deleteAll(){
       const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
       if(!ok1) return;
@@ -2516,9 +2413,6 @@
       heavyRender();
     }
 
-    /**********************************************************************
-     * Refresh from DB (boot)
-     **********************************************************************/
     async function refresh(){
       const all = await dbGetAll();
       all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
@@ -2527,9 +2421,6 @@
       heavyRender();
     }
 
-    /**********************************************************************
-     * UI state (persist)
-     **********************************************************************/
     function loadUIState(){
       const u = loadJSON(LS.ui, null);
       if(u && typeof u === "object"){
@@ -2550,9 +2441,6 @@
       });
     }
 
-    /**********************************************************************
-     * Camera modal (mirror + saved matches preview)
-     **********************************************************************/
     async function openCamera(isReplace = false){
       $("camModalBackdrop").classList.add("show");
       $("camModeBadge").textContent = "CAM";
@@ -2718,9 +2606,6 @@
       updateCamHUD();
     }
 
-    /**********************************************************************
-     * Layout measurements: fixed top & bottom bars
-     **********************************************************************/
     function measureBars(){
       const top = $("topBar");
       const bottom = $("stickyBar");
@@ -2735,9 +2620,6 @@
       ro.observe($("stickyBar"));
     }
 
-    /**********************************************************************
-     * Boot
-     **********************************************************************/
     async function boot(){
       loadUIState();
       loadTimer910();
@@ -2752,7 +2634,6 @@
       window.addEventListener("resize", ()=> measureBars());
       window.addEventListener("orientationchange", ()=> setTimeout(()=> measureBars(), 200));
 
-      // Add
       $("uploadBtn").onclick = ()=> $("fileInputAdd").click();
       $("fileInputAdd").addEventListener("change", async (e)=>{
         const files = Array.from(e.target.files || []);
@@ -2761,7 +2642,6 @@
         maybeCalendarSync("add").catch(()=>{});
       });
 
-      // Replace upload
       $("fallbackUploadBtn").onclick = ()=> {
         if(state.replace.active) $("fileInputReplace").click();
         else $("fileInputAdd").click();
@@ -2773,7 +2653,6 @@
         maybeCalendarSync("replace").catch(()=>{});
       });
 
-      // Camera
       $("openCameraBtn").onclick = async ()=> {
         state.replace.active = false;
         state.replace.targetId = null;
@@ -2788,28 +2667,22 @@
         if(e.target === $("camModalBackdrop")) closeCamera();
       });
 
-      // Drawer
       $("openDrawerBtn").onclick = openDrawer;
       $("closeDrawerBtn").onclick = closeDrawer;
       $("drawerBackdrop").onclick = closeDrawer;
 
-      // Timer buttons
       $("start910Btn").onclick = async ()=>{
         await onStartButtonClick();
-        // if timer started/reset, schedule changes -> sync calendar
         maybeCalendarSync("timer").catch(()=>{});
       };
       $("unlockBtn").onclick = ()=> openUnlockWindow3s();
       $("deleteAllBtn").onclick = deleteAll;
 
-      // Toast
       $("toastDismissBtn").onclick = hideToast;
 
-      // Notification test
       $("requestNotifBtn").onclick = requestNotificationPermission;
       $("testBeepBtn").onclick = ()=> beepSoft();
 
-      // toggles
       $("logToggle").addEventListener("change", ()=>{
         state.ui.logEnabled = $("logToggle").checked;
         $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
@@ -2831,14 +2704,12 @@
         $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
       });
 
-      // Calendar toggle + inputs
       $("calToggle").addEventListener("change", ()=>{
         state.cal.enabled = $("calToggle").checked;
         saveCalendarState();
         if(state.cal.enabled){
           showToast("Calendar", "เปิด Sync แล้ว (กรอก Client ID แล้วกดเชื่อมต่อ)", 3500);
         }else{
-          // stop syncing
           state.cal.token = null;
           state.cal.tokenExp = 0;
           saveCalendarState();
@@ -2850,7 +2721,6 @@
       $("calClientIdInput").addEventListener("input", ()=>{
         state.cal.clientId = $("calClientIdInput").value.trim();
         saveCalendarState();
-        // reset token client to re-init with new id
         state.calTokenClient = null;
         renderCalendarUI();
       });
@@ -2861,10 +2731,15 @@
         renderCalendarUI();
       });
 
-      $("calConnectBtn").onclick = calendarConnect;
+      $("calConnectBtn").onclick = ()=> {
+        if(!ensureTokenClient()){
+          showToast("Calendar", "Google script ยังไม่พร้อม (ลองใหม่)", 3000);
+          return;
+        }
+        calendarConnect();
+      };
       $("calDisconnectBtn").onclick = calendarDisconnect;
 
-      // visibility catch-up
       document.addEventListener("visibilitychange", ()=>{
         if(!document.hidden){
           measureBars();
@@ -2873,7 +2748,6 @@
         }
       });
 
-      // Start light tick
       if(state.tickInterval) clearInterval(state.tickInterval);
       state.tickInterval = setInterval(lightTick, 1000);
 
