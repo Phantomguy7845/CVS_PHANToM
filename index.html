@@ -27,6 +27,10 @@
       /* ความสูงแถบแท็บล่าง */
       --bottomTabsH:76px;
 
+
+      /* Calculated fixed heights (JS updates) */
+      --hdrH: 0px;
+      --tabsH: var(--bottomTabsH);
       /* Sidebar */
       --sbW: 290px;
       --sbZ: 100001;
@@ -36,13 +40,16 @@
       --repBarH: 56px;
     }
     *{box-sizing:border-box}
+    html, body{ height:100%; }
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background:linear-gradient(180deg,#e9fbf7,var(--bg));
       color:var(--text);
+      overflow-x:hidden;
     }
     body.rep-open{ overflow:hidden; }
+    body.map-open{ overflow:hidden; }
 
     /* header */
     header{
@@ -273,6 +280,17 @@
       user-select:none;
     }
     #map{height:72vh; min-height:360px; width:100%}
+
+    /* ✅ Map view full-screen (no scroll) */
+    body.map-open main{
+      height: calc(100vh - var(--hdrH) - var(--tabsH));
+      overflow:hidden;
+      padding-bottom: 14px; /* remove extra bottom padding */
+    }
+    body.map-open #pageMap.active{ height:100%; }
+    body.map-open #pageMap.active .map-wrap{ height:100%; display:flex; flex-direction:column; }
+    body.map-open #pageMap.active #map{ flex:1 1 auto; height:auto; min-height:0; width:100%; }
+
 
     /* modal */
     .backdrop{
@@ -736,7 +754,7 @@
       <div id="repSub" class="rep-sub">—</div>
       <button id="repClose" class="rep-close" type="button">ปิด</button>
     </div>
-    <iframe id="repFrame" title="Report Popup" src="about:blank"></iframe>
+    <iframe id="repFrame" title="Report Popup" src=""></iframe>
   </div>
 </div>
 
@@ -758,6 +776,16 @@
   };
 
   function $(id){ return document.getElementById(id); }
+
+  // ✅ Update CSS vars for header/tabs heights (used for full-screen map)
+  function updateFixedHeights(){
+    try{
+      var hdr = document.querySelector('header');
+      var tabs = document.querySelector('.bottom-tabs');
+      if(hdr){ document.documentElement.style.setProperty('--hdrH', hdr.offsetHeight + 'px'); }
+      if(tabs){ document.documentElement.style.setProperty('--tabsH', tabs.offsetHeight + 'px'); }
+    }catch(e){}
+  }
 
   function escapeHtml(s){
     s = (s === null || s === undefined) ? '' : String(s);
@@ -1079,12 +1107,9 @@
 
     var frame = $('repFrame');
 
-    // ✅ FIX: iframe.src จะเป็น "about:blank" เสมอแม้ยังไม่ตั้งค่า
-    // ต้องเช็คจาก attribute แทน เพื่อให้โหลด Report.html ได้จริง
-    var srcAttr = (frame.getAttribute('src') || '').trim();
-    var needsLoad = (!srcAttr || srcAttr === 'about:blank');
-
-    if(needsLoad){
+    // โหลดครั้งแรก
+    if(!frame.src){
+      frame.src = CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
       frame.onload = function(){
         REPORT_FRAME_READY = true;
         // ทำงานฝั่ง iframe: ตัด UI + patch storage + hook copy
@@ -1095,12 +1120,8 @@
         clearRestrictedFieldsOnce();
         startPrefillLoop();
       };
-
-      // ให้เป็น relative path (same-origin) เพื่อคุม iframe ได้
-      frame.setAttribute('src', CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1');
     }else{
-      // เปิดซ้ำ: ไม่ต้อง reload แค่ prefill ใหม่
-      REPORT_FRAME_READY = true;
+      // เปิดซ้ำ
       tryTrimReportUI();
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
@@ -1374,118 +1395,43 @@
   }
 
   // ✅ Hook: กด "COPY + เปิด LINE กลุ่ม" แล้วต้องมี history อยู่ใน localStorage (Report.html จะเห็นด้วย)
-  // ✅ Hook: กดปุ่มคัดลอก (ใน popup) แล้ว “ต้อง” เขียนประวัติลง localStorage (ให้ Report.html หน้าเต็มเห็นด้วย)
-  // ทำแบบไม่ไปยุ่งกับ logic ใน Report.html มาก: แค่ sync history หลังคลิก และกันซ้ำด้วย reportText
   function attachCopyHistoryHookOnce(){
     if(REPORT_COPY_HOOKED) return;
     var doc = getReportDoc();
     var win = getReportWin();
-    if(!doc || !win || !win.localStorage) return;
+    if(!doc || !win) return;
 
-    // 1) หา “ปุ่มคัดลอก” ให้ได้ก่อน (รองรับทั้ง id และค้นจากข้อความ)
-    var btns = [];
-    var b1 = doc.getElementById('btnCopy');
-    if(b1) btns.push(b1);
-    var b2 = doc.getElementById('btnCopyOnly');
-    if(b2) btns.push(b2);
+    try{
+      var btn = doc.getElementById('btnCopy');
 
-    if(btns.length === 0){
-      var all = doc.querySelectorAll('button');
-      for(var i=0;i<all.length;i++){
-        var t = normText(all[i].textContent || '');
-        // เจาะคำว่า copy + line / หรือ คัดลอก + ไลน์
-        if((t.indexOf('copy') !== -1 && t.indexOf('line') !== -1) || (t.indexOf('คัดลอก') !== -1 && t.indexOf('ไลน์') !== -1)){
-          btns.push(all[i]);
-        }
-      }
-    }
-
-    if(!btns.length) return;
-
-    function firstNonEmpty(){
-      for(var i=0;i<arguments.length;i++){
-        var v = (arguments[i] === null || arguments[i] === undefined) ? '' : String(arguments[i]).trim();
-        if(v) return v;
-      }
-      return '';
-    }
-
-    function valFromId(id){
-      var el = doc.getElementById(id);
-      if(!el) return '';
-      var v = (el.value !== undefined) ? el.value : '';
-      return String(v || '').trim();
-    }
-
-    function getPreviewText(){
-      var pre = doc.getElementById('preview');
-      if(pre) return String(pre.textContent || '').trim();
-      // fallback: บางเวอร์ชันอาจใช้ <textarea id="preview">
-      var ta = doc.querySelector('#preview');
-      if(ta && ta.value !== undefined) return String(ta.value || '').trim();
-      return '';
-    }
-
-    function syncHistoryOnce(){
-      // 0) ให้แน่ใจว่ามี key history
-      ensureHistoryExistsFallback();
-
-      var reportText = getPreviewText();
-      if(!reportText) return false;
-
-      var arr = readHistoryArray(win);
-      // กันซ้ำ: ถ้า 5 อันแรกมี reportText เดียวกัน → ไม่เพิ่ม
-      for(var i=0;i<Math.min(arr.length,5);i++){
-        if(String(arr[i] && arr[i].reportText || '').trim() === reportText){
-          return true;
+      // fallback: หาโดยข้อความ
+      if(!btn){
+        var allBtns = doc.querySelectorAll('button');
+        for(var i=0;i<allBtns.length;i++){
+          var t = normText(allBtns[i].textContent || '');
+          if(t.indexOf('copy') !== -1 && t.indexOf('line') !== -1){
+            btn = allBtns[i];
+            break;
+          }
         }
       }
 
-      // ดึงค่าฟอร์มใน iframe (ถ้ามี) + fallback จาก REPORT_CTX
-      var reportDateISO = firstNonEmpty(valFromId('reportDate'), todayISO());
-      var account = firstNonEmpty(valFromId('account'), REPORT_CTX && REPORT_CTX.account);
-      var branchCode = firstNonEmpty(valFromId('branchCode'), REPORT_CTX && REPORT_CTX.number);
-      var branchName = firstNonEmpty(valFromId('branchName'), REPORT_CTX && (REPORT_CTX.account_name || REPORT_CTX.branchName));
-
-      var entry = {
-        id: (Date.now() + '_' + Math.random().toString(16).slice(2)),
-        createdAt: Date.now(),
-        reportDateISO: reportDateISO,
-        reportText: reportText,
-        account: String(account || '').trim(),
-        branchCode: String(branchCode || '').trim(),
-        branchName: String(branchName || '').trim()
-      };
-
-      arr.unshift(entry);
-      if(arr.length > 120) arr = arr.slice(0,120);
-      writeHistoryArray(win, arr);
-      return true;
-    }
-
-    function scheduleSyncHistory(){
-      // ให้ Report.html ทำงานของมันก่อน (คัดลอก/เปิดไลน์/อัปเดต preview)
-      var tries = 0;
-      var maxTries = 10;
-      function step(){
-        tries++;
-        var ok = false;
-        try{ ok = syncHistoryOnce(); }catch(e){ ok = false; }
-        if(ok) return;
-        if(tries < maxTries) setTimeout(step, 180);
-      }
-      setTimeout(step, 250);
-    }
-
-    // bind ทุกปุ่มที่เจอ และกัน bind ซ้ำ
-    btns.forEach(function(btn){
       if(!btn || btn.__pt_hooked) return;
-      btn.__pt_hooked = true;
-      btn.addEventListener('click', scheduleSyncHistory, true);
-    });
 
-    REPORT_COPY_HOOKED = true;
+      btn.__pt_hooked = true;
+      btn.addEventListener('click', function(){
+        // ให้ Report.html ทำงานของมันก่อน (copy + save history ตามโค้ดเดิม)
+        setTimeout(function(){
+          ensureHistoryExistsFallback();
+        }, 350);
+      }, true);
+
+      REPORT_COPY_HOOKED = true;
+    }catch(e){
+      console.warn('attachCopyHistoryHookOnce failed', e);
+    }
   }
+
   function readHistoryArray(win){
     try{
       var raw = win.localStorage.getItem(REPORT_KEYS.HISTORY);
@@ -1837,6 +1783,10 @@
   function setPage(page){
     var isMap = (page === 'map');
 
+    // ✅ lock scroll + size map to viewport
+    document.body.classList.toggle('map-open', isMap);
+    updateFixedHeights();
+
     $('pageList').classList.toggle('active', !isMap);
     $('pageMap').classList.toggle('active', isMap);
 
@@ -1874,7 +1824,15 @@
   $('tabMap').onclick = function(){ location.hash = '#map'; };
   window.addEventListener('hashchange', syncPageFromHash);
 
+  window.addEventListener('resize', function(){
+    updateFixedHeights();
+    if(document.body.classList.contains('map-open') && map){
+      try{ map.invalidateSize(); }catch(e){}
+    }
+  });
+
   // ===== Boot =====
+  updateFixedHeights();
   loadPlaces();
   requestGPS();
   syncPageFromHash();
