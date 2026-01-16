@@ -1,0 +1,14 @@
+{
+  "name": "Selfie Time Logger",
+  "short_name": "SelfieLogger",
+  "description": "Selfie + Time Logger (Mint Light) - Offline-first",
+  "start_url": "./Selfie_TimeLogger_MintLight.html",
+  "scope": "./",
+  "id": "./Selfie_TimeLogger_MintLight.html",
+  "display": "standalone",
+  "background_color": "#f6fffb",
+  "theme_color": "#dff7ef",
+  "launch_handler": {
+    "client_mode": ["focus-existing", "navigate-existing"]
+  }
+}
