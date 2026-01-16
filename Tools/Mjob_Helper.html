@@ -676,6 +676,8 @@
         <button class="btn primary topBtn" id="openCameraBtn" title="เปิดกล้องเซลฟี่">📷</button>
         <button class="btn soft topBtn" id="uploadBtn" title="อัปโหลดจากแกลเลอรี่">🖼️</button>
         <button class="btn topBtn" id="openDrawerBtn" title="ดูรายการ Downloaded">✅</button>
+        <!-- NEW: Settings -->
+        <button class="btn soft topBtn" id="openSettingsBtn" title="Settings / LINE">⚙️</button>
       </div>
     </div>
   </div>
@@ -854,13 +856,119 @@
     </div>
   </div>
 
+  <!-- =========================
+       NEW: Settings Modal (LINE)
+       ========================= -->
+  <div class="modalBackdrop" id="settingsBackdrop">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="row" style="gap:10px">
+          <span class="badge ok">SETTINGS</span>
+          <span class="pill">LINE Schedule</span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn" id="closeSettingsBtn" style="width:auto">✖</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="switch">
+          <input type="checkbox" id="lineEnableToggle" />
+          <div>
+            <div style="font-weight:900;font-size:13px">เปิดใช้แจ้งเตือนผ่าน LINE (Worker schedule)</div>
+            <div class="mini muted">ส่งเฉพาะ “ตอนถึงเวลา” + ส่ง “เริ่มงานวันนี้” เมื่อโหลด IN-1 ครั้งแรกของวัน</div>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="field">
+          <label>Worker Base URL</label>
+          <input id="lineWorkerUrl" inputmode="url" placeholder="https://xxxx.workers.dev" />
+          <div class="mini muted">ตัวอย่าง: https://phantom-selfie-line.surakiatforwork.workers.dev</div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="field">
+          <label>LINE Code (ชื่อ/โค้ด) เช่น PHANTOM1</label>
+          <input id="lineCodeInput" autocomplete="off" placeholder="PHANTOM1" />
+          <div class="mini muted">โค้ดนี้ใช้คู่กับคำสั่ง <b>LINK</b> ใน LINE OA เพื่อเชื่อมบัญชี</div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="grid2">
+          <button class="btn primary" id="lineLinkBtn">🔗 ลิงก์กับ LINE (คัดลอก LINK + พาไป OA)</button>
+          <button class="btn soft" id="lineTestBtn">🧪 ทดสอบแจ้งเตือน</button>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="grid2">
+          <button class="btn danger" id="lineClearBtn">🧹 ล้างค่า LINE</button>
+          <button class="btn" id="lineStatusBtn">ℹ️ ดูสถานะ</button>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="mini muted">
+          วิธีลิงก์ (ครั้งแรกเท่านั้น): กดปุ่ม “ลิงก์กับ LINE” → ระบบคัดลอกข้อความ <b>LINK &lt;code&gt;</b> → เปิด LINE OA →
+          วาง (paste) และส่ง → กลับมาที่เว็บ กด “ทดสอบแจ้งเตือน”
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       NEW: Quick Link Popup
+       (กรณียังไม่ตั้งค่า/ยังไม่ลิงก์)
+       ========================= -->
+  <div class="modalBackdrop" id="lineQuickLinkBackdrop">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="row" style="gap:10px">
+          <span class="badge wait">LINE SETUP</span>
+          <span class="pill">เชื่อมต่อ OA</span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn" id="closeQuickLinkBtn" style="width:auto">✖</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="field">
+          <label>ตั้งชื่อ/โค้ด (เช่น PHANTOM1)</label>
+          <input id="quickLinkCodeInput" autocomplete="off" placeholder="PHANTOM1" />
+          <div class="mini muted">ระบบจะคัดลอก: <b>LINK &lt;โค้ด&gt;</b> ให้ทันที</div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="grid2">
+          <button class="btn primary" id="quickLinkGoBtn">คัดลอก “LINK …” & ไป LINE</button>
+          <button class="btn soft" id="quickLinkLaterBtn">ไว้ก่อน</button>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="mini muted">
+          หลังเปิด LINE OA แล้ว: วาง (paste) ข้อความที่คัดลอกไว้ → ส่ง → กลับมาเว็บแล้วกด “ทดสอบแจ้งเตือน”
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
 
     const LS = {
       timer910: "stl_timer910_state",
       alarm: "stl_alarm_state",
-      ui: "stl_ui_state"
+      ui: "stl_ui_state",
+
+      // =========================
+      // NEW (A): LINE schedule config (client-side only)
+      // =========================
+      line: "stl_line_schedule_cfg"
     };
 
     const state = {
@@ -894,6 +1002,17 @@
         source: { lastDownloadedTag:null, lastDownloadedAt:null }
       },
 
+      // =========================
+      // NEW (A): LINE schedule runtime
+      // =========================
+      line: {
+        enabled: false,
+        workerUrl: "https://phantom-selfie-line.surakiatforwork.workers.dev",
+        code: "",
+        lastScheduleKey: "",
+        lastStartDate: "" // YYYY-MM-DD (send start-day only once/day)
+      },
+
       tickInterval: null,
       toastTimer: null
     };
@@ -909,6 +1028,20 @@
         });
       }catch(_){
         return new Date(ts).toString();
+      }
+    }
+    function fmtDateOnly(ts){
+      if(!ts) return "-";
+      try{
+        return new Date(ts).toLocaleDateString("th-TH", {
+          year:"2-digit", month:"2-digit", day:"2-digit"
+        });
+      }catch(_){
+        const d = new Date(ts);
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth()+1).padStart(2,"0");
+        const dd = String(d.getDate()).padStart(2,"0");
+        return `${dd}/${mm}/${yy}`;
       }
     }
     function fmtTimeOnly(ts){
@@ -958,6 +1091,314 @@
         box.textContent = (line + "\n" + box.textContent).slice(0, 16000);
       }
       console.log(...args);
+    }
+
+    // =========================
+    // NEW (A): LINE schedule helpers
+    // =========================
+    function normalizeBaseUrl(u){
+      u = String(u || "").trim();
+      if(!u) return "";
+      if(u.endsWith("/")) u = u.slice(0,-1);
+      return u;
+    }
+
+    function loadLineCfg(){
+      const cfg = loadJSON(LS.line, null);
+      if(cfg && typeof cfg === "object"){
+        state.line.enabled = !!cfg.enabled;
+        state.line.workerUrl = cfg.workerUrl ? String(cfg.workerUrl) : state.line.workerUrl;
+        state.line.code = cfg.code ? String(cfg.code) : "";
+        state.line.lastScheduleKey = cfg.lastScheduleKey ? String(cfg.lastScheduleKey) : "";
+        state.line.lastStartDate = cfg.lastStartDate ? String(cfg.lastStartDate) : "";
+      }
+      state.line.workerUrl = normalizeBaseUrl(state.line.workerUrl);
+    }
+    function saveLineCfg(){
+      saveJSON(LS.line, {
+        enabled: state.line.enabled,
+        workerUrl: normalizeBaseUrl(state.line.workerUrl),
+        code: String(state.line.code || "").trim(),
+        lastScheduleKey: String(state.line.lastScheduleKey || ""),
+        lastStartDate: String(state.line.lastStartDate || "")
+      });
+    }
+
+    async function copyTextToClipboard(text){
+      text = String(text || "");
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      }catch(_){}
+      // fallback
+      try{
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      }catch(_){}
+      return false;
+    }
+
+    function openSettings(){
+      $("settingsBackdrop").classList.add("show");
+      syncLineUIFromState();
+    }
+    function closeSettings(){
+      $("settingsBackdrop").classList.remove("show");
+    }
+
+    function openQuickLink(prefill=""){
+      $("lineQuickLinkBackdrop").classList.add("show");
+      $("quickLinkCodeInput").value = String(prefill || state.line.code || "").trim();
+      setTimeout(()=> $("quickLinkCodeInput").focus(), 50);
+    }
+    function closeQuickLink(){
+      $("lineQuickLinkBackdrop").classList.remove("show");
+    }
+
+    function ensureLineReadyOrPrompt(){
+      const base = normalizeBaseUrl(state.line.workerUrl);
+      const code = String(state.line.code||"").trim();
+      if(!state.line.enabled) return false;
+      if(!base || !code){
+        openQuickLink(code);
+        return false;
+      }
+      return true;
+    }
+
+    async function linePost(path, payload, timeoutMs=8000){
+      const base = normalizeBaseUrl(state.line.workerUrl);
+      const url = base + path;
+
+      const ctrl = new AbortController();
+      const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+      try{
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify(payload || {}),
+          signal: ctrl.signal
+        });
+        const text = await res.text();
+        let json = null;
+        try{ json = JSON.parse(text); }catch(_){ json = { ok: res.ok, status: res.status, detail: text }; }
+        return { res, json };
+      }finally{
+        clearTimeout(t);
+      }
+    }
+
+    function isCodeNotLinkedError(json){
+      const msg = String((json && (json.error || json.detail || json.message)) || "").toLowerCase();
+      return msg.includes("not linked") || msg.includes("code not linked") || msg.includes("code not linked yet");
+    }
+
+    async function lineNotifyStartDayIfNeeded(){
+      // Only send when IN-1 is first-time downloaded AND once per local day
+      if(!state.line.enabled) return;
+      if(!ensureLineReadyOrPrompt()) return;
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth()+1).padStart(2,"0");
+      const dd = String(today.getDate()).padStart(2,"0");
+      const ymd = `${yyyy}-${mm}-${dd}`;
+
+      if(state.line.lastStartDate === ymd) return;
+
+      const code = String(state.line.code).trim();
+      const msg = `เริ่มงานวันนี้ ${fmtDateOnly(Date.now())}`;
+
+      try{
+        const { json } = await linePost("/notify", { code, message: msg }, 9000);
+        if(json && json.ok){
+          state.line.lastStartDate = ymd;
+          saveLineCfg();
+          log("LINE start-day sent:", msg);
+        }else{
+          log("LINE start-day failed:", json);
+          if(isCodeNotLinkedError(json)){
+            showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
+            openQuickLink(code);
+          }else{
+            showToast("ส่ง LINE ไม่สำเร็จ", (json && (json.error||json.detail)) ? String(json.error||json.detail).slice(0,160) : "ตรวจสอบ Worker/เน็ต", 5200);
+          }
+        }
+      }catch(e){
+        log("LINE notify error:", e && (e.name||e.message) ? (e.name||e.message) : e);
+        showToast("ส่ง LINE ไม่สำเร็จ", "เช็ค Worker URL/อินเทอร์เน็ต", 5200);
+      }
+    }
+
+    async function lineScheduleNextFromCurrentSchedule(reason=""){
+      // Send only when schedule exists and no error
+      if(!state.line.enabled) return;
+      if(!ensureLineReadyOrPrompt()) return;
+
+      const s = state.schedule;
+      if(!s || s.error || !s.nextAt || !s.nextTag) return;
+
+      const dueAtMs = Math.max(0, Math.round(s.nextAt));
+      const nextTag = String(s.nextTag);
+      const message = nextTag.startsWith("OUT-") ? "ครบเวลา Check Out แล้ว" : "ครบเวลา Check In แล้ว";
+      const scheduleKey = `${nextTag}@${dueAtMs}`;
+
+      // Dedup: prevent spamming worker if nothing changed
+      if(state.line.lastScheduleKey === scheduleKey) return;
+
+      const code = String(state.line.code).trim();
+      try{
+        const { json } = await linePost("/schedule", { code, dueAtMs, message, scheduleKey }, 9000);
+        if(json && json.ok){
+          state.line.lastScheduleKey = scheduleKey;
+          saveLineCfg();
+          log("LINE scheduled:", { scheduleKey, dueAtMs, message, reason });
+        }else{
+          log("LINE schedule failed:", json);
+          // revert dedup so next attempt can retry
+          state.line.lastScheduleKey = "";
+          saveLineCfg();
+
+          if(isCodeNotLinkedError(json)){
+            showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
+            openQuickLink(code);
+          }else{
+            showToast("ตั้งเวลา LINE ไม่สำเร็จ", (json && (json.error||json.detail)) ? String(json.error||json.detail).slice(0,160) : "ตรวจสอบ Worker", 5200);
+          }
+        }
+      }catch(e){
+        log("LINE schedule error:", e && (e.name||e.message) ? (e.name||e.message) : e);
+        // allow retry next time
+        state.line.lastScheduleKey = "";
+        saveLineCfg();
+        showToast("ตั้งเวลา LINE ไม่สำเร็จ", "เช็ค Worker URL/อินเทอร์เน็ต", 5200);
+      }
+    }
+
+    async function lineCancelSchedule(reason=""){
+      if(!state.line.enabled) return;
+      const base = normalizeBaseUrl(state.line.workerUrl);
+      const code = String(state.line.code||"").trim();
+      if(!base || !code) return;
+      try{
+        const { json } = await linePost("/cancel", { code }, 9000);
+        log("LINE cancel:", reason, json);
+      }catch(e){
+        log("LINE cancel error:", e && (e.name||e.message) ? (e.name||e.message) : e);
+      }finally{
+        state.line.lastScheduleKey = "";
+        saveLineCfg();
+      }
+    }
+
+    function syncLineUIFromState(){
+      $("lineEnableToggle").checked = !!state.line.enabled;
+      $("lineWorkerUrl").value = state.line.workerUrl || "";
+      $("lineCodeInput").value = state.line.code || "";
+    }
+
+    function syncLineStateFromUI(){
+      state.line.enabled = $("lineEnableToggle").checked;
+      state.line.workerUrl = normalizeBaseUrl($("lineWorkerUrl").value || "");
+      state.line.code = String($("lineCodeInput").value || "").trim();
+      saveLineCfg();
+    }
+
+    async function doLinkFlowFromSettings(){
+      syncLineStateFromUI();
+      openQuickLink(state.line.code);
+      closeSettings();
+    }
+
+    async function doQuickLinkCopyAndGo(){
+      const code = String($("quickLinkCodeInput").value || "").trim();
+      if(!code){
+        showToast("กรอกโค้ดก่อน", "เช่น PHANTOM1", 2500);
+        return;
+      }
+
+      // Save into LINE config (and enable automatically)
+      state.line.code = code;
+      if(!state.line.workerUrl) state.line.workerUrl = "https://phantom-selfie-line.surakiatforwork.workers.dev";
+      state.line.enabled = true;
+      saveLineCfg();
+
+      const script = `LINK ${code}`;
+      const ok = await copyTextToClipboard(script);
+
+      // Open OA link (user gesture)
+      try{
+        window.open("https://lin.ee/JAWNRsq", "_blank", "noopener,noreferrer");
+      }catch(_){}
+
+      closeQuickLink();
+      showToast(
+        ok ? "คัดลอกแล้ว ✅" : "คัดลอกไม่สำเร็จ",
+        ok ? `ไปที่ LINE แล้ววาง/ส่ง: ${script}` : `กรุณาคัดลอกเอง: ${script}`,
+        6500
+      );
+    }
+
+    async function doLineTest(){
+      syncLineStateFromUI();
+      if(!ensureLineReadyOrPrompt()) return;
+
+      const code = String(state.line.code).trim();
+      try{
+        const { json } = await linePost("/notify", { code, message: "ทดสอบการแจ้งเตือนจาก Selfie Logger" }, 9000);
+        if(json && json.ok){
+          showToast("ส่งทดสอบแล้ว ✅", "เช็ค LINE ของคุณ", 3500);
+        }else{
+          log("LINE test failed:", json);
+          if(isCodeNotLinkedError(json)){
+            showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
+            openQuickLink(code);
+          }else{
+            showToast("ทดสอบไม่สำเร็จ", (json && (json.error||json.detail)) ? String(json.error||json.detail).slice(0,160) : "ตรวจสอบ Worker", 5200);
+          }
+        }
+      }catch(e){
+        log("LINE test error:", e && (e.name||e.message) ? (e.name||e.message) : e);
+        showToast("ทดสอบไม่สำเร็จ", "เช็ค Worker URL/อินเทอร์เน็ต", 5200);
+      }
+    }
+
+    async function doLineStatus(){
+      syncLineStateFromUI();
+      const base = normalizeBaseUrl(state.line.workerUrl);
+      const code = String(state.line.code||"").trim();
+      if(!base || !code){
+        showToast("ยังไม่ตั้งค่า", "กรอก Worker URL และ Code ก่อน", 3500);
+        return;
+      }
+      try{
+        const url = base + "/status?code=" + encodeURIComponent(code);
+        const res = await fetch(url, { method:"GET" });
+        const txt = await res.text();
+        let json = null;
+        try{ json = JSON.parse(txt); }catch(_){}
+        if(json){
+          showToast("STATUS", `ok=${json.ok} • alarmAt=${json.alarmAt ? fmtDT(json.alarmAt) : "-"}`, 6500);
+          log("LINE status:", json);
+        }else{
+          showToast("STATUS", txt.slice(0,160), 6500);
+          log("LINE status raw:", txt);
+        }
+      }catch(e){
+        showToast("STATUS ไม่สำเร็จ", "เช็ค Worker URL", 4500);
+        log("LINE status error:", e);
+      }
     }
 
     function parseTag(tag){
@@ -1335,6 +1776,7 @@
       state.timer910 = { running:true, locked:true, startAt, targetAt };
       saveTimer910();
       log("Timer start", fmtDT(startAt), "->", fmtDT(targetAt));
+      // NOTE (A): ยังไม่ schedule LINE ตอนเริ่มนับ — จะ schedule เมื่อ “กดดาวน์โหลด” เท่านั้น
     }
 
     function resetTimer910ToReady(){
@@ -1346,6 +1788,9 @@
       saveJSON(LS.alarm, state.alarm);
       stopAlarmTimeout();
       hideToast();
+
+      // NEW (A): cancel LINE schedule when reset
+      void lineCancelSchedule("timer reset");
 
       log("Timer reset -> READY");
     }
@@ -1771,13 +2216,28 @@
         URL.revokeObjectURL(url);
       }
 
-      if(photo.downloaded !== 1){
+      const wasFirstTime = (photo.downloaded !== 1);
+
+      if(wasFirstTime){
         const t = now();
         await dbUpdatePhoto(photo.id, { downloaded: 1, downloadedAt: t });
         photo.downloaded = 1;
         photo.downloadedAt = t;
         log("Marked downloaded (first time):", photo.tag);
+
+        // Re-render first (so state.schedule updated)
         heavyRender();
+
+        // =========================
+        // NEW (A): LINE integration
+        // - send start-day when IN-1 first download of day
+        // - schedule next due time via Worker schedule (override)
+        // =========================
+        if(photo.tag === "IN-1"){
+          void lineNotifyStartDayIfNeeded();
+        }
+        // schedule ONLY when timer is running and schedule is valid
+        void lineScheduleNextFromCurrentSchedule("first-time download");
       }else{
         log("Downloaded again:", photo.tag);
       }
@@ -1838,7 +2298,7 @@
         await dbClearAll();
         revokeAllThumbs();
         state.photos = [];
-        resetTimer910ToReady();
+        resetTimer910ToReady(); // includes LINE cancel
         setSaveState("ลบแล้ว ✅", "ok");
         setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
       }catch(e){
@@ -2356,6 +2816,9 @@
       loadTimer910();
       loadAlarmState();
 
+      // NEW (A): load LINE config
+      loadLineCfg();
+
       await initDB();
       await refresh();
 
@@ -2410,6 +2873,66 @@
       $("requestNotifBtn").onclick = requestNotificationPermission;
       $("testBeepBtn").onclick = ()=> beepSoft();
 
+      // =========================
+      // NEW (A): Settings / LINE UI events
+      // =========================
+      $("openSettingsBtn").onclick = openSettings;
+      $("closeSettingsBtn").onclick = closeSettings;
+      $("settingsBackdrop").addEventListener("click", (e)=>{
+        if(e.target === $("settingsBackdrop")) closeSettings();
+      });
+
+      $("lineEnableToggle").addEventListener("change", async ()=>{
+        syncLineStateFromUI();
+        // If enabled but no config -> prompt
+        if(state.line.enabled){
+          if(!state.line.code || !state.line.workerUrl){
+            openQuickLink(state.line.code);
+          }
+        }else{
+          // disabled => cancel schedule
+          await lineCancelSchedule("disabled");
+        }
+      });
+
+      $("lineWorkerUrl").addEventListener("change", ()=>{
+        syncLineStateFromUI();
+      });
+      $("lineCodeInput").addEventListener("change", ()=>{
+        syncLineStateFromUI();
+      });
+
+      $("lineLinkBtn").onclick = doLinkFlowFromSettings;
+      $("lineTestBtn").onclick = doLineTest;
+      $("lineClearBtn").onclick = async ()=>{
+        const ok = confirm("ล้างค่า LINE ทั้งหมด?\n(ปิดสวิตช์/ล้าง Code/ล้าง Worker URL)");
+        if(!ok) return;
+        // cancel before clear (best effort)
+        await lineCancelSchedule("clear");
+        state.line.enabled = false;
+        state.line.code = "";
+        state.line.workerUrl = "https://phantom-selfie-line.surakiatforwork.workers.dev";
+        state.line.lastScheduleKey = "";
+        // keep lastStartDate optional
+        saveLineCfg();
+        syncLineUIFromState();
+        showToast("ล้างค่าแล้ว ✅", "ตั้งค่าใหม่ได้เลย", 3000);
+      };
+      $("lineStatusBtn").onclick = doLineStatus;
+
+      // quick link modal events
+      $("closeQuickLinkBtn").onclick = closeQuickLink;
+      $("quickLinkLaterBtn").onclick = closeQuickLink;
+      $("quickLinkGoBtn").onclick = doQuickLinkCopyAndGo;
+      $("lineQuickLinkBackdrop").addEventListener("click", (e)=>{
+        if(e.target === $("lineQuickLinkBackdrop")) closeQuickLink();
+      });
+
+      // Auto prompt if enabled but missing
+      if(state.line.enabled && (!state.line.code || !state.line.workerUrl)){
+        openQuickLink(state.line.code);
+      }
+
       $("logToggle").addEventListener("change", ()=>{
         state.ui.logEnabled = $("logToggle").checked;
         $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
@@ -2445,7 +2968,7 @@
       setSaveState("พร้อมใช้งาน", "wait");
       heavyRender();
 
-      log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
+      log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag(), "LINE enabled=", state.line.enabled);
     }
 
     window.addEventListener("beforeunload", ()=> revokeAllThumbs());
