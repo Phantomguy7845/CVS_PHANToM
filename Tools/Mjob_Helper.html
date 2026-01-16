@@ -321,17 +321,26 @@
       .topRight{ gap:8px; }
     }
 
-    /* header status: 1 line, no horizontal scroll */
-    .statusGrid{
+    /* Header status: 2 lines
+       Line1: Next + DownloadNext button
+       Line2: เวลา + อีก (big) */
+    .headerLine1{
       display:grid;
-      grid-template-columns: 1.2fr .9fr .9fr;
+      grid-template-columns: minmax(110px, 140px) 1fr;
       gap: 8px;
       align-items: stretch;
     }
+    .headerLine2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
     .statusPill{
       width: 100%;
       justify-content: space-between;
-      padding: clamp(5px, 1.5vw, 6px) clamp(8px, 2vw, 10px);
+      padding: clamp(6px, 1.7vw, 8px) clamp(10px, 2.4vw, 12px);
       font-size: clamp(11px, 3.1vw, 12px);
     }
     .statusPill b{
@@ -343,6 +352,26 @@
       font-size: clamp(10px, 2.9vw, 11px);
       color: var(--muted2);
       font-weight: 900;
+    }
+
+    /* BIG emphasis for เวลา/อีก */
+    .bigStat{
+      padding: clamp(8px, 2vw, 10px) clamp(12px, 2.6vw, 14px);
+    }
+    .bigStat b{
+      font-size: clamp(18px, 5.6vw, 22px);
+      letter-spacing: .2px;
+    }
+    .bigStat .k{
+      font-size: clamp(10px, 3vw, 11px);
+    }
+
+    .headerDlBtn{
+      min-height: 44px;
+      font-size: clamp(13px, 3.4vw, 14px);
+      font-weight: 900;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 22px rgba(14,42,35,.12);
     }
 
     .warnLine{
@@ -613,19 +642,24 @@
           <div class="topTitle">Selfie + Time Logger</div>
           <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
           <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
-          <span class="badge" id="a2MiniBadge" style="display:none">📅A2</span>
         </div>
 
-        <div class="statusGrid" id="headerStatusGrid">
+        <!-- Line 1: Next + DownloadNext -->
+        <div class="headerLine1">
           <div class="pill statusPill">
             <span class="k">Next</span>
             <b id="headerNextText">-</b>
           </div>
-          <div class="pill statusPill">
+          <button class="btn primary headerDlBtn" id="downloadNextBtn">⬇ โหลดภาพถัดไป</button>
+        </div>
+
+        <!-- Line 2: เวลา + อีก (BIG) -->
+        <div class="headerLine2">
+          <div class="pill statusPill bigStat">
             <span class="k">เวลา</span>
             <b id="headerWhenText">-</b>
           </div>
-          <div class="pill statusPill">
+          <div class="pill statusPill bigStat">
             <span class="k">อีก</span>
             <b id="headerCountdownText">-</b>
           </div>
@@ -634,14 +668,13 @@
         <div class="warnLine" id="headerWarnLine">⚠ -</div>
 
         <div class="mini muted" id="headerHint">
-          * เว็บไม่การันตีปลุกนอก Chrome • เปิด “A2 (.ics)” แล้วกดปุ่ม 📅 เพื่อให้ OS/Calendar เตือนแทน
+          * ปลุกนอก Chrome ไม่การันตี • ใช้ปุ่ม “⬇ โหลดภาพถัดไป” เพื่อทำงานเร็วขึ้น
         </div>
       </div>
 
       <div class="topRight">
         <button class="btn primary topBtn" id="openCameraBtn" title="เปิดกล้องเซลฟี่">📷</button>
         <button class="btn soft topBtn" id="uploadBtn" title="อัปโหลดจากแกลเลอรี่">🖼️</button>
-        <button class="btn topBtn" id="a2Btn" title="A2: สร้างไฟล์ .ics เพื่อเพิ่ม Reminder ลงปฏิทิน">📅</button>
         <button class="btn topBtn" id="openDrawerBtn" title="ดูรายการ Downloaded">✅</button>
       </div>
     </div>
@@ -706,49 +739,6 @@
             <div style="font-weight:900;font-size:13px">เปิด Log panel</div>
             <div class="mini muted">ใช้ debug บนมือถือ</div>
           </div>
-        </div>
-
-        <div class="switch">
-          <input type="checkbox" id="a2Toggle" />
-          <div>
-            <div style="font-weight:900;font-size:13px">A2: สร้าง Reminder เป็นไฟล์ .ics</div>
-            <div class="mini muted">กดปุ่ม “📅” เพื่อเพิ่ม/อัปเดตอีเวนต์ใน Calendar</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="a2Config" class="card" style="margin:12px 0 0; box-shadow:none; display:none">
-        <div class="row spread">
-          <div class="row" style="gap:8px">
-            <span class="badge" id="a2StatusBadge">📅 ปิด</span>
-            <span class="pill" id="a2UidPill">UID: -</span>
-            <span class="pill" id="a2LastPill">last: -</span>
-          </div>
-          <div class="row" style="gap:8px">
-            <button class="btn soft btnMini" id="a2CreateBtn" style="width:auto">📅 สร้าง/อัปเดต .ics</button>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <div class="grid2">
-          <div class="field">
-            <label>Reminder type</label>
-            <select id="a2RemindMode">
-              <option value="popup">Popup (แนะนำ)</option>
-              <option value="both">Popup + Email (บางเครื่องอาจไม่ใช้)</option>
-            </select>
-            <div class="mini muted">เราใส่ VALARM ให้: เตือนทันทีเมื่อถึงเวลา</div>
-          </div>
-          <div class="field">
-            <label>โซนเวลา</label>
-            <input id="a2TzInput" value="Asia/Bangkok" />
-            <div class="mini muted">ปกติไทยใช้ Asia/Bangkok</div>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <div class="mini muted">
-          * หมายเหตุ: บางแอป Calendar อาจ “เพิ่มซ้อน” เมื่อ import ใหม่ แม้ UID เดิม (ขึ้นกับเครื่อง) — เราลดโอกาสซ้อนโดยสร้างใหม่เฉพาะตอนเวลาเปลี่ยนจริง
         </div>
       </div>
 
@@ -870,8 +860,7 @@
     const LS = {
       timer910: "stl_timer910_state",
       alarm: "stl_alarm_state",
-      ui: "stl_ui_state",
-      a2: "stl_a2_state"
+      ui: "stl_ui_state"
     };
 
     const state = {
@@ -903,17 +892,6 @@
         nextAt:null,
         planAtById: new Map(),
         source: { lastDownloadedTag:null, lastDownloadedAt:null }
-      },
-
-      // A2: ICS state
-      a2: {
-        enabled:false,
-        tzid:"Asia/Bangkok",
-        remindMode:"popup",
-        uidBase:null,
-        sequence: 0,
-        lastDueAt:null,
-        lastTag:null,
       },
 
       tickInterval: null,
@@ -1369,13 +1347,6 @@
       stopAlarmTimeout();
       hideToast();
 
-      // reset A2 uidBase (new round/day)
-      state.a2.uidBase = null;
-      state.a2.sequence = 0;
-      state.a2.lastDueAt = null;
-      state.a2.lastTag = null;
-      saveA2State();
-
       log("Timer reset -> READY");
     }
 
@@ -1386,7 +1357,6 @@
         return;
       }
 
-      const { downloaded } = computeCounts();
       const allowed = (!state.timer910.locked) || isUnlockWindowActive();
       if(!allowed) return;
 
@@ -1408,6 +1378,11 @@
       const bk = (String(b.kind).toUpperCase()==="IN") ? 0 : 1;
       return ak - bk;
     }
+    function getSortedPending(){
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      pending.sort(sortSlot);
+      return pending;
+    }
     function getLastDownloadedFirstTime(){
       const downloaded = state.photos.filter(p=>p.downloaded===1 && p.downloadedAt);
       if(!downloaded.length) return null;
@@ -1416,7 +1391,6 @@
     }
 
     // ===== schedule math (Exact fit to targetAt) =====
-    // rule: after IN gap 3..25 นาที, after OUT gap 4..30 นาที, and IN gap < OUT gap (best-effort)
     function minGapMinutes(kind){ return (kind==="IN") ? 3 : 4; }
     function maxGapMinutes(kind){ return (kind==="IN") ? 25 : 30; }
 
@@ -1472,7 +1446,6 @@
       return { ok:false, a:a0, b:bAdj };
     }
 
-    // adjust milliseconds to hit totalMs exactly (so last scheduled photo == targetAt)
     function distributeMsToMatchTotal(gapsMs, kinds, totalMs){
       let sum = gapsMs.reduce((s,x)=>s+x,0);
       let diff = totalMs - sum;
@@ -1547,9 +1520,6 @@
       let kinds = [];
       let intervals = 0;
 
-      // We schedule "dueAt" for each pending item in contiguous chain.
-      // If have last downloaded: chain length = intervals; dueAt_i = lastDownloadedAt + gap_i
-      // If no last downloaded: chain[0] dueAt = baseTime; next ones follow gaps between chain items.
       if(last){
         intervals = chain.length;
         const lastKind = (parseTag(last.tag)?.kind) || "IN";
@@ -1577,7 +1547,6 @@
       }
 
       if(totalMs > maxSum + 1){
-        // Not enough photos (or gaps too small) to reach target -> show missing
         sched.error = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
         const gapsMs = kinds.map(k => Math.round(maxGapMinutes(k)*60000));
         let t = baseTime;
@@ -1653,7 +1622,6 @@
       if(!abOk){
         sched.warn = "เฉลี่ยแบบ IN<OUT เป๊ะไม่ได้ (ใช้ค่าใกล้เคียง)";
       }
-      // show missing only when it's actually needed to reach target (handled above via maxSum)
       sched.ok = !sched.error;
       return sched;
     }
@@ -1809,18 +1777,35 @@
         photo.downloaded = 1;
         photo.downloadedAt = t;
         log("Marked downloaded (first time):", photo.tag);
-
         heavyRender();
-
-        // Hint user to use A2 for OS reminder
-        if(state.a2.enabled){
-          const s = state.schedule;
-          if(s && !s.error && s.nextAt && s.nextTag){
-            showToast("A2", "แตะปุ่ม 📅 เพื่อสร้าง Reminder ในปฏิทิน (เตือนนอก Chrome)", 4500);
-          }
-        }
       }else{
         log("Downloaded again:", photo.tag);
+      }
+    }
+
+    async function downloadNextFromHeader(){
+      const btn = $("downloadNextBtn");
+      const pending = getSortedPending();
+      if(!pending.length){
+        showToast("ยังไม่มี Pending", "ถ่าย/อัปโหลดรูปก่อน", 2500);
+        return;
+      }
+
+      // priority: if timer running & schedule ok => use schedule.nextTag
+      let chosen = null;
+      const s = state.schedule;
+      if(state.timer910.running && s && !s.error && s.nextTag){
+        chosen = pending.find(p=>p.tag === s.nextTag) || null;
+      }
+
+      // fallback: first pending by slot
+      if(!chosen) chosen = pending[0];
+
+      btn.disabled = true;
+      try{
+        await downloadPhoto(chosen);
+      }finally{
+        btn.disabled = false;
       }
     }
 
@@ -1839,260 +1824,6 @@
     function closeDrawer(){
       $("drawerBackdrop").classList.remove("show");
       $("drawer").classList.remove("show");
-    }
-
-    // ===== A2: ICS generation (Plan A) =====
-    // เป้าหมาย: ให้ OS/Calendar เป็นคนเตือนนอก Chrome (เสถียรกว่า)
-    // ข้อจำกัด: import ใหม่บางเครื่องอาจซ้อน; เราลดซ้อนด้วย UID เดิม + SEQUENCE และไม่สร้างถ้าเวลาไม่เปลี่ยน
-    function loadA2State(){
-      const a = loadJSON(LS.a2, null);
-      if(a && typeof a === "object"){
-        state.a2.enabled = !!a.enabled;
-        state.a2.tzid = a.tzid || "Asia/Bangkok";
-        state.a2.remindMode = a.remindMode || "popup";
-        state.a2.uidBase = a.uidBase || null;
-        state.a2.sequence = Number.isFinite(a.sequence) ? a.sequence : 0;
-        state.a2.lastDueAt = a.lastDueAt || null;
-        state.a2.lastTag = a.lastTag || null;
-      }
-    }
-    function saveA2State(){
-      saveJSON(LS.a2, {
-        enabled: state.a2.enabled,
-        tzid: state.a2.tzid,
-        remindMode: state.a2.remindMode,
-        uidBase: state.a2.uidBase,
-        sequence: state.a2.sequence,
-        lastDueAt: state.a2.lastDueAt,
-        lastTag: state.a2.lastTag,
-      });
-    }
-
-    function ymdKey(ts){
-      const d = new Date(ts);
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,"0");
-      const day = String(d.getDate()).padStart(2,"0");
-      return `${y}${m}${day}`;
-    }
-
-    function icsDateTimeLocalBasic(ts){
-      // YYYYMMDDTHHMMSS
-      const d = new Date(ts);
-      const pad = (n)=>String(n).padStart(2,"0");
-      return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    }
-
-    function icsEscape(text){
-      return String(text ?? "")
-        .replace(/\\/g, "\\\\")
-        .replace(/\n/g, "\\n")
-        .replace(/,/g, "\\,")
-        .replace(/;/g, "\\;");
-    }
-
-    function buildVTimezoneAsiaBangkok(){
-      // simple VTIMEZONE for Asia/Bangkok (no DST)
-      return [
-        "BEGIN:VTIMEZONE",
-        "TZID:Asia/Bangkok",
-        "X-LIC-LOCATION:Asia/Bangkok",
-        "BEGIN:STANDARD",
-        "TZOFFSETFROM:+0700",
-        "TZOFFSETTO:+0700",
-        "TZNAME:ICT",
-        "DTSTART:19700101T000000",
-        "END:STANDARD",
-        "END:VTIMEZONE"
-      ].join("\r\n");
-    }
-
-    function buildICS({ tzid, uid, sequence, dtStart, dtEnd, summary, description, remindMode }){
-      const dtstamp = icsDateTimeLocalBasic(now());
-      const lines = [];
-
-      lines.push("BEGIN:VCALENDAR");
-      lines.push("PRODID:-//PHANToM//SelfieTimeLogger//TH");
-      lines.push("VERSION:2.0");
-      lines.push("CALSCALE:GREGORIAN");
-      lines.push("METHOD:PUBLISH");
-
-      // timezone block (best compatibility)
-      if((tzid || "").toLowerCase() === "asia/bangkok"){
-        lines.push(buildVTimezoneAsiaBangkok());
-      }
-
-      lines.push("BEGIN:VEVENT");
-      lines.push(`UID:${icsEscape(uid)}`);
-      lines.push(`SEQUENCE:${Number(sequence)||0}`);
-      lines.push(`DTSTAMP:${dtstamp}`);
-      lines.push(`DTSTART;TZID=${icsEscape(tzid)}:${dtStart}`);
-      lines.push(`DTEND;TZID=${icsEscape(tzid)}:${dtEnd}`);
-      lines.push(`SUMMARY:${icsEscape(summary)}`);
-      lines.push(`DESCRIPTION:${icsEscape(description)}`);
-
-      // alarm (popup)
-      lines.push("BEGIN:VALARM");
-      lines.push("TRIGGER:-PT0M");
-      lines.push("ACTION:DISPLAY");
-      lines.push(`DESCRIPTION:${icsEscape(summary)}`);
-      lines.push("END:VALARM");
-
-      if(remindMode === "both"){
-        // OPTIONAL email alarm (may be ignored by some clients)
-        lines.push("BEGIN:VALARM");
-        lines.push("TRIGGER:-PT0M");
-        lines.push("ACTION:EMAIL");
-        lines.push(`DESCRIPTION:${icsEscape(summary)}`);
-        lines.push(`SUMMARY:${icsEscape(summary)}`);
-        lines.push("END:VALARM");
-      }
-
-      lines.push("END:VEVENT");
-      lines.push("END:VCALENDAR");
-
-      return lines.join("\r\n") + "\r\n";
-    }
-
-    function renderA2UI(){
-      $("a2Toggle").checked = state.a2.enabled;
-      $("a2Config").style.display = state.a2.enabled ? "" : "none";
-
-      $("a2RemindMode").value = state.a2.remindMode || "popup";
-      $("a2TzInput").value = state.a2.tzid || "Asia/Bangkok";
-
-      const mini = $("a2MiniBadge");
-      const badge = $("a2StatusBadge");
-
-      if(!state.a2.enabled){
-        badge.className = "badge";
-        badge.textContent = "📅 ปิด";
-        mini.style.display = "none";
-        $("a2UidPill").textContent = "UID: -";
-        $("a2LastPill").textContent = "last: -";
-        return;
-      }
-
-      mini.style.display = "";
-      mini.className = "badge ok";
-      mini.textContent = "📅A2";
-
-      const uid = getA2UidBase();
-      $("a2UidPill").textContent = `UID: ${uid || "-"}`;
-
-      if(state.a2.lastDueAt && state.a2.lastTag){
-        $("a2LastPill").textContent = `last: ${state.a2.lastTag} @ ${fmtTimeOnly(state.a2.lastDueAt)}`;
-      }else{
-        $("a2LastPill").textContent = "last: -";
-      }
-
-      const s = state.schedule;
-      if(!state.timer910.running){
-        badge.className = "badge wait";
-        badge.textContent = "📅 รอเริ่มนับเวลา";
-      }else if(s && s.error){
-        badge.className = "badge wait";
-        badge.textContent = "📅 รอข้อมูล";
-      }else if(s && s.nextAt && s.nextTag){
-        badge.className = "badge ok";
-        badge.textContent = "📅 พร้อมสร้าง .ics";
-      }else{
-        badge.className = "badge wait";
-        badge.textContent = "📅 รอข้อมูล";
-      }
-    }
-
-    function getA2UidBase(){
-      if(!state.a2.enabled) return null;
-      if(state.a2.uidBase) return state.a2.uidBase;
-
-      // create stable uid per "day/round" based on timer start date (so it won't mix across days)
-      if(state.timer910.startAt){
-        const key = ymdKey(state.timer910.startAt);
-        state.a2.uidBase = `stl-next-${key}@phantom-githubpages`;
-        saveA2State();
-        return state.a2.uidBase;
-      }
-      return null;
-    }
-
-    async function createA2IcsAndDownload(){
-      if(!state.a2.enabled){
-        showToast("A2", "เปิดสวิตช์ A2 ก่อน", 2500);
-        return;
-      }
-      if(!state.timer910.running || !state.timer910.targetAt){
-        showToast("A2", "เริ่มนับเวลาก่อน", 2500);
-        return;
-      }
-
-      const s = state.schedule;
-      if(!s || s.error || !s.nextAt || !s.nextTag){
-        showToast("A2", "ยังคำนวณเวลาไม่ได้ (รอข้อมูล)", 3000);
-        return;
-      }
-
-      const dueAt = s.nextAt;
-      const tag = s.nextTag;
-
-      // prevent needless duplicates if time unchanged
-      if(state.a2.lastDueAt === dueAt && state.a2.lastTag === tag){
-        showToast("A2", "เวลาเดิมอยู่แล้ว (ไม่สร้างซ้ำ)", 2500);
-        return;
-      }
-
-      const tzid = (state.a2.tzid || "Asia/Bangkok").trim();
-      const uid = getA2UidBase() || `stl-next@phantom-githubpages`;
-
-      state.a2.sequence = (state.a2.sequence || 0) + 1;
-      const seq = state.a2.sequence;
-
-      const dtStart = icsDateTimeLocalBasic(dueAt);
-      const dtEnd = icsDateTimeLocalBasic(dueAt + 5*60*1000); // 5 min
-
-      const summary = `STL Next: ${tag}`;
-      const description =
-        `Selfie Time Logger (A2 .ics)\n` +
-        `Next: ${tag}\n` +
-        `When: ${fmtDT(dueAt)}\n` +
-        `Target: ${fmtDT(state.timer910.targetAt)}\n` +
-        (s.warn ? `Warn: ${s.warn}\n` : "") +
-        `UID: ${uid}\n` +
-        `SEQ: ${seq}\n` +
-        `\n* หากเครื่องคุณ import แล้ว “ซ้อน” ให้ลบอีเวนต์เก่าใน Calendar ก่อน แล้วค่อย import ใหม่`;
-
-      const ics = buildICS({
-        tzid,
-        uid,
-        sequence: seq,
-        dtStart,
-        dtEnd,
-        summary,
-        description,
-        remindMode: state.a2.remindMode || "popup"
-      });
-
-      const fname = `STL_NEXT_${tag}.ics`;
-      const blob = new Blob([ics], { type:"text/calendar;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      try{
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fname;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }finally{
-        URL.revokeObjectURL(url);
-      }
-
-      state.a2.lastDueAt = dueAt;
-      state.a2.lastTag = tag;
-      saveA2State();
-
-      renderA2UI();
-      showToast("A2", "ดาวน์โหลด .ics แล้ว ✅ เปิดด้วย Calendar แล้วกด Save", 5200);
-      log("A2 ICS created", { tag, dueAt: fmtDT(dueAt), uid, seq });
     }
 
     // ===== delete all =====
@@ -2352,7 +2083,6 @@
         startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
       }
 
-      // lock behavior: start button becomes reset only when unlocked OR within 3s unlock window
       const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
       startBtn.disabled = state.timer910.running ? !canResetNow : false;
 
@@ -2361,7 +2091,6 @@
       unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
       if(!isUnlockWindowActive()) unlockBtn.textContent = "🔓";
 
-      // left time display
       if(state.timer910.running && state.timer910.targetAt){
         $("timerLeftPill").textContent = `เหลือ: ${fmtHMS(state.timer910.targetAt - now())}`;
       }else{
@@ -2378,7 +2107,23 @@
 
     function renderHeaderStatus(){
       const s = state.schedule;
-      $("headerNextText").textContent = s.nextTag || peekNextTag() || "-";
+
+      // Next text
+      const nextText = s.nextTag || peekNextTag() || "-";
+      $("headerNextText").textContent = nextText;
+
+      // DownloadNext button label + enable/disable
+      const pending = getSortedPending();
+      if(!pending.length){
+        $("downloadNextBtn").textContent = "⬇ โหลดภาพถัดไป";
+        $("downloadNextBtn").disabled = true;
+      }else{
+        let labelTag = null;
+        if(state.timer910.running && s && !s.error && s.nextTag) labelTag = s.nextTag;
+        else labelTag = pending[0].tag;
+        $("downloadNextBtn").textContent = labelTag ? `⬇ โหลด ${labelTag}` : "⬇ โหลดภาพถัดไป";
+        $("downloadNextBtn").disabled = false;
+      }
 
       if(!state.timer910.running){
         $("headerWhenText").textContent = "-";
@@ -2574,7 +2319,6 @@
       renderTimerPanel();
       renderAlarmPanel();
       renderLists();
-      renderA2UI();
 
       scheduleNextAlarmFromSchedule();
       fireAlarmIfNeeded(false);
@@ -2611,7 +2355,6 @@
       loadUIState();
       loadTimer910();
       loadAlarmState();
-      loadA2State();
 
       await initDB();
       await refresh();
@@ -2652,6 +2395,8 @@
         if(e.target === $("camModalBackdrop")) closeCamera();
       });
 
+      $("downloadNextBtn").onclick = downloadNextFromHeader;
+
       $("openDrawerBtn").onclick = openDrawer;
       $("closeDrawerBtn").onclick = closeDrawer;
       $("drawerBackdrop").onclick = closeDrawer;
@@ -2686,27 +2431,6 @@
         $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
       });
 
-      // A2 controls
-      $("a2Toggle").addEventListener("change", ()=>{
-        state.a2.enabled = $("a2Toggle").checked;
-        saveA2State();
-        renderA2UI();
-        measureBars();
-        showToast("A2", state.a2.enabled ? "เปิด A2 แล้ว ✅ แตะปุ่ม 📅 เพื่อสร้าง .ics" : "ปิด A2 แล้ว", 2800);
-      });
-
-      $("a2RemindMode").addEventListener("change", ()=>{
-        state.a2.remindMode = $("a2RemindMode").value;
-        saveA2State();
-      });
-      $("a2TzInput").addEventListener("input", ()=>{
-        state.a2.tzid = ($("a2TzInput").value || "Asia/Bangkok").trim();
-        saveA2State();
-      });
-
-      $("a2CreateBtn").onclick = createA2IcsAndDownload;
-      $("a2Btn").onclick = createA2IcsAndDownload;
-
       document.addEventListener("visibilitychange", ()=>{
         if(!document.hidden){
           measureBars();
@@ -2719,7 +2443,6 @@
       state.tickInterval = setInterval(lightTick, 1000);
 
       setSaveState("พร้อมใช้งาน", "wait");
-      renderA2UI();
       heavyRender();
 
       log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
