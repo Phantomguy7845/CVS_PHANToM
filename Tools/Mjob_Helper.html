@@ -3,2114 +3,2453 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#dff7ef" />
   <title>Selfie + Time Logger (Mint Light)</title>
 
-  <!-- Noto Sans Thai (optional) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <!-- Dexie CDN (fallback to native IndexedDB if Dexie fails) -->
+  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.min.js"></script>
 
   <style>
     :root{
       --bg:#f6fffb;
       --card:#ffffff;
       --line:#d7efe7;
-      --text:#0f2a2a;
-      --muted:#5f7a7a;
-      --muted2:#87a3a3;
-      --accent:#20c997;
-      --soft:#e8fff7;
+      --text:#0e2a23;
+      --muted:#557c72;
+      --muted2:#7aa39a;
+      --accent:#1fbf9a;
+      --soft:#e7fbf4;
       --warn:#ffb020;
       --danger:#ff4d4f;
-      --shadow:0 10px 30px rgba(16,65,58,.10);
+      --shadow:0 10px 28px rgba(14,42,35,.10);
       --radius:18px;
+
+      --stickH: 0px;
+      --topH: 0px;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
     body{
       margin:0;
       background:var(--bg);
       color:var(--text);
-      font-family: system-ui, -apple-system, "Noto Sans Thai", Segoe UI, Roboto, Arial, sans-serif;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
+      padding-top: calc(var(--topH) + 10px);
+      padding-bottom: calc(var(--stickH) + 12px);
     }
-    a{color:inherit}
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 14px 14px 90px;
-    }
+
+    .wrap{ max-width: 980px; margin: 0 auto; padding: 0 14px 24px; }
+    .mini{ font-size: 12px; color: var(--muted2); }
+    .muted{ color: var(--muted); }
+
     .card{
-      background:var(--card);
-      border:1px solid var(--line);
+      background: var(--card);
+      border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 14px;
       margin: 12px 0;
     }
-    .label{font-weight:800; letter-spacing:.2px}
-    .muted{color:var(--muted)}
-    .mini{font-size:12px}
-    .grid2{display:grid; gap:12px; grid-template-columns: 1fr}
-    .grid3{display:grid; gap:10px; grid-template-columns: 1fr}
-    @media(min-width: 760px){
-      .grid2{grid-template-columns: 1fr 1fr}
-      .grid3{grid-template-columns: 1fr 1fr 1fr}
+    .card h2{
+      margin:0 0 10px;
+      font-size: 14px;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .row.spread{ justify-content:space-between; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr; gap: 10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px){
+      .grid2{ grid-template-columns: 1fr 1fr; }
+      .grid3{ grid-template-columns: 1fr 1fr 1fr; }
     }
 
     .btn{
-      appearance:none;
-      border:1px solid var(--line);
-      background: #fff;
-      color:var(--text);
-      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
       padding: 12px 14px;
-      font-weight: 800;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 14px;
       cursor:pointer;
-      box-shadow: 0 8px 18px rgba(16,65,58,.08);
-      transition: transform .06s ease, filter .2s ease;
+      box-shadow: 0 8px 18px rgba(14,42,35,.10);
       user-select:none;
+      touch-action: manipulation;
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      gap:10px;
-      line-height:1;
+      gap:8px;
+      min-height: 44px;
+      width: 100%;
+      white-space: nowrap;
     }
-    .btn:active{transform: translateY(1px)}
-    .btn[disabled]{opacity:.55; cursor:not-allowed; filter:saturate(.5)}
+    .btn:active{ transform: translateY(1px); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+
     .btn.primary{
-      background: linear-gradient(180deg, #32e0b0, #17b98b);
-      border-color: rgba(0,0,0,.04);
-      color:#08312b;
+      background: linear-gradient(180deg, #26d7ae, #17b892);
+      border-color: rgba(0,0,0,.0);
+      color: #062a22;
     }
-    .btn.soft{
-      background: var(--soft);
-      border-color: var(--line);
-    }
-    .btn.danger{
-      background: #ffecee;
-      border-color: #ffd0d4;
-      color: #7a1112;
-    }
-    .btn.ghost{
-      background: transparent;
-      box-shadow:none;
-    }
+    .btn.soft{ background: var(--soft); border-color: #c8efe3; }
+    .btn.danger{ background: #fff1f1; border-color: #ffd1d1; color: #7c1313; }
+    .btn.warn{ background: #fff7e6; border-color: #ffe2ad; color: #7a4e00; }
 
     .pill{
       display:inline-flex;
       align-items:center;
       gap:8px;
-      padding:8px 10px;
+      padding: 6px 10px;
       border-radius: 999px;
-      border:1px solid var(--line);
-      background: #fff;
-      font-weight: 800;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
     }
+
     .badge{
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      padding:6px 10px;
+      padding: 4px 8px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: 900;
       border: 1px solid var(--line);
-      background: #fff;
-      white-space:nowrap;
+      background: #fbfffd;
+      white-space: nowrap;
     }
-    .badge.ok{background: var(--soft); border-color: var(--line); color:#0c4b3d}
-    .badge.wait{background:#fff6e6; border-color:#ffe2b1; color:#6a3b00}
-    .badge.err{background:#ffecee; border-color:#ffd0d4; color:#7a1112}
+    .badge.ok{ background: #e7fbf4; border-color:#bfeee0; color:#0b5f4a; }
+    .badge.wait{ background: #fff7e6; border-color:#ffe2ad; color:#7a4e00; }
+    .badge.err{ background: #fff1f1; border-color:#ffd1d1; color:#7c1313; }
 
-    .field{
-      border:1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px 12px;
-      outline:none;
-      width:100%;
-      font-size: 14px;
-      background:#fff;
-    }
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .row.nowrap{flex-wrap:nowrap}
-    .spacer{flex:1}
-    .hr{height:1px; background:var(--line); margin:10px 0}
-
-    /* switch */
     .switch{
       display:flex;
       align-items:center;
       gap:10px;
-      padding:12px;
-      border-radius: 16px;
-      border:1px solid var(--line);
-      background:#fff;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      padding: 10px 12px;
+      border-radius: 14px;
     }
-    .switch input{width:22px; height:22px}
+    .switch input{ width: 22px; height: 22px; }
 
-    /* HEADER (fixed) */
-    header.top{
+    .field{
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      border-radius: 14px;
+      padding: 10px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .field label{
+      font-size:12px;
+      font-weight:900;
+      color: var(--muted);
+    }
+    .field input, .field select{
+      border:none;
+      outline:none;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      padding: 0;
+      width: 100%;
+    }
+
+    .progressWrap{
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: #eaf8f2;
+      border: 1px solid #cfeee4;
+      overflow:hidden;
+    }
+    .progressBar{
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #26d7ae, #17b892);
+      border-radius: 999px;
+      transition: width .25s ease;
+    }
+
+    .list{ display:flex; flex-direction:column; gap:10px; }
+
+    .photoItem{
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #fbfffd;
+      border-radius: 16px;
+    }
+    .thumb{
+      width: 92px;
+      height: 92px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      object-fit: cover;
+      background: #0b1d18;
+    }
+    .info{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+    .metaTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .metaLine{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .timeText{ font-size: 12px; color: var(--muted); }
+
+    .timeUseRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .recoText{
+      font-size: 12px;
+      color: #0b5f4a;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .recoText.muted{ color: var(--muted2); font-weight: 800; }
+    .recoText.late{ color:#7c1313; }
+
+    .btnMini{
+      width:auto;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: none;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+    .actions .btn{ padding: 10px 12px; min-height: 40px; font-size: 13px; }
+
+    .spin{
+      width: 14px; height:14px;
+      border: 2px solid #cfeee4;
+      border-top-color: #1fbf9a;
+      border-radius: 999px;
+      display:inline-block;
+      animation: spin 1s linear infinite;
+      vertical-align:-2px;
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    .topBar{
       position: fixed;
-      top:0;
-      left:0;
-      right:0;
-      z-index: 20;
-      background: rgba(246,255,251,.86);
+      left:0; right:0; top:0;
+      z-index: 70;
+      padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+      background: rgba(246,255,251,.92);
       backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(215,239,231,.85);
+      border-bottom: 1px solid var(--line);
     }
     .topInner{
       max-width: 980px;
       margin: 0 auto;
-      padding: 10px 14px 12px;
-    }
-    .titleRow{
       display:flex;
-      gap:10px;
-      align-items:center;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
     }
-    .title{
-      font-weight: 900;
-      font-size: 20px;
-    }
-    .headActions{
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .iconBtn{
-      width:46px;
-      height:46px;
-      border-radius: 999px;
-      border:1px solid var(--line);
-      background:#fff;
-      box-shadow: var(--shadow);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      user-select:none;
-    }
-    .iconBtn.primary{
-      background: linear-gradient(180deg, #32e0b0, #17b98b);
-      border-color: rgba(0,0,0,.04);
-    }
-    .iconBtn span{font-size:18px}
-    .headerBlock{
-      margin-top:10px;
-      padding: 10px;
-      border-radius: 18px;
-      border:1px solid var(--line);
-      background: #fff;
-      box-shadow: var(--shadow);
-    }
-
-    /* Header rows */
-    .nextRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-    }
-    .nextPill{
-      min-width: 140px;
-      justify-content: space-between;
-      flex: 0 0 auto;
-    }
-    .nextBtn{
+    .topLeft{
+      min-width:0;
       flex: 1 1 auto;
-      height: 44px;
-      border-radius: 999px;
-      font-weight: 900;
-      font-size: 15px;
-    }
-    .timeRow{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:10px;
-    }
-    .timeBox{
-      padding: 10px 12px;
-      border-radius: 16px;
-      border:1px solid var(--line);
-      background: var(--soft);
       display:flex;
       flex-direction:column;
-      gap:4px;
-      min-height: 66px;
-      justify-content:center;
+      gap: 8px;
     }
-    .timeBox .k{font-size: 12px; font-weight: 900; color: var(--muted)}
-    .timeBox .v{
-      font-size: 26px;
-      font-weight: 900;
-      letter-spacing:.3px;
-      line-height: 1.05;
-      color: #053a31;
-    }
-    .timeBox .sub{font-size: 12px; color: var(--muted)}
-    .subline{
-      margin-top:8px;
-      font-size: 12px;
-      color: var(--muted);
+    .topTitleRow{
       display:flex;
-      gap:10px;
+      align-items:center;
+      gap:8px;
       flex-wrap:wrap;
     }
-
-    /* photo list */
-    .photoList{display:grid; grid-template-columns: 1fr; gap:10px}
-    @media(min-width: 760px){ .photoList{grid-template-columns: 1fr 1fr} }
-
-    .photoCard{
-      border:1px solid var(--line);
-      border-radius: 16px;
-      background:#fff;
-      padding:10px;
-      display:grid;
-      grid-template-columns: 92px 1fr;
+    .topTitle{
+      font-weight: 900;
+      letter-spacing: .2px;
+      font-size: 16px;
+      line-height: 1.1;
+      margin:0;
+    }
+    .topRight{
+      flex: 0 0 auto;
+      display:flex;
       gap:10px;
-      align-items: start;
+      align-items:stretch;
     }
-    .thumb{
-      width:92px; height:92px;
-      border-radius: 14px;
-      border:1px solid var(--line);
-      background: #f3fffa;
-      overflow:hidden;
-      display:flex; align-items:center; justify-content:center;
+    .topBtn{
+      width:auto;
+      min-width: 54px;
+      padding: 10px 12px;
+      min-height: 44px;
+      box-shadow: 0 8px 18px rgba(14,42,35,.08);
     }
-    .thumb img{width:100%; height:100%; object-fit: cover}
-    .metaTop{
-      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    @media (max-width: 380px){
+      .topBtn{ min-width: 48px; padding: 10px 10px; }
+      .topTitle{ font-size: 15px; }
+      .topRight{ gap:8px; }
     }
-    .metaLine{
-      margin-top:6px;
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      color: var(--muted);
-      font-size:12px;
-    }
-    .metaLine strong{color: var(--text)}
-    .actions{
-      margin-top:10px;
-      display:flex; gap:10px; flex-wrap:wrap;
-    }
-    .btn.small{
-      padding:10px 12px;
-      border-radius: 12px;
-      font-weight: 900;
-      font-size: 13px;
-    }
-    .editMini{
-      margin-left:auto;
-      padding:8px 10px;
-      border-radius: 999px;
-      border:1px solid var(--line);
-      background:#fff;
-      font-weight: 900;
-      font-size: 12px;
-      box-shadow:none;
-      cursor:pointer;
-      display:inline-flex;
-      gap:6px;
-      align-items:center;
-    }
-    .editMini:active{transform: translateY(1px)}
 
-    /* Sticky Bar */
+    /* Header status: 2 lines
+       Line1: Next + DownloadNext button
+       Line2: เวลา + อีก (big) */
+    .headerLine1{
+      display:grid;
+      grid-template-columns: minmax(110px, 140px) 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .headerLine2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .statusPill{
+      width: 100%;
+      justify-content: space-between;
+      padding: clamp(6px, 1.7vw, 8px) clamp(10px, 2.4vw, 12px);
+      font-size: clamp(11px, 3.1vw, 12px);
+    }
+    .statusPill b{
+      font-weight: 900;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .statusPill .k{
+      font-size: clamp(10px, 2.9vw, 11px);
+      color: var(--muted2);
+      font-weight: 900;
+    }
+
+    /* BIG emphasis for เวลา/อีก */
+    .bigStat{
+      padding: clamp(8px, 2vw, 10px) clamp(12px, 2.6vw, 14px);
+    }
+    .bigStat b{
+      font-size: clamp(18px, 5.6vw, 22px);
+      letter-spacing: .2px;
+    }
+    .bigStat .k{
+      font-size: clamp(10px, 3vw, 11px);
+    }
+
+    .headerDlBtn{
+      min-height: 44px;
+      font-size: clamp(13px, 3.4vw, 14px);
+      font-weight: 900;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 22px rgba(14,42,35,.12);
+    }
+
+    .warnLine{
+      display:none;
+      font-size: 12px;
+      font-weight: 900;
+      color: #7c1313;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .stickyBar{
       position: fixed;
-      left:0; right:0; bottom:0;
-      z-index: 30;
+      left: 0; right: 0; bottom: 0;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
       background: rgba(246,255,251,.92);
       backdrop-filter: blur(10px);
-      border-top: 1px solid rgba(215,239,231,.85);
-      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--line);
+      z-index: 60;
     }
     .stickyInner{
       max-width: 980px;
       margin: 0 auto;
-      display:flex;
+      display:grid;
+      grid-template-columns: 1fr auto auto;
       gap:10px;
-      align-items: stretch;
+      align-items:stretch;
     }
-    .btnBigStart{
-      flex: 1 1 auto;
-      height: 52px;
-      border-radius: 18px;
+    .stickyInner .btn.bigPrimary{
+      min-height: 56px;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 22px rgba(14,42,35,.14);
+    }
+    .btn.square{
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      padding: 0;
+      border-radius: 16px;
       font-size: 18px;
       font-weight: 900;
-      letter-spacing:.2px;
+      box-shadow: 0 10px 22px rgba(14,42,35,.10);
     }
-    .squareBtn{
-      width: 52px;
-      height: 52px;
-      border-radius: 18px;
-      padding:0;
-      font-size: 18px;
-      font-weight: 900;
+    @media (max-width: 420px){
+      .stickyInner{ gap:8px; }
+      .btn.square{ width: 52px; height: 52px; min-width:52px; min-height:52px; border-radius: 14px; }
+      .stickyInner .btn.bigPrimary{ min-height: 52px; font-size: 16px; }
     }
 
-    /* modal */
+    .toastWrap{
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(var(--stickH) + 12px);
+      z-index: 120;
+      display:none;
+      pointer-events: none;
+    }
+    .toastWrap.show{ display:block; }
+    .toastCard{
+      pointer-events: auto;
+      max-width: 520px;
+      margin: 0 auto;
+      background: #fbfffd;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .toastText{
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 900;
+      color: #1f4a3f;
+    }
+    .toastSub{
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    .toastBtn{
+      width:auto;
+      min-height: 38px;
+      padding: 8px 10px;
+      box-shadow:none;
+    }
+
+    .drawerBackdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 34, 28, .25);
+      display:none;
+      z-index: 95;
+    }
+    .drawerBackdrop.show{ display:block; }
+    .drawer{
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      transform: translateY(105%);
+      transition: transform .22s ease;
+      z-index: 100;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    }
+    .drawer.show{ transform: translateY(0%); }
+    .drawerPanel{
+      max-width: 980px;
+      margin: 0 auto;
+      background: rgba(246,255,251,.96);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      max-height: 76vh;
+      display:flex;
+      flex-direction:column;
+    }
+    .drawerHeader{
+      padding: 12px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfffd;
+    }
+    .drawerBody{
+      padding: 12px 14px 14px;
+      overflow:auto;
+    }
+
     .modalBackdrop{
       position: fixed;
       inset: 0;
-      background: rgba(5,30,26,.45);
-      z-index: 60;
+      background: rgba(12, 34, 28, .45);
       display:none;
       align-items:center;
       justify-content:center;
-      padding: 14px;
+      padding: 16px;
+      z-index: 110;
     }
-    .modalBackdrop.show{display:flex}
+    .modalBackdrop.show{ display:flex; }
     .modal{
-      width: min(980px, 100%);
-      max-height: min(86vh, 900px);
-      overflow:auto;
-      background: #fff;
-      border:1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.22);
-      padding: 14px;
+      width: 100%;
+      max-width: 680px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
     }
     .modalHeader{
+      padding: 12px 14px;
       display:flex;
-      gap:10px;
-      align-items:center;
-    }
-    .modalTitle{font-weight: 900; font-size: 16px}
-    .toast{
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 82px;
-      z-index: 90;
-      background: #0b3b33;
-      color:#eafff7;
-      padding: 10px 12px;
-      border-radius: 999px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.18);
-      font-weight: 900;
-      font-size: 13px;
-      display:none;
-      max-width: calc(100vw - 24px);
-      white-space: nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-    }
-    .toast.show{display:block}
-
-    /* camera */
-    .camWrap{
-      border:1px solid var(--line);
-      border-radius: 18px;
-      background: #0a2f29;
-      overflow:hidden;
-      position: relative;
-      box-shadow: var(--shadow);
-    }
-    video{
-      width: 100%;
-      height: auto;
-      display:block;
-      transform-origin:center;
-      background:#05211d;
-    }
-    .camBar{
-      display:flex;
-      gap:10px;
       align-items:center;
       justify-content:space-between;
-      padding:10px;
-      background: rgba(255,255,255,.08);
-      color:#eafff7;
+      gap:10px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfffd;
+    }
+    .modalHeader .row{ flex-wrap:nowrap; }
+    .modalBody{ padding: 12px 14px 14px; }
+
+    .viewfinderWrap{
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #061a15;
+      overflow:hidden;
+      position: relative;
+      aspect-ratio: 3 / 4;
+    }
+    video#camVideo{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      transform: none;
+    }
+    video#camVideo.mirror{ transform: scaleX(-1); }
+    .vfOverlay{
       position:absolute;
-      left:0; right:0; bottom:0;
-      backdrop-filter: blur(6px);
-    }
-    .camBar .mini{color:#d8fff3}
-    .camBtn{
-      border:1px solid rgba(255,255,255,.25);
-      background: rgba(255,255,255,.10);
-      color:#eafff7;
-      border-radius: 14px;
-      height: 44px;
-      padding: 0 12px;
-      font-weight: 900;
-      cursor:pointer;
-    }
-    .camBtn:active{transform: translateY(1px)}
-    .camBtn.primary{
-      background: linear-gradient(180deg, rgba(50,224,176,.96), rgba(23,185,139,.92));
-      color:#05211d;
-      border-color: rgba(0,0,0,.12);
+      inset:0;
+      pointer-events:none;
+      border: 1px solid rgba(255,255,255,.08);
     }
 
-    /* collapsible */
-    .collapseHead{
+    .camHUD{
+      position:absolute;
+      left:10px; right:10px;
+      top:10px;
       display:flex;
-      align-items:center;
+      justify-content:space-between;
       gap:10px;
-      cursor:pointer;
-      user-select:none;
+      pointer-events:none;
+      z-index: 3;
     }
-    .chev{
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      border:1px solid var(--line);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#fff;
+    .camHUD .pill{
+      background: rgba(251,255,253,.92);
+      border-color: rgba(215,239,231,.95);
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      color: #1f4a3f;
+      pointer-events:none;
+    }
+    .camToast{
+      position:absolute;
+      left:10px; right:10px;
+      bottom:10px;
+      display:none;
+      z-index: 3;
+    }
+    .camToast.show{ display:block; }
+    .camToastInner{
+      background: rgba(231,251,244,.92);
+      border: 1px solid rgba(191,238,224,.95);
+      color:#0b5f4a;
+      border-radius: 16px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
       font-weight: 900;
+      font-size: 13px;
+      line-height: 1.25;
     }
-    .collapseBody{
-      overflow:hidden;
-      max-height: 0;
-      transition: max-height .25s ease;
+    .camFlash{
+      position:absolute;
+      inset:0;
+      background: rgba(255,255,255,.0);
+      z-index: 4;
+      pointer-events:none;
+      transition: background .15s ease;
     }
-    .collapseBody.open{
-      max-height: 2000px;
+    .camFlash.on{ background: rgba(255,255,255,.55); }
+
+    details.logPanel{
+      border: 1px dashed #cfeee4;
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: #fbfffd;
+    }
+    details.logPanel summary{
+      cursor:pointer;
+      font-weight: 900;
+      color: var(--muted);
+    }
+    pre#logBox{
+      margin: 10px 0 0;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #1f4a3f;
     }
   </style>
 </head>
 
 <body>
-<header class="top" id="topHeader">
-  <div class="topInner">
-    <div class="titleRow">
-      <div class="title">Selfie + Time Logger</div>
-      <span class="badge ok" id="readyBadge">พร้อมใช้งาน</span>
-      <span class="badge wait" id="dlBadge">DL: 0 / 40</span>
-      <div class="spacer"></div>
-      <div class="headActions">
-        <button class="iconBtn primary" id="btnOpenCam" title="เปิดกล้อง"><span>📷</span></button>
-        <button class="iconBtn" id="btnPickFile" title="อัปโหลด"><span>🖼️</span></button>
-        <button class="iconBtn" id="btnSettings" title="ตั้งค่า"><span>⚙️</span></button>
-        <input id="fileInput" type="file" accept="image/*" hidden />
-      </div>
-    </div>
-
-    <!-- HEADER BLOCK (new layout) -->
-    <div class="headerBlock">
-      <div class="nextRow">
-        <span class="pill nextPill">
-          <span class="muted mini">Next</span>
-          <span id="nextSlotLabel">-</span>
-        </span>
-
-        <button class="btn primary nextBtn" id="btnDownloadNext" disabled>↓ โหลดภาพถัดไป</button>
-      </div>
-
-      <!-- เวลา + อีก ลงมา 1 บรรทัด และทำให้เด่นที่สุด -->
-      <div class="timeRow">
-        <div class="timeBox">
-          <div class="k">เวลา</div>
-          <div class="v" id="timeBoxNow">--:--</div>
-          <div class="sub" id="timeBoxTarget">เป้าหมาย: --:--</div>
+  <div class="topBar" id="topBar">
+    <div class="topInner">
+      <div class="topLeft">
+        <div class="topTitleRow">
+          <div class="topTitle">Selfie + Time Logger</div>
+          <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
+          <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
         </div>
-        <div class="timeBox">
-          <div class="k">อีก</div>
-          <div class="v" id="timeBoxRemain">--:--:--</div>
-          <div class="sub" id="timeBoxHint">รอเริ่มนับเวลา</div>
+
+        <!-- Line 1: Next + DownloadNext -->
+        <div class="headerLine1">
+          <div class="pill statusPill">
+            <span class="k">Next</span>
+            <b id="headerNextText">-</b>
+          </div>
+          <button class="btn primary headerDlBtn" id="downloadNextBtn">⬇ โหลดภาพถัดไป</button>
+        </div>
+
+        <!-- Line 2: เวลา + อีก (BIG) -->
+        <div class="headerLine2">
+          <div class="pill statusPill bigStat">
+            <span class="k">เวลา</span>
+            <b id="headerWhenText">-</b>
+          </div>
+          <div class="pill statusPill bigStat">
+            <span class="k">อีก</span>
+            <b id="headerCountdownText">-</b>
+          </div>
+        </div>
+
+        <div class="warnLine" id="headerWarnLine">⚠ -</div>
+
+        <div class="mini muted" id="headerHint">
+          * ปลุกนอก Chrome ไม่การันตี • ใช้ปุ่ม “⬇ โหลดภาพถัดไป” เพื่อทำงานเร็วขึ้น
         </div>
       </div>
 
-      <div class="subline" id="headerSubline">
-        <span id="statusLine">—</span>
-      </div>
-    </div>
-  </div>
-</header>
-
-<div class="wrap" id="mainWrap">
-  <!-- Pending -->
-  <div class="card">
-    <div class="row">
-      <div class="label">Pending (ยังไม่โหลด)</div>
-      <div class="spacer"></div>
-      <span class="badge wait" id="pendingCountBadge">0</span>
-    </div>
-    <div class="muted mini" id="pendingHelp">รายการรูปที่มีอยู่แต่ยังไม่ได้ดาวน์โหลด</div>
-    <div class="hr"></div>
-    <div class="photoList" id="pendingList">
-      <div class="muted mini">ยังไม่มีรายการ Pending</div>
-    </div>
-  </div>
-
-  <!-- Downloaded (collapsible) -->
-  <div class="card">
-    <div class="collapseHead" id="dlCollapseHead">
-      <div class="chev" id="dlChev">▸</div>
-      <div class="label">Downloaded (โหลดแล้ว)</div>
-      <div class="spacer"></div>
-      <span class="badge ok" id="downloadedCountBadge">0</span>
-    </div>
-    <div class="muted mini">ซ่อน/แสดงรายการที่โหลดแล้ว (ลดความสับสน)</div>
-    <div class="hr"></div>
-    <div class="collapseBody" id="dlCollapseBody">
-      <div class="photoList" id="downloadedList">
-        <div class="muted mini">ยังไม่มีรายการ Downloaded</div>
+      <div class="topRight">
+        <button class="btn primary topBtn" id="openCameraBtn" title="เปิดกล้องเซลฟี่">📷</button>
+        <button class="btn soft topBtn" id="uploadBtn" title="อัปโหลดจากแกลเลอรี่">🖼️</button>
+        <button class="btn topBtn" id="openDrawerBtn" title="ดูรายการ Downloaded">✅</button>
       </div>
     </div>
   </div>
 
-  <!-- Progress (moved to bottom) -->
-  <div class="card">
-    <div class="row">
-      <div class="label">Progress</div>
-      <div class="spacer"></div>
-      <span class="badge" id="goalBadge">เป้าหมาย: 40 รูป</span>
-    </div>
-    <div class="hr"></div>
-    <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap">
-      <span class="pill mini" id="progText">Total: 0 • Downloaded: 0 • Pending: 0</span>
-      <span class="badge ok" id="goalOk" style="display:none">ถึงเป้าหมายแล้ว ✅</span>
-    </div>
-    <div style="margin-top:10px; height:12px; border:1px solid var(--line); border-radius:999px; overflow:hidden; background:#fff">
-      <div id="progBar" style="height:100%; width:0%; background: linear-gradient(90deg, #32e0b0, #17b98b)"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Sticky Bar -->
-<div class="stickyBar" id="stickyBar">
-  <div class="stickyInner">
-    <button class="btn primary btnBigStart" id="btnStartTimer">⏱️ เริ่มนับเวลา</button>
-    <button class="btn soft squareBtn" id="btnUnlock" title="ปลดล็อค">🔓</button>
-    <button class="btn danger squareBtn" id="btnWipe" title="ลบทั้งหมด">🗑️</button>
-  </div>
-  <div class="mini muted" style="max-width:980px;margin:6px auto 0; padding:0 4px">
-    * ปลุกนอก Chrome ไม่การันตี (เว็บถูกจำกัด) — ใช้ LINE เป็นช่องทางแจ้งเตือนหลักแทน
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div class="modalBackdrop" id="settingsBackdrop">
-  <div class="modal">
-    <div class="modalHeader">
-      <div class="modalTitle">Settings</div>
-      <div class="spacer"></div>
-      <button class="btn small" id="btnCloseSettings">ปิด</button>
-    </div>
-
-    <div class="hr"></div>
-
-    <div class="grid2">
-      <label class="switch">
-        <input type="checkbox" id="swMirror" checked>
-        <div>
-          <div class="label">กล้องหน้าแบบกระจก (Mirror)</div>
-          <div class="muted mini">พรีวิว & ภาพที่บันทึกจะเหมือนกัน</div>
-        </div>
-      </label>
-
-      <label class="switch">
-        <input type="checkbox" id="swCatchup" checked>
-        <div>
-          <div class="label">Catch-up เมื่อกลับมาเปิด</div>
-          <div class="muted mini">ถ้าเลยเวลาแล้วจะแจ้งเตือนทันที (ครั้งเดียว)</div>
-        </div>
-      </label>
-    </div>
-
-    <div class="hr"></div>
-
-    <!-- LINE Notify via Worker -->
-    <div class="card" style="box-shadow:none; margin:0; border-radius:16px">
-      <div class="row">
-        <div class="label">แจ้งเตือนผ่าน LINE (ผ่าน Cloudflare Worker)</div>
-        <div class="spacer"></div>
-        <span class="badge ok" id="lineStatusBadge">ยังไม่เปิด</span>
+  <div class="toastWrap" id="toastWrap">
+    <div class="toastCard">
+      <div>
+        <div class="toastText" id="toastText">ครบเวลาแล้ว</div>
+        <div class="toastSub" id="toastSub">-</div>
       </div>
-      <div class="muted mini" style="margin-top:6px">
-        วิธีนี้ส่งเข้า LINE ได้จริง (นอกแอป Chrome ก็เด้ง) แต่ต้องมีอินเทอร์เน็ตในตอนส่ง
+      <button class="btn soft toastBtn" id="toastDismissBtn">ปิด</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section class="card">
+      <h2>
+        <span>Pending (ยังไม่โหลด)</span>
+        <span class="badge wait" id="pendingBadge">0</span>
+      </h2>
+      <div class="list" id="pendingList"></div>
+      <div class="mini muted" id="pendingEmpty" style="display:none">ยังไม่มีรายการ Pending</div>
+    </section>
+
+    <section class="card">
+      <h2>
+        <span>Progress</span>
+        <span class="badge ok" id="goalBadge" style="display:none">ถึงเป้าหมายแล้ว ✅</span>
+      </h2>
+
+      <div class="row spread">
+        <div class="pill">Total: <b id="totalCount">0</b> • Downloaded: <b id="downloadedCount">0</b> • Pending: <b id="pendingCount">0</b></div>
+        <div class="pill">เป้าหมาย: <b>40</b> รูป</div>
       </div>
-
-      <div class="hr"></div>
-
-      <label class="switch">
-        <input type="checkbox" id="swLineEnable">
-        <div>
-          <div class="label">เปิดใช้งาน LINE แจ้งเตือน</div>
-          <div class="muted mini">ใช้เป็นช่องทางหลักแทน Notification ของ Chrome</div>
-        </div>
-      </label>
 
       <div style="height:10px"></div>
+      <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
+
+      <div style="height:12px"></div>
+
+      <div class="grid3">
+        <div class="switch">
+          <input type="checkbox" id="mirrorHintToggle" checked />
+          <div>
+            <div style="font-weight:900;font-size:13px">กล้องหน้าแบบกระจก (Mirror)</div>
+            <div class="mini muted">พรีวิว & ภาพที่บันทึกจะเหมือนกัน</div>
+          </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="autoWakeToggle" checked />
+          <div>
+            <div style="font-weight:900;font-size:13px">Catch-up เมื่อกลับมาเปิด</div>
+            <div class="mini muted">ถ้าเลยเวลาแล้วจะขึ้น toast</div>
+          </div>
+        </div>
+
+        <div class="switch">
+          <input type="checkbox" id="logToggle" />
+          <div>
+            <div style="font-weight:900;font-size:13px">เปิด Log panel</div>
+            <div class="mini muted">ใช้ debug บนมือถือ</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
 
       <div class="grid2">
-        <div>
-          <div class="label mini">LINE Bridge URL (Worker)</div>
-          <input class="field" id="lineWorkerUrl" placeholder="https://...workers.dev" />
-          <div class="muted mini" style="margin-top:6px">
-            ค่าเริ่มต้นเป็น Worker ของคุณ: <b>phantom-selfie-line.surakiatforwork.workers.dev</b>
+        <div class="card" style="margin:0; box-shadow:none">
+          <div class="row spread">
+            <span class="badge" id="timerLockBadge">-</span>
+            <span class="pill" id="timerLeftPill">เหลือ: -</span>
+          </div>
+          <div style="height:8px"></div>
+          <div class="mini muted" id="timerMeta">startAt: - • targetAt: -</div>
+        </div>
+
+        <div class="card" style="margin:0; box-shadow:none">
+          <div class="row spread">
+            <span class="badge" id="alarmBadge">ยังไม่ตั้ง</span>
+            <span class="pill" id="alarmLeftPill">เหลือ: -</span>
+          </div>
+          <div style="height:8px"></div>
+          <div class="mini muted" id="alarmMeta">next: - • dueAt: -</div>
+          <div style="height:8px"></div>
+          <div class="row">
+            <button class="btn soft btnMini" id="requestNotifBtn" style="width:auto">🔔 ขอสิทธิ์</button>
+            <button class="btn btnMini" id="testBeepBtn" style="width:auto">🔊 ทดสอบเสียง/สั่น</button>
           </div>
         </div>
-        <div>
-          <div class="label mini">โค้ดผูกเครื่อง (เช่น PHANTOM1)</div>
-          <input class="field" id="lineCode" placeholder="เช่น PHANTOM1" />
-          <div class="muted mini" style="margin-top:6px">
-            1) เพิ่มเพื่อน OA ของคุณใน LINE<br>
-            2) ส่งข้อความไปหา OA: <b>LINK &lt;โค้ด&gt;</b><br>
-            3) แล้วกลับมากด “ทดสอบแจ้งเตือน”
+      </div>
+
+      <div style="height:12px"></div>
+
+      <details class="logPanel" id="logPanel" style="display:none">
+        <summary>Log panel (แตะเพื่อเปิด/ปิด)</summary>
+        <pre id="logBox"></pre>
+      </details>
+    </section>
+  </div>
+
+  <div class="stickyBar" id="stickyBar">
+    <div class="stickyInner">
+      <button class="btn primary bigPrimary" id="start910Btn">⏱️ เริ่มนับเวลา</button>
+      <button class="btn warn square" id="unlockBtn" disabled title="ปลดล็อค (3 วินาที)">🔓</button>
+      <button class="btn danger square" id="deleteAllBtn" title="ลบทั้งหมด">🧨</button>
+    </div>
+  </div>
+
+  <div class="drawerBackdrop" id="drawerBackdrop"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawerPanel">
+      <div class="drawerHeader">
+        <div class="row" style="gap:10px">
+          <span class="badge ok">Downloaded</span>
+          <span class="pill">ทั้งหมด: <b id="drawerDownloadedCount">0</b></span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn soft btnMini" id="closeDrawerBtn" style="width:auto">ปิด</button>
+        </div>
+      </div>
+      <div class="drawerBody">
+        <div class="list" id="downloadedList"></div>
+        <div class="mini muted" id="downloadedEmpty" style="display:none">ยังไม่มีรายการ Downloaded</div>
+      </div>
+    </div>
+  </div>
+
+  <input id="fileInputAdd" type="file" accept="image/*" multiple style="display:none" />
+  <input id="fileInputReplace" type="file" accept="image/*" style="display:none" />
+
+  <div class="modalBackdrop" id="camModalBackdrop">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="row" style="gap:10px">
+          <span class="badge ok" id="camModeBadge">CAM</span>
+          <span class="pill" id="camFacingPill">facing: -</span>
+          <span class="pill" id="camMirrorPill">mirror: -</span>
+          <span class="badge wait" id="replaceBadge" style="display:none">REPLACE -</span>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn soft" id="switchCamBtn" style="width:auto">🔄</button>
+          <button class="btn" id="closeCamBtn" style="width:auto">✖</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="viewfinderWrap">
+          <video id="camVideo" playsinline autoplay muted></video>
+
+          <div class="camHUD">
+            <span class="pill" id="camCountPill">📸 Total: 0</span>
+            <span class="pill" id="camNextPill">Next: -</span>
           </div>
+
+          <div class="camToast" id="camToast">
+            <div class="camToastInner" id="camToastInner">บันทึกแล้ว</div>
+          </div>
+
+          <div class="camFlash" id="camFlash"></div>
+          <div class="vfOverlay"></div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="grid2">
+          <button class="btn primary" id="captureBtn">📸 ถ่ายภาพ</button>
+          <button class="btn soft" id="fallbackUploadBtn">🖼️ อัปโหลดแทน</button>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="mini muted" id="camHint">
+          กล้องหน้า: พรีวิวเป็นกระจก และภาพที่บันทึกจะ “เหมือนที่เห็น” • ถ้ากล้องใช้ไม่ได้ กดอัปโหลดแทน
         </div>
       </div>
-
-      <div class="row" style="margin-top:10px">
-        <button class="btn soft" id="btnSaveLine">บันทึก</button>
-        <button class="btn" id="btnTestLine">ทดสอบแจ้งเตือน</button>
-        <button class="btn danger" id="btnClearLine">ล้างค่า</button>
-        <div class="spacer"></div>
-        <span class="muted mini" id="lineSaveHint">เก็บค่าไว้ในเครื่อง (localStorage)</span>
-      </div>
-    </div>
-
-    <div class="hr"></div>
-
-    <label class="switch">
-      <input type="checkbox" id="swLog">
-      <div>
-        <div class="label">เปิด Log panel</div>
-        <div class="muted mini">ใช้ debug บนมือถือ</div>
-      </div>
-    </label>
-
-    <div id="logPanel" class="card" style="display:none; box-shadow:none">
-      <div class="label">Logs</div>
-      <pre id="logBox" class="mini" style="white-space:pre-wrap; margin:10px 0 0; color:#0b3b33"></pre>
     </div>
   </div>
-</div>
 
-<!-- Camera Modal -->
-<div class="modalBackdrop" id="camBackdrop">
-  <div class="modal">
-    <div class="modalHeader">
-      <div class="modalTitle">Camera</div>
-      <div class="spacer"></div>
-      <button class="btn small" id="btnCloseCam">ปิด</button>
-    </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
 
-    <div style="height:10px"></div>
-
-    <div class="camWrap">
-      <video id="video" autoplay playsinline></video>
-      <div class="camBar">
-        <div>
-          <div class="label mini" id="camStatTop">กำลังเปิดกล้อง…</div>
-          <div class="mini" id="camStatSub">จำนวนรูป: 0 • ถัดไป: -</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap:nowrap">
-          <button class="camBtn" id="btnFlip">สลับ</button>
-          <button class="camBtn primary" id="btnShot">ถ่าย</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="muted mini" style="margin-top:10px">
-      * ถ้ากล้องเปิดไม่ได้ ให้ใช้ปุ่ม 🖼️ อัปโหลดแทน
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast">toast</div>
-
-<script>
-/**
- * =========================
- * 0) Dexie loader + fallback
- * =========================
- * - พยายามโหลด Dexie ผ่าน CDN 2 แห่ง
- * - ถ้าไม่ได้จริง ๆ จะใช้ native IndexedDB wrapper แบบเบา
- */
-const CDN_DEXIE = [
-  "https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js",
-  "https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"
-];
-
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src=src; s.async=true;
-    s.onload=()=>resolve(true);
-    s.onerror=()=>reject(new Error("load failed: "+src));
-    document.head.appendChild(s);
-  });
-}
-
-async function ensureDexie(){
-  if (window.Dexie) return true;
-  for (const url of CDN_DEXIE){
-    try{ await loadScript(url); if(window.Dexie) return true; }catch(e){}
-  }
-  return false;
-}
-
-/**
- * =========================
- * 1) State + helpers
- * =========================
- */
-const $ = (id)=>document.getElementById(id);
-const state = {
-  db: null,
-  useDexie: false,
-  photos: new Map(), // slot -> record
-  orderedSlots: [], // sequence
-  ui: {
-    headerH: 0,
-    downloadedOpen: false,
-    unlockUntil: 0,
-  },
-  timer: {
-    startAt: 0,
-    targetAt: 0,
-    locked: false,
-  },
-  line: {
-    enabled: false,
-    worker: "https://phantom-selfie-line.surakiatforwork.workers.dev",
-    code: "",
-  },
-  prefs: {
-    mirror: true,
-    catchup: true,
-    log: false,
-  },
-  stream: null,
-  facing: "user", // user/environment
-  sched: {
-    dueSlot: null,
-    dueAt: 0,
-    timeoutId: null,
-    lastNotifiedKey: "", // slot@dueAt
-  }
-};
-
-function log(...args){
-  if(!state.prefs.log) return;
-  const s = args.map(a=> typeof a==="string"? a : JSON.stringify(a,null,2)).join(" ");
-  $("logBox").textContent += s + "\n";
-}
-function toast(msg, ms=2200){
-  const t=$("toast");
-  t.textContent=msg;
-  t.classList.add("show");
-  clearTimeout(t._to);
-  t._to=setTimeout(()=>t.classList.remove("show"), ms);
-}
-
-function fmt2(n){ return String(n).padStart(2,"0"); }
-function fmtTime(ts){
-  if(!ts) return "--:--";
-  const d=new Date(ts);
-  return fmt2(d.getHours())+":"+fmt2(d.getMinutes());
-}
-function fmtDateTime(ts){
-  if(!ts) return "-";
-  const d=new Date(ts);
-  return `${fmt2(d.getDate())}/${fmt2(d.getMonth()+1)}/${String(d.getFullYear()).slice(-2)} ${fmt2(d.getHours())}:${fmt2(d.getMinutes())}:${fmt2(d.getSeconds())}`;
-}
-function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-
-/**
- * =========================
- * 2) Schema IndexedDB
- * =========================
- * photos table:
- *   - slot (PK) เช่น IN-1, OUT-1 ...
- *   - kind, idx
- *   - createdAt (เวลาที่บันทึก/เพิ่ม)
- *   - updatedAt (เวลาที่แก้/replace)
- *   - downloadedAt (ถ้าเคยดาวน์โหลดครั้งแรก)
- *   - blob (JPEG)
- *   - width, height, mime
- * meta table: key -> value (json)
- */
-const DB_NAME = "selfie_time_logger_mint";
-const DB_VER = 1;
-
-async function openDB(){
-  const okDexie = await ensureDexie();
-  state.useDexie = okDexie;
-
-  if(okDexie){
-    const db = new Dexie(DB_NAME);
-    db.version(DB_VER).stores({
-      photos: "slot, kind, idx, createdAt, downloadedAt",
-      meta: "key"
-    });
-    state.db = db;
-    await db.open();
-    log("DB: Dexie OK");
-    return;
-  }
-
-  // Native fallback (minimal)
-  log("DB: Dexie failed, use native IndexedDB fallback");
-  state.db = await nativeOpen(DB_NAME, DB_VER);
-}
-
-// -------- Native IndexedDB fallback (minimal) --------
-function nativeOpen(name, ver){
-  return new Promise((resolve,reject)=>{
-    const req = indexedDB.open(name, ver);
-    req.onupgradeneeded = ()=>{
-      const db=req.result;
-      if(!db.objectStoreNames.contains("photos")){
-        const s=db.createObjectStore("photos", { keyPath:"slot" });
-        s.createIndex("downloadedAt","downloadedAt",{unique:false});
-        s.createIndex("createdAt","createdAt",{unique:false});
-      }
-      if(!db.objectStoreNames.contains("meta")){
-        db.createObjectStore("meta", { keyPath:"key" });
-      }
+    const LS = {
+      timer910: "stl_timer910_state",
+      alarm: "stl_alarm_state",
+      ui: "stl_ui_state"
     };
-    req.onsuccess=()=>resolve(new NativeDB(req.result));
-    req.onerror=()=>reject(req.error);
-  });
-}
-class NativeDB{
-  constructor(db){ this.db=db; }
-  tx(store, mode="readonly"){ return this.db.transaction(store, mode).objectStore(store); }
-  async get(store, key){
-    return new Promise((resolve,reject)=>{
-      const req=this.tx(store).get(key);
-      req.onsuccess=()=>resolve(req.result||null);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-  async put(store, val){
-    return new Promise((resolve,reject)=>{
-      const req=this.tx(store,"readwrite").put(val);
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-  async del(store, key){
-    return new Promise((resolve,reject)=>{
-      const req=this.tx(store,"readwrite").delete(key);
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-  async clear(store){
-    return new Promise((resolve,reject)=>{
-      const req=this.tx(store,"readwrite").clear();
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-  async allPhotos(){
-    return new Promise((resolve,reject)=>{
-      const req=this.tx("photos").getAll();
-      req.onsuccess=()=>resolve(req.result||[]);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-}
 
-// DB helpers (Dexie/native)
-async function dbGetMeta(key, def=null){
-  if(state.useDexie){
-    const row = await state.db.meta.get(key);
-    return row ? row.value : def;
-  }else{
-    const row = await state.db.get("meta", key);
-    return row ? row.value : def;
-  }
-}
-async function dbSetMeta(key, value){
-  if(state.useDexie){
-    await state.db.meta.put({key, value});
-  }else{
-    await state.db.put("meta", {key, value});
-  }
-}
-async function dbPutPhoto(rec){
-  if(state.useDexie) await state.db.photos.put(rec);
-  else await state.db.put("photos", rec);
-}
-async function dbGetPhoto(slot){
-  if(state.useDexie) return await state.db.photos.get(slot);
-  return await state.db.get("photos", slot);
-}
-async function dbDelPhoto(slot){
-  if(state.useDexie) await state.db.photos.delete(slot);
-  else await state.db.del("photos", slot);
-}
-async function dbAllPhotos(){
-  if(state.useDexie) return await state.db.photos.toArray();
-  return await state.db.allPhotos();
-}
-async function dbClearAll(){
-  if(state.useDexie){
-    await state.db.photos.clear();
-    await state.db.meta.clear();
-  }else{
-    await state.db.clear("photos");
-    await state.db.clear("meta");
-  }
-}
+    const state = {
+      db: null,
+      dbType: "unknown",
+      photos: [],
+      thumbUrl: new Map(),
 
-/**
- * =========================
- * 3) Slot sequence + tagging logic
- * =========================
- * - แท็กเป็นลำดับตายตัว: IN-1, OUT-1, IN-2, OUT-2, ...
- * - เติม "ช่องที่หาย" ก่อน (แก้ปัญหา in1/in2 หลังลบ)
- */
-function makeSequence(maxIdx){
-  const out=[];
-  for(let i=1;i<=maxIdx;i++){
-    out.push({slot:`IN-${i}`, kind:"IN", idx:i});
-    out.push({slot:`OUT-${i}`, kind:"OUT", idx:i});
-  }
-  return out;
-}
-function computeMaxIdx(){
-  // dynamic: อย่างน้อย 20, และขยายตามที่มีอยู่
-  let mx=20;
-  for(const rec of state.photos.values()){
-    mx = Math.max(mx, rec.idx||0);
-  }
-  return mx;
-}
-function rebuildSequence(){
-  const mx = computeMaxIdx();
-  // เผื่อในอนาคต: เพิ่ม buffer อีก 10 เพื่อให้ถ่ายเกิน 40 ได้ต่อเนื่อง
-  state.orderedSlots = makeSequence(mx+10);
-}
-function findFirstMissingSlot(){
-  rebuildSequence();
-  for(const it of state.orderedSlots){
-    if(!state.photos.has(it.slot)) return it;
-  }
-  // ถ้าไม่มี missing (ไม่น่าถึง) ขยายเพิ่ม
-  const mx = computeMaxIdx()+30;
-  state.orderedSlots = makeSequence(mx);
-  for(const it of state.orderedSlots){
-    if(!state.photos.has(it.slot)) return it;
-  }
-  return null;
-}
-function nextAfter(slot){
-  rebuildSequence();
-  const i = state.orderedSlots.findIndex(x=>x.slot===slot);
-  if(i<0) return state.orderedSlots[0]?.slot || null;
-  return state.orderedSlots[i+1]?.slot || null;
-}
+      busy: { saving:false },
 
-/**
- * nextSlot logic:
- * - หา "ช่องแรก" ในลำดับที่ยังไม่ครบเงื่อนไข "มีรูป + downloaded แล้ว"
- *   => ถ้าขาดรูป: next = ช่องที่ขาด
- *   => ถ้ามีรูปแต่ยังไม่โหลด: next = ช่องนั้น
- *   => ถ้าทุกช่องโหลดแล้ว: next = null
- */
-function computeNextSlot(){
-  rebuildSequence();
-  for(const it of state.orderedSlots){
-    const rec = state.photos.get(it.slot);
-    if(!rec) return {slot: it.slot, reason:"missing"};
-    if(!rec.downloadedAt) return {slot: it.slot, reason:"pending"};
-  }
-  return {slot:null, reason:"done"};
-}
+      cam: { stream:null, facing:"user" },
 
-function countDownloaded(){
-  let c=0;
-  for(const rec of state.photos.values()){
-    if(rec.downloadedAt) c++;
-  }
-  return c;
-}
+      ui: { logEnabled:false, autoWake:true, mirrorPref:true },
 
-/**
- * =========================
- * 4) Timer 9:10 + unlock window
- * =========================
- */
-const DURATION_MS = (9*60 + 10) * 60 * 1000;
+      replace: { active:false, targetId:null, targetTag:null },
 
-async function loadTimerFromDB(){
-  const t = await dbGetMeta("timer", {startAt:0,targetAt:0,locked:false});
-  state.timer = {...state.timer, ...t};
-  const ul = await dbGetMeta("unlockUntil", 0);
-  state.ui.unlockUntil = ul || 0;
-}
+      timer910: { running:false, locked:false, startAt:null, targetAt:null },
 
-async function saveTimerToDB(){
-  await dbSetMeta("timer", state.timer);
-  await dbSetMeta("unlockUntil", state.ui.unlockUntil);
-}
+      unlock: { until:null, ticker:null },
 
-function isUnlockedWindow(){
-  return Date.now() < (state.ui.unlockUntil || 0);
-}
+      alarm: { dueAt:null, nextTag:null, firedDueAt:null },
+      alarmTimeout: null,
 
-function canResetTimerByClick(){
-  // กดปุ่ม start ครั้งที่ 2 เพื่อ reset ได้ เฉพาะตอนที่ unlocked window ยังอยู่ หรือปลดล็อกโดยดาวน์โหลดครบ >=40
-  if(countDownloaded() >= 40) return true;
-  return isUnlockedWindow();
-}
+      schedule: {
+        ok:false,
+        error:"",
+        warn:"",
+        nextTag:null,
+        nextAt:null,
+        planAtById: new Map(),
+        source: { lastDownloadedTag:null, lastDownloadedAt:null }
+      },
 
-async function autoUnlockIfGoalMet(){
-  if(countDownloaded() >= 40){
-    state.timer.locked = false;
-    state.ui.unlockUntil = 0;
-    await saveTimerToDB();
-  }
-}
+      tickInterval: null,
+      toastTimer: null
+    };
 
-/**
- * =========================
- * 5) Scheduling "Time use" (align last due = targetAt)
- * =========================
- * แนวคิด:
- * - ใช้เฉพาะรายการที่ "ต่อเนื่อง" จาก nextSlot ไปเรื่อย ๆ จนถึง slot ที่ขาด/ไม่มีรูป
- * - ให้ due ของ slot สุดท้ายในชุดนี้ = targetAt พอดี (ถ้าทำได้ตามกฎ min/max)
- * - กฎช่วงเวลา:
- *    หลัง IN: 3–25 นาที
- *    หลัง OUT: 4–30 นาที
- *    IN gap < OUT gap เสมอ
- *
- * ถ้าทำไม่ได้ -> แสดงสถานะ "รูปยังไม่พอ/เวลาน้อยไป" แบบไม่รบกวน
- */
-function buildContiguousPendingSlots(){
-  const nxt = computeNextSlot();
-  if(!nxt.slot) return {nxt, slots:[]};
+    function now(){ return Date.now(); }
 
-  rebuildSequence();
-  const startIdx = state.orderedSlots.findIndex(x=>x.slot===nxt.slot);
-  if(startIdx<0) return {nxt, slots:[]};
-
-  const out = [];
-  for(let i=startIdx;i<state.orderedSlots.length;i++){
-    const it = state.orderedSlots[i];
-    const rec = state.photos.get(it.slot);
-    if(!rec) break; // ขาดรูป -> หยุด
-    if(rec.downloadedAt) break; // เจอโหลดแล้วในลำดับถัดไป (ไม่ควร) ก็หยุดเพื่อความปลอดภัย
-    out.push(it);
-  }
-  return {nxt, slots: out};
-}
-
-function solveGaps(Dmin, nIn, nOut){
-  // หา gapIn/gapOut ให้ sum = Dmin และอยู่ในช่วง + gapIn < gapOut
-  // ใช้ search แบบหยาบพอสำหรับมือถือ
-  if(nIn===0 && nOut===0) return null;
-
-  if(nOut===0){
-    const g = Dmin / nIn;
-    if(g>=3 && g<=25) return {gIn:g, gOut:null};
-    return null;
-  }
-  if(nIn===0){
-    const g = Dmin / nOut;
-    if(g>=4 && g<=30) return {gIn:null, gOut:g};
-    return null;
-  }
-
-  // search gapIn 3..25 step 0.1
-  let best=null, bestScore=1e18;
-  for(let gi=3; gi<=25.0001; gi+=0.1){
-    const go = (Dmin - nIn*gi) / nOut;
-    if(go < 4 || go > 30) continue;
-    if(!(gi < go)) continue;
-    // score: ใกล้ค่าเฉลี่ยรวมมาก + ความสมเหตุสมผล (ให้ OUT ไม่ห่างเกิน)
-    const avg = Dmin / (nIn+nOut);
-    const score = Math.abs(gi-avg) + Math.abs(go-avg)*0.8 + Math.abs((go-gi)-2)*0.05;
-    if(score < bestScore){
-      bestScore=score;
-      best={gIn:gi, gOut:go};
-    }
-  }
-  return best;
-}
-
-function computeSchedule(){
-  // returns { ok, reason, plan: Map(slot -> dueAt), dueSlot, dueAt }
-  const now = Date.now();
-  const nxtPack = buildContiguousPendingSlots();
-  const {nxt, slots} = nxtPack;
-
-  // ถ้าไม่มีการเริ่ม timer -> ไม่คำนวณ time use
-  if(!state.timer.targetAt){
-    return { ok:false, reason:"no_target", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  // baseTime = lastDownloadedAt ของ slot ล่าสุดที่โหลดแล้ว (ถ้ามี) ไม่งั้น now
-  let baseTime = now;
-  let lastDlAt = 0;
-  for(const rec of state.photos.values()){
-    if(rec.downloadedAt) lastDlAt = Math.max(lastDlAt, rec.downloadedAt);
-  }
-  if(lastDlAt) baseTime = lastDlAt;
-
-  if(!nxt.slot){
-    return { ok:true, reason:"done", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  // ถ้าขาดรูปที่ next -> แจ้งขาดรูป และคำนวณไม่ได้
-  if(nxt.reason==="missing"){
-    return { ok:false, reason:"missing_next", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  // ต้องมี slots ที่ต่อเนื่องอย่างน้อย 1 เพื่อทำ plan
-  if(slots.length===0){
-    // next เป็น pending แต่ไม่มี contiguous? (แปลก) treat as cannot
-    return { ok:false, reason:"no_slots", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  const Dmin = (state.timer.targetAt - baseTime) / 60000;
-  if(Dmin <= 0.2){
-    // เป้าหมายถึงแล้ว/เหลือเวลาน้อยมาก -> dueAt = now
-    const plan = new Map();
-    plan.set(nxt.slot, now);
-    return { ok:true, reason:"past", nxt, plan, dueSlot:nxt.slot, dueAt: now };
-  }
-
-  // เราใช้เฉพาะชุดต่อเนื่องจาก next ไปจนสุดที่มีอยู่
-  const N = slots.length;
-  let nIn=0, nOut=0;
-  for(const it of slots){
-    if(it.kind==="IN") nIn++; else nOut++;
-  }
-
-  // special: ถ้ามี 1 รูป ให้ dueAt = targetAt (ต้องให้รูปสุดท้ายตรง targetAt)
-  if(N===1){
-    const gap = (state.timer.targetAt - baseTime)/60000;
-    const isIN = slots[0].kind==="IN";
-    const okRange = isIN ? (gap>=3 && gap<=25) : (gap>=4 && gap<=30);
-    const plan = new Map();
-    if(okRange){
-      plan.set(slots[0].slot, state.timer.targetAt);
-      return { ok:true, reason:"single", nxt, plan, dueSlot: slots[0].slot, dueAt: state.timer.targetAt };
-    }else{
-      // ไม่อยู่ในช่วง -> คำนวณไม่ได้ตามกฎ
-      return { ok:false, reason:"cannot_fit", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-    }
-  }
-
-  // หา gapIn/gapOut ให้รวมลง targetAt พอดี
-  const gaps = solveGaps(Dmin, nIn, nOut);
-  if(!gaps){
-    return { ok:false, reason:"cannot_fit", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  const plan = new Map();
-  let t = baseTime;
-  for(const it of slots){
-    const g = it.kind==="IN" ? gaps.gIn : gaps.gOut;
-    t += g * 60000;
-    plan.set(it.slot, Math.round(t/1000)*1000);
-  }
-
-  // ensure last equals targetAt (within rounding error)
-  const lastSlot = slots[slots.length-1].slot;
-  const lastDue = plan.get(lastSlot);
-  const diff = Math.abs(lastDue - state.timer.targetAt);
-  if(diff > 1500){
-    // ถ้าเพี้ยนเกิน 1.5s ถือว่า fail (เผื่อ rounding)
-    return { ok:false, reason:"cannot_fit", nxt, plan:new Map(), dueSlot:null, dueAt:0 };
-  }
-
-  // dueSlot คือ slot ถัดไป (nxt.slot) ซึ่งต้องอยู่ใน plan
-  const dueAt = plan.get(nxt.slot) || 0;
-  return { ok:true, reason:"ok", nxt, plan, dueSlot:nxt.slot, dueAt };
-}
-
-/**
- * =========================
- * 6) LINE notify via Worker (/notify)
- * =========================
- * - ไม่ใช้ LINE Notify (เลิกแล้ว)
- * - ใช้ Worker เป็นตัวกลางถือ token
- * - เว็บส่ง { code, message } ไปที่ Worker
- */
-function loadLineSettings(){
-  const raw = localStorage.getItem("stl_line") || "";
-  if(raw){
-    try{
-      const j = JSON.parse(raw);
-      state.line.enabled = !!j.enabled;
-      state.line.worker = j.worker || state.line.worker;
-      state.line.code = j.code || "";
-    }catch(e){}
-  }
-}
-function saveLineSettings(){
-  localStorage.setItem("stl_line", JSON.stringify({
-    enabled: state.line.enabled,
-    worker: state.line.worker,
-    code: state.line.code
-  }));
-}
-async function lineSend(message){
-  if(!state.line.enabled) return {ok:false, skipped:true};
-  if(!state.line.worker || !state.line.code) return {ok:false, error:"missing worker/code"};
-  const url = state.line.worker.replace(/\/+$/,'') + "/notify";
-  const res = await fetch(url, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ code: state.line.code, message })
-  });
-  const data = await res.json().catch(()=>({ok:res.ok, status:res.status}));
-  return data;
-}
-
-/**
- * =========================
- * 7) Notification engine (best-effort)
- * =========================
- * - ใช้ LINE เป็นหลัก
- * - ถ้า LINE ส่งไม่ได้/ออฟไลน์ -> toast + beep เบา ๆ
- * - catch-up: ถ้าเลยเวลาแล้วตอนกลับมาเปิด จะส่งครั้งเดียว
- */
-function beep(){
-  try{
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 880;
-    g.gain.value = 0.06;
-    o.start();
-    setTimeout(()=>{ o.stop(); ctx.close(); }, 180);
-  }catch(e){}
-}
-
-async function notifyUser(msg){
-  // LINE first
-  if(state.line.enabled){
-    try{
-      const r = await lineSend(msg);
-      log("LINE notify result", r);
-      if(r && r.ok) return;
-      // fallback
-    }catch(e){
-      log("LINE notify error", e?.message||String(e));
-    }
-  }
-  toast(msg);
-  beep();
-}
-
-function clearScheduleTimer(){
-  if(state.sched.timeoutId){
-    clearTimeout(state.sched.timeoutId);
-    state.sched.timeoutId = null;
-  }
-}
-async function scheduleNextReminder(){
-  clearScheduleTimer();
-  await autoUnlockIfGoalMet();
-
-  const sch = computeSchedule();
-  const {nxt, dueSlot, dueAt} = sch;
-
-  // header status
-  let status = "";
-  if(!state.timer.targetAt){
-    status = "ยังไม่เริ่มนับเวลา";
-  }else if(nxt.slot && nxt.reason==="missing"){
-    status = `ขาดรูป ${nxt.slot}`;
-  }else if(!sch.ok && sch.reason==="cannot_fit"){
-    status = `รูป/ช่วงเวลาไม่พอให้เฉลี่ยถึงเป้าหมาย`;
-  }else if(dueSlot && dueAt){
-    status = `ถัดไป ${dueSlot} • แนะนำโหลดตอน ${fmtTime(dueAt)}`;
-  }else if(sch.reason==="done"){
-    status = "ครบทุกช่องแล้ว";
-  }else{
-    status = "—";
-  }
-  $("statusLine").textContent = status;
-
-  // save plan for UI
-  state.sched.dueSlot = dueSlot;
-  state.sched.dueAt = dueAt;
-
-  // if we have dueAt, set timer
-  if(dueSlot && dueAt){
-    const key = `${dueSlot}@${dueAt}`;
-    // catch-up: ถ้าเลยเวลาแล้ว และยังไม่เคยแจ้ง
-    const now = Date.now();
-    if(now >= dueAt){
-      if(state.prefs.catchup && state.sched.lastNotifiedKey !== key){
-        state.sched.lastNotifiedKey = key;
-        await dbSetMeta("lastNotifiedKey", key);
-        await notifyUser(dueSlot.startsWith("IN") ? `ครบเวลา Check In แล้ว (${dueSlot})` : `ครบเวลา Check Out แล้ว (${dueSlot})`);
+    function fmtDT(ts){
+      if(!ts) return "-";
+      try{
+        return new Date(ts).toLocaleString("th-TH", {
+          year:"2-digit", month:"2-digit", day:"2-digit",
+          hour:"2-digit", minute:"2-digit", second:"2-digit"
+        });
+      }catch(_){
+        return new Date(ts).toString();
       }
-    }else{
-      // schedule future
-      const ms = dueAt - now;
-      state.sched.timeoutId = setTimeout(async ()=>{
-        const key2 = `${dueSlot}@${dueAt}`;
-        const lastKey = await dbGetMeta("lastNotifiedKey", "");
-        if(lastKey !== key2){
-          state.sched.lastNotifiedKey = key2;
-          await dbSetMeta("lastNotifiedKey", key2);
-          await notifyUser(dueSlot.startsWith("IN") ? `ครบเวลา Check In แล้ว (${dueSlot})` : `ครบเวลา Check Out แล้ว (${dueSlot})`);
+    }
+    function fmtTimeOnly(ts){
+      if(!ts) return "-";
+      try{
+        return new Date(ts).toLocaleTimeString("th-TH", { hour:"2-digit", minute:"2-digit" });
+      }catch(_){
+        const d = new Date(ts);
+        return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+      }
+    }
+    function fmtHMS(ms){
+      if(ms == null) return "-";
+      const sign = ms < 0 ? "-" : "";
+      ms = Math.abs(ms);
+      const s = Math.floor(ms/1000);
+      const hh = Math.floor(s/3600);
+      const mm = Math.floor((s%3600)/60);
+      const ss = s%60;
+      return `${sign}${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
+    }
+
+    function loadJSON(key, fallback){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return fallback;
+        return JSON.parse(raw);
+      }catch(_){ return fallback; }
+    }
+    function saveJSON(key, obj){
+      try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(_){}
+    }
+
+    function setSaveState(text, mode){
+      const b = $("saveStateBadge");
+      b.className = "badge " + (mode || "wait");
+      b.innerHTML = text;
+    }
+
+    function log(...args){
+      const line = `[${new Date().toLocaleTimeString("th-TH")}] ` + args.map(a=>{
+        if(typeof a === "string") return a;
+        try{ return JSON.stringify(a); }catch(_){ return String(a); }
+      }).join(" ");
+      if(state.ui.logEnabled){
+        const box = $("logBox");
+        box.textContent = (line + "\n" + box.textContent).slice(0, 16000);
+      }
+      console.log(...args);
+    }
+
+    function parseTag(tag){
+      const m = String(tag || "").trim().match(/^(IN|OUT)-(\d+)$/i);
+      if(!m) return null;
+      return { kind: m[1].toUpperCase(), idx: parseInt(m[2], 10) };
+    }
+    function ensureKindIdx(photo){
+      if(photo && (!photo.kind || !photo.idx) && photo.tag){
+        const p = parseTag(photo.tag);
+        if(p){ photo.kind = p.kind; photo.idx = p.idx; }
+      }
+      return photo;
+    }
+
+    // Tag slot allocation: ใช้ “slot ว่างจริง” กันกรณีลบแล้วถ่ายใหม่ -> ต้องกลับมาที่ slot ที่ว่าง
+    function computeNextSlot(photos){
+      const occ = new Map();
+      for(const raw of photos){
+        const p = ensureKindIdx(raw);
+        if(!p || !p.kind || !p.idx) continue;
+        const o = occ.get(p.idx) || { IN:false, OUT:false };
+        if(p.kind === "IN") o.IN = true;
+        if(p.kind === "OUT") o.OUT = true;
+        occ.set(p.idx, o);
+      }
+      let i = 1;
+      while(true){
+        const o = occ.get(i) || { IN:false, OUT:false };
+        if(!o.IN) return { tag:`IN-${i}`, kind:"IN", idx:i };
+        if(!o.OUT) return { tag:`OUT-${i}`, kind:"OUT", idx:i };
+        i++;
+      }
+    }
+    function peekNextTag(){ return computeNextSlot(state.photos).tag; }
+    function nextTagInSequence(tag){
+      const p = parseTag(tag);
+      if(!p) return null;
+      if(p.kind === "IN") return `OUT-${p.idx}`;
+      return `IN-${p.idx + 1}`;
+    }
+
+    // ===== IndexedDB (Dexie schema) =====
+    // photos: ++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt, blob
+    async function initDB(){
+      const hasDexie = typeof window.Dexie !== "undefined";
+      if(hasDexie){
+        try{
+          const db = new Dexie("SelfieTimeLoggerMintLight");
+          db.version(1).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded" });
+          db.version(2).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt" })
+            .upgrade(async tx=>{
+              const table = tx.table("photos");
+              await table.toCollection().modify(p=>{
+                if(!("downloadedAt" in p)) p.downloadedAt = null;
+                if(!("editedAt" in p)) p.editedAt = null;
+                if((!p.kind || !p.idx) && p.tag){
+                  const q = parseTag(p.tag);
+                  if(q){ p.kind = q.kind; p.idx = q.idx; }
+                }
+              });
+            });
+          db.version(3).stores({ photos: "++id, tag, kind, idx, createdAt, downloaded, downloadedAt, editedAt" })
+            .upgrade(async tx=>{
+              const table = tx.table("photos");
+              await table.toCollection().modify(p=>{
+                if(!("editedAt" in p)) p.editedAt = null;
+              });
+            });
+
+          await db.open();
+          state.dbType = "Dexie";
+          state.db = db;
+          log("DB: Dexie");
+          return;
+        }catch(e){
+          console.warn("Dexie open failed, fallback to native:", e);
         }
-        // reschedule (in case user still hasn't downloaded)
-        scheduleNextReminder();
-      }, clamp(ms, 500, 2**31-1));
-    }
-  }
-}
-
-/**
- * =========================
- * 8) Image processing (strip metadata by re-encode via canvas)
- * =========================
- */
-async function fileToJpegBlob(file){
-  // Use createImageBitmap with orientation fix if available
-  let bmp;
-  try{
-    bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-  }catch(e){
-    bmp = await createImageBitmap(file);
-  }
-  const w=bmp.width, h=bmp.height;
-  const canvas=document.createElement("canvas");
-  canvas.width=w; canvas.height=h;
-  const ctx=canvas.getContext("2d");
-  ctx.drawImage(bmp,0,0);
-  const blob = await new Promise(res=>canvas.toBlob(res,"image/jpeg",0.92));
-  return {blob, width:w, height:h, mime:"image/jpeg"};
-}
-
-async function captureFromVideo(video, mirror){
-  const w = video.videoWidth || 1280;
-  const h = video.videoHeight || 720;
-  const canvas = document.createElement("canvas");
-  canvas.width=w; canvas.height=h;
-  const ctx=canvas.getContext("2d");
-  if(mirror){
-    ctx.translate(w,0);
-    ctx.scale(-1,1);
-  }
-  ctx.drawImage(video,0,0,w,h);
-  const blob = await new Promise(res=>canvas.toBlob(res,"image/jpeg",0.92));
-  return {blob, width:w, height:h, mime:"image/jpeg"};
-}
-
-/**
- * =========================
- * 9) CRUD: add / replace / delete / download
- * =========================
- */
-async function refreshFromDB(){
-  const arr = await dbAllPhotos();
-  state.photos = new Map(arr.map(x=>[x.slot,x]));
-  rebuildSequence();
-
-  // load meta + prefs
-  await loadTimerFromDB();
-  const lastKey = await dbGetMeta("lastNotifiedKey", "");
-  state.sched.lastNotifiedKey = lastKey || "";
-
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function addNewPhotoFromBlob(img){
-  // choose slot = first missing (fills gaps)
-  const next = findFirstMissingSlot();
-  if(!next){ toast("ไม่พบ slot ถัดไป"); return; }
-
-  const now = Date.now();
-  const rec = {
-    slot: next.slot,
-    kind: next.kind,
-    idx: next.idx,
-    createdAt: now,
-    updatedAt: now,
-    downloadedAt: 0,
-    blob: img.blob,
-    mime: img.mime || "image/jpeg",
-    width: img.width||0,
-    height: img.height||0
-  };
-  await dbPutPhoto(rec);
-  state.photos.set(rec.slot, rec);
-  toast(`บันทึกแล้ว: ${rec.slot}`);
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function replacePendingPhoto(slot, img){
-  const rec = state.photos.get(slot);
-  if(!rec) return;
-  if(rec.downloadedAt){
-    toast("โหลดแล้ว: ไม่อนุญาตให้แก้ไข");
-    return;
-  }
-  rec.blob = img.blob;
-  rec.mime = img.mime || "image/jpeg";
-  rec.width = img.width||0;
-  rec.height = img.height||0;
-  rec.updatedAt = Date.now();
-  await dbPutPhoto(rec);
-  state.photos.set(slot, rec);
-  toast(`แก้ไขแล้ว: ${slot}`);
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function deletePhoto(slot){
-  await dbDelPhoto(slot);
-  state.photos.delete(slot);
-  toast(`ลบแล้ว: ${slot}`);
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function downloadPhoto(slot){
-  const rec = state.photos.get(slot);
-  if(!rec) return;
-
-  // download
-  const blob = rec.blob;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${slot}.jpg`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 1200);
-
-  // mark downloaded (first time only)
-  if(!rec.downloadedAt){
-    rec.downloadedAt = Date.now();
-    await dbPutPhoto(rec);
-    state.photos.set(slot, rec);
-    toast(`โหลดแล้ว: ${slot}`);
-    log("Marked downloaded (first time):", slot);
-
-    // unlock auto if reach >=40
-    await autoUnlockIfGoalMet();
-  }else{
-    toast(`ดาวน์โหลดซ้ำ: ${slot}`);
-  }
-
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function downloadNext(){
-  const nxt = computeNextSlot();
-  if(!nxt.slot){
-    toast("ไม่มีภาพถัดไป");
-    return;
-  }
-  if(nxt.reason==="missing"){
-    toast(`ขาดรูป ${nxt.slot}`);
-    return;
-  }
-  await downloadPhoto(nxt.slot);
-}
-
-/**
- * =========================
- * 10) UI rendering
- * =========================
- */
-function applyHeaderPadding(){
-  const h = $("topHeader").getBoundingClientRect().height;
-  state.ui.headerH = h;
-  $("mainWrap").style.paddingTop = (h + 6) + "px";
-}
-
-function renderHeader(){
-  const nxt = computeNextSlot();
-  $("nextSlotLabel").textContent = nxt.slot || "-";
-  // button download next
-  $("btnDownloadNext").disabled = !(nxt.slot && nxt.reason==="pending");
-
-  // time boxes
-  const now = Date.now();
-  $("timeBoxNow").textContent = fmtTime(now);
-  $("timeBoxTarget").textContent = "เป้าหมาย: " + (state.timer.targetAt ? fmtTime(state.timer.targetAt) : "--:--");
-  if(state.timer.targetAt){
-    const remain = Math.max(0, state.timer.targetAt - now);
-    const hh = Math.floor(remain/3600000);
-    const mm = Math.floor((remain%3600000)/60000);
-    const ss = Math.floor((remain%60000)/1000);
-    $("timeBoxRemain").textContent = `${fmt2(hh)}:${fmt2(mm)}:${fmt2(ss)}`;
-    $("timeBoxHint").textContent = state.timer.locked ? "กำลังนับเวลา (ล็อกปุ่ม)" : "พร้อมเริ่ม/รีเซ็ต";
-  }else{
-    $("timeBoxRemain").textContent = "--:--:--";
-    $("timeBoxHint").textContent = "รอเริ่มนับเวลา";
-  }
-
-  // DL badge
-  const dl = countDownloaded();
-  $("dlBadge").textContent = `DL: ${dl} / 40`;
-  $("goalOk").style.display = (dl>=40) ? "inline-flex" : "none";
-
-  // start button label
-  const btn = $("btnStartTimer");
-  if(!state.timer.targetAt){
-    btn.textContent = "⏱️ เริ่มนับเวลา";
-  }else{
-    btn.textContent = `สิ้นสุด ${fmtTime(state.timer.targetAt)}`;
-  }
-
-  // lock handling: ปุ่ม start ถูกล็อกเมื่อเริ่มแล้ว จนกว่าจะปลดล็อก (DL>=40 หรือ unlock window)
-  const locked = state.timer.targetAt && state.timer.locked;
-  if(locked){
-    btn.disabled = !canResetTimerByClick();
-  }else{
-    btn.disabled = false;
-  }
-
-  // unlock button label as countdown
-  const ubtn = $("btnUnlock");
-  const left = (state.ui.unlockUntil || 0) - Date.now();
-  if(left > 0 && countDownloaded() < 40){
-    ubtn.textContent = `🔓${Math.ceil(left/1000)}`;
-  }else{
-    ubtn.textContent = "🔓";
-  }
-}
-
-function renderProgress(){
-  const total = state.photos.size;
-  const dl = countDownloaded();
-  const pending = total - dl;
-  $("progText").textContent = `Total: ${total} • Downloaded: ${dl} • Pending: ${pending}`;
-  const pct = Math.min(100, (dl/40)*100);
-  $("progBar").style.width = pct.toFixed(1) + "%";
-  $("pendingCountBadge").textContent = String(pending);
-  $("downloadedCountBadge").textContent = String(dl);
-}
-
-function renderLists(){
-  const dlArr = [];
-  const pendArr = [];
-
-  // render in slot order (fixed)
-  rebuildSequence();
-  const order = state.orderedSlots.map(x=>x.slot);
-  for(const slot of order){
-    const rec = state.photos.get(slot);
-    if(!rec) continue;
-    if(rec.downloadedAt) dlArr.push(rec);
-    else pendArr.push(rec);
-  }
-  // include any extra slots that exceed our current sequence (rare)
-  for(const rec of state.photos.values()){
-    if(!order.includes(rec.slot)){
-      (rec.downloadedAt?dlArr:pendArr).push(rec);
-    }
-  }
-
-  // schedule plan for time use display
-  const sch = computeSchedule();
-  const plan = sch.plan || new Map();
-
-  // Pending list
-  const pEl = $("pendingList");
-  pEl.innerHTML = "";
-  if(pendArr.length===0){
-    pEl.innerHTML = `<div class="muted mini">ยังไม่มีรายการ Pending</div>`;
-  }else{
-    for(const rec of pendArr){
-      const dueAt = plan.get(rec.slot) || 0;
-      pEl.appendChild(renderPhotoCard(rec, false, dueAt));
-    }
-  }
-
-  // Downloaded list
-  const dEl = $("downloadedList");
-  dEl.innerHTML = "";
-  if(dlArr.length===0){
-    dEl.innerHTML = `<div class="muted mini">ยังไม่มีรายการ Downloaded</div>`;
-  }else{
-    for(const rec of dlArr){
-      dEl.appendChild(renderPhotoCard(rec, true, 0));
-    }
-  }
-}
-
-function renderPhotoCard(rec, downloaded, dueAt){
-  const wrap = document.createElement("div");
-  wrap.className = "photoCard";
-
-  // thumb
-  const th = document.createElement("div");
-  th.className = "thumb";
-  const img = document.createElement("img");
-  img.alt = rec.slot;
-  img.src = URL.createObjectURL(rec.blob);
-  img.onload = ()=> setTimeout(()=>URL.revokeObjectURL(img.src), 5000);
-  th.appendChild(img);
-
-  const right = document.createElement("div");
-
-  const top = document.createElement("div");
-  top.className = "metaTop";
-
-  const tag = document.createElement("span");
-  tag.className = "badge " + (downloaded ? "ok" : "wait");
-  tag.textContent = rec.slot;
-  top.appendChild(tag);
-
-  if(downloaded){
-    const b = document.createElement("span");
-    b.className = "badge ok";
-    b.textContent = "โหลดแล้ว ✅";
-    top.appendChild(b);
-  }
-
-  // time use line + edit (pending only)
-  const line = document.createElement("div");
-  line.className = "metaLine";
-  const created = document.createElement("span");
-  created.innerHTML = `<strong>เพิ่ม:</strong> ${fmtDateTime(rec.createdAt)}`;
-  line.appendChild(created);
-
-  const tuse = document.createElement("span");
-  if(dueAt){
-    tuse.innerHTML = `<strong>Time use:</strong> ${fmtTime(dueAt)}`;
-  }else{
-    tuse.innerHTML = `<strong>Time use:</strong> -`;
-  }
-  line.appendChild(tuse);
-
-  if(!downloaded){
-    const edit = document.createElement("button");
-    edit.className = "editMini";
-    edit.innerHTML = `✏️ <span class="mini">Edit</span>`;
-    edit.onclick = ()=>{
-      // replace flow: ask camera or file
-      openReplaceMenu(rec.slot);
-    };
-    line.appendChild(edit);
-  }
-
-  // actions
-  const act = document.createElement("div");
-  act.className = "actions";
-  const b1 = document.createElement("button");
-  b1.className = "btn small" + (downloaded ? "" : " primary");
-  b1.textContent = "⬇️ Download";
-  b1.onclick = ()=> downloadPhoto(rec.slot);
-
-  const b2 = document.createElement("button");
-  b2.className = "btn small danger";
-  b2.textContent = "🗑️ Delete";
-  b2.onclick = async ()=>{
-    if(!confirm(`ลบรูป ${rec.slot} ?`)) return;
-    await deletePhoto(rec.slot);
-  };
-
-  act.appendChild(b1);
-  act.appendChild(b2);
-
-  right.appendChild(top);
-  right.appendChild(line);
-  right.appendChild(act);
-
-  wrap.appendChild(th);
-  wrap.appendChild(right);
-  return wrap;
-}
-
-function renderAll(){
-  applyHeaderPadding();
-  renderHeader();
-  renderProgress();
-  renderLists();
-}
-
-/**
- * =========================
- * 11) Replace pending photo (Edit button)
- * =========================
- * - เฉพาะ Pending เท่านั้น (Downloaded ไม่ให้แก้)
- * - ให้เลือก "ถ่าย" หรือ "อัปโหลด" แล้วเขียนทับ slot เดิม
- */
-let replaceSlot = null;
-
-function openReplaceMenu(slot){
-  replaceSlot = slot;
-  // เลือกง่าย: ใช้ confirm แยก (mobile-friendly)
-  const okCam = confirm(`แก้ไขรูป ${slot}\nกด OK = เปิดกล้องถ่ายแทน\nกด Cancel = เลือกจากแกลเลอรี่`);
-  if(okCam){
-    openCamera(true); // replace mode
-  }else{
-    // open file picker replace
-    $("fileInput").click();
-    $("fileInput").dataset.replace = slot;
-  }
-}
-
-/**
- * =========================
- * 12) Camera (mirror + switch)
- * =========================
- */
-async function stopStream(){
-  if(state.stream){
-    try{ state.stream.getTracks().forEach(t=>t.stop()); }catch(e){}
-  }
-  state.stream = null;
-  $("video").srcObject = null;
-}
-
-async function openCamera(replaceMode=false){
-  replaceSlot = replaceMode ? replaceSlot : null;
-
-  $("camBackdrop").classList.add("show");
-  $("camStatTop").textContent = "กำลังเปิดกล้อง…";
-  $("camStatSub").textContent = `จำนวนรูป: ${state.photos.size} • ถัดไป: ${computeNextSlot().slot || "-"}`;
-
-  // try open camera
-  try{
-    await stopStream();
-    const constraints = {
-      video: { facingMode: state.facing }
-    };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    state.stream = stream;
-    $("video").srcObject = stream;
-
-    // mirror preview if user cam + mirror enabled
-    updateVideoMirror();
-
-    $("camStatTop").textContent = replaceSlot ? `โหมด Replace: ${replaceSlot}` : "พร้อมถ่าย";
-  }catch(e){
-    $("camStatTop").textContent = "เปิดกล้องไม่ได้";
-    toast("เปิดกล้องไม่ได้ ใช้อัปโหลดแทน");
-    log("camera error", e?.message||String(e));
-  }
-}
-
-function updateVideoMirror(){
-  const v = $("video");
-  const shouldMirror = (state.facing==="user" && state.prefs.mirror);
-  v.style.transform = shouldMirror ? "scaleX(-1)" : "none";
-}
-
-async function takeShot(){
-  const v = $("video");
-  if(!state.stream || !v.videoWidth){
-    toast("กล้องยังไม่พร้อม");
-    return;
-  }
-  const shouldMirrorSaved = (state.facing==="user" && state.prefs.mirror);
-
-  const img = await captureFromVideo(v, shouldMirrorSaved);
-
-  if(replaceSlot){
-    await replacePendingPhoto(replaceSlot, img);
-    replaceSlot = null;
-    // stay open or close? ปิดเพื่อความชัวร์
-    closeCamera();
-    return;
-  }else{
-    await addNewPhotoFromBlob(img);
-    // update stat
-    $("camStatSub").textContent = `จำนวนรูป: ${state.photos.size} • ถัดไป: ${computeNextSlot().slot || "-"}`;
-  }
-}
-
-function closeCamera(){
-  $("camBackdrop").classList.remove("show");
-  replaceSlot = null;
-  stopStream();
-}
-
-/**
- * =========================
- * 13) Start timer button behavior (2-step)
- * =========================
- * - กดครั้งที่ 1: เริ่มนับเวลา + ล็อกปุ่ม + เปลี่ยนชื่อเป็น "สิ้นสุด HH:MM"
- * - กดครั้งที่ 2: รีเซ็ท (เตรียมพร้อมเริ่มใหม่) -> ต้องอยู่ในหน้าต่างปลดล็อค หรือ DL>=40
- */
-async function onStartTimer(){
-  // ถ้ายังไม่เริ่ม -> เริ่ม
-  if(!state.timer.targetAt){
-    const now = Date.now();
-    state.timer.startAt = now;
-    state.timer.targetAt = now + DURATION_MS;
-    state.timer.locked = true; // เริ่มแล้วล็อก (ปลดได้ด้วย DL>=40 หรือ unlock window)
-    await saveTimerToDB();
-    toast("เริ่มนับเวลาแล้ว");
-    await notifyUser(`เริ่มนับเวลาแล้ว • เป้าหมาย ${fmtTime(state.timer.targetAt)}`);
-    renderAll();
-    scheduleNextReminder();
-    return;
-  }
-
-  // ถ้าเริ่มแล้ว -> กดอีกครั้ง = รีเซ็ต (ต้องปลดล็อค)
-  if(state.timer.locked && !canResetTimerByClick()){
-    toast("ต้องปลดล็อคก่อน (🔓) หรือโหลดครบ 40");
-    return;
-  }
-
-  // reset
-  state.timer.startAt = 0;
-  state.timer.targetAt = 0;
-  state.timer.locked = false;
-  state.ui.unlockUntil = 0;
-  await saveTimerToDB();
-  toast("รีเซ็ตเวลาแล้ว");
-  renderAll();
-  scheduleNextReminder();
-}
-
-async function onUnlock(){
-  // ถ้า DL>=40 -> ปลดล็อคถาวร
-  if(countDownloaded() >= 40){
-    state.timer.locked = false;
-    state.ui.unlockUntil = 0;
-    await saveTimerToDB();
-    toast("ปลดล็อคแล้ว (ครบ 40)");
-    renderAll();
-    return;
-  }
-
-  // เปิดหน้าต่าง 3 วินาทีให้กดรีเซ็ตได้
-  state.ui.unlockUntil = Date.now() + 3000;
-  await saveTimerToDB();
-  toast("ปลดล็อค 3 วินาที");
-  renderAll();
-
-  // refresh countdown UI
-  const tick = ()=>{
-    renderHeader();
-    if(Date.now() < state.ui.unlockUntil) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-async function onWipe(){
-  if(!confirm("ลบทั้งหมด? (ขั้นที่ 1)")) return;
-  if(!confirm("ยืนยันลบทั้งหมดจริง ๆ? (ขั้นที่ 2)")) return;
-  await dbClearAll();
-  state.photos.clear();
-  state.timer = {startAt:0,targetAt:0,locked:false};
-  state.ui.unlockUntil = 0;
-  state.sched.lastNotifiedKey = "";
-  localStorage.removeItem("stl_line"); // optional
-  toast("ล้างข้อมูลทั้งหมดแล้ว");
-  await refreshFromDB();
-}
-
-/**
- * =========================
- * 14) UI events
- * =========================
- */
-function wireUI(){
-  // header actions
-  $("btnOpenCam").onclick = ()=> openCamera(false);
-  $("btnPickFile").onclick = ()=> $("fileInput").click();
-  $("btnSettings").onclick = ()=> openSettings();
-  $("btnDownloadNext").onclick = ()=> downloadNext();
-
-  // file input (add or replace)
-  $("fileInput").addEventListener("change", async (e)=>{
-    const f = e.target.files && e.target.files[0];
-    if(!f) return;
-    try{
-      const img = await fileToJpegBlob(f);
-      const rs = $("fileInput").dataset.replace || "";
-      if(rs){
-        $("fileInput").dataset.replace = "";
-        await replacePendingPhoto(rs, img);
-      }else{
-        await addNewPhotoFromBlob(img);
       }
-    }catch(err){
-      toast("อ่านรูปไม่สำเร็จ");
-      log("file error", err?.message||String(err));
-    }finally{
-      e.target.value="";
+      state.dbType = "Native";
+      state.db = await openNativeDB();
+      log("DB: Native fallback");
     }
-  });
 
-  // camera modal
-  $("btnCloseCam").onclick = closeCamera;
-  $("btnShot").onclick = takeShot;
-  $("btnFlip").onclick = async ()=>{
-    state.facing = (state.facing==="user") ? "environment" : "user";
-    await openCamera(!!replaceSlot);
-  };
+    function openNativeDB(){
+      return new Promise((resolve, reject)=>{
+        const req = indexedDB.open("SelfieTimeLoggerMintLight_Native", 2);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if(!db.objectStoreNames.contains("photos")){
+            const store = db.createObjectStore("photos", { keyPath:"id", autoIncrement:true });
+            store.createIndex("createdAt", "createdAt", { unique:false });
+            store.createIndex("downloaded", "downloaded", { unique:false });
+            store.createIndex("tag", "tag", { unique:false });
+          }
+        };
+        req.onsuccess = () => {
+          const db = req.result;
 
-  // sticky
-  $("btnStartTimer").onclick = onStartTimer;
-  $("btnUnlock").onclick = onUnlock;
-  $("btnWipe").onclick = onWipe;
+          const api = {
+            async addPhoto(obj){ return txWrap(db, "photos", "readwrite", store => store.add(obj)); },
+            async updatePhoto(id, changes){
+              return txWrap(db, "photos", "readwrite", async store => {
+                const existing = await reqWrap(store.get(id));
+                if(!existing) return null;
+                const merged = { ...existing, ...changes };
+                await reqWrap(store.put(merged));
+                return merged;
+              });
+            },
+            async deletePhoto(id){ return txWrap(db, "photos", "readwrite", store => store.delete(id)); },
+            async clearAll(){ return txWrap(db, "photos", "readwrite", store => store.clear()); },
+            async getAll(){
+              return txWrap(db, "photos", "readonly", async store => {
+                const idx = store.index("createdAt");
+                return await reqWrap(idx.getAll());
+              });
+            }
+          };
+          resolve(api);
+        };
+        req.onerror = () => reject(req.error);
+      });
 
-  // downloaded collapse
-  $("dlCollapseHead").onclick = ()=>{
-    state.ui.downloadedOpen = !state.ui.downloadedOpen;
-    $("dlCollapseBody").classList.toggle("open", state.ui.downloadedOpen);
-    $("dlChev").textContent = state.ui.downloadedOpen ? "▾" : "▸";
-  };
-
-  // settings
-  $("btnCloseSettings").onclick = closeSettings;
-
-  $("swMirror").onchange = ()=>{
-    state.prefs.mirror = $("swMirror").checked;
-    localStorage.setItem("stl_prefs", JSON.stringify(state.prefs));
-    updateVideoMirror();
-  };
-  $("swCatchup").onchange = ()=>{
-    state.prefs.catchup = $("swCatchup").checked;
-    localStorage.setItem("stl_prefs", JSON.stringify(state.prefs));
-  };
-  $("swLog").onchange = ()=>{
-    state.prefs.log = $("swLog").checked;
-    localStorage.setItem("stl_prefs", JSON.stringify(state.prefs));
-    $("logPanel").style.display = state.prefs.log ? "block" : "none";
-  };
-
-  // LINE settings
-  $("swLineEnable").onchange = ()=>{
-    state.line.enabled = $("swLineEnable").checked;
-    saveLineSettings();
-    updateLineUI();
-  };
-  $("btnSaveLine").onclick = ()=>{
-    state.line.worker = $("lineWorkerUrl").value.trim() || state.line.worker;
-    state.line.code = $("lineCode").value.trim();
-    saveLineSettings();
-    updateLineUI();
-    toast("บันทึกค่า LINE แล้ว");
-  };
-  $("btnClearLine").onclick = ()=>{
-    if(!confirm("ล้างค่า LINE ในเครื่อง?")) return;
-    state.line.enabled = false;
-    state.line.code = "";
-    // worker keep default
-    saveLineSettings();
-    updateLineUI();
-    toast("ล้างค่าแล้ว");
-  };
-  $("btnTestLine").onclick = async ()=>{
-    state.line.worker = $("lineWorkerUrl").value.trim() || state.line.worker;
-    state.line.code = $("lineCode").value.trim();
-    saveLineSettings();
-    updateLineUI();
-
-    if(!state.line.code){
-      toast("กรุณาใส่โค้ดผูกเครื่อง");
-      return;
-    }
-    try{
-      const r = await lineSend("ทดสอบการแจ้งเตือนจาก Selfie Logger ✅");
-      if(r && r.ok){
-        toast("ส่งทดสอบเข้า LINE แล้ว ✅");
-      }else{
-        toast("ส่งไม่สำเร็จ (เช็ค LINK โค้ด/เน็ต)");
-        log("test line result", r);
+      function txWrap(db, storeName, mode, fn){
+        return new Promise((resolve, reject)=>{
+          const tx = db.transaction(storeName, mode);
+          const store = tx.objectStore(storeName);
+          Promise.resolve(fn(store)).then(res=>{
+            tx.oncomplete = ()=> resolve(res);
+            tx.onerror = ()=> reject(tx.error);
+            tx.onabort = ()=> reject(tx.error);
+          }).catch(reject);
+        });
       }
-    }catch(e){
-      toast("ส่งไม่สำเร็จ (เช็คเน็ต)");
-      log("test line error", e?.message||String(e));
+      function reqWrap(req){
+        return new Promise((resolve, reject)=>{
+          req.onsuccess = ()=> resolve(req.result);
+          req.onerror = ()=> reject(req.error);
+        });
+      }
     }
-  };
 
-  // window resize for header padding
-  window.addEventListener("resize", ()=>applyHeaderPadding());
+    async function dbAddPhoto(photo){
+      if(state.dbType === "Dexie") return state.db.photos.add(photo);
+      return state.db.addPhoto(photo);
+    }
+    async function dbUpdatePhoto(id, changes){
+      if(state.dbType === "Dexie") return state.db.photos.update(id, changes);
+      return state.db.updatePhoto(id, changes);
+    }
+    async function dbDeletePhoto(id){
+      if(state.dbType === "Dexie") return state.db.photos.delete(id);
+      return state.db.deletePhoto(id);
+    }
+    async function dbClearAll(){
+      if(state.dbType === "Dexie") return state.db.photos.clear();
+      return state.db.clearAll();
+    }
+    async function dbGetAll(){
+      if(state.dbType === "Dexie") return state.db.photos.orderBy("createdAt").toArray();
+      return state.db.getAll();
+    }
 
-  // tick clock
-  setInterval(()=>renderHeader(), 1000);
-}
+    // ===== Image utils (strip metadata by re-encode via canvas) =====
+    function loadImage(src){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.onload = ()=> resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+    function fitWithin(w, h, maxSide){
+      const max = Math.max(w, h);
+      if(max <= maxSide) return { w, h };
+      const scale = maxSide / max;
+      return { w: Math.round(w*scale), h: Math.round(h*scale) };
+    }
+    function canvasToJpegBlob(canvas, quality=0.92){
+      return new Promise((resolve)=> canvas.toBlob((b)=> resolve(b), "image/jpeg", quality));
+    }
+    async function imageFileToCleanJpegBlob(file, targetMax = 1600){
+      const url = URL.createObjectURL(file);
+      try{
+        const img = await loadImage(url);
+        const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, targetMax);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d", { alpha:false });
+        ctx.drawImage(img, 0, 0, w, h);
+        const blob = await canvasToJpegBlob(canvas, 0.92);
+        return { blob, width:w, height:h, mime:"image/jpeg" };
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+    }
 
-function loadPrefs(){
-  const raw = localStorage.getItem("stl_prefs") || "";
-  if(raw){
-    try{ Object.assign(state.prefs, JSON.parse(raw)); }catch(e){}
-  }
-  $("swMirror").checked = !!state.prefs.mirror;
-  $("swCatchup").checked = !!state.prefs.catchup;
-  $("swLog").checked = !!state.prefs.log;
-  $("logPanel").style.display = state.prefs.log ? "block" : "none";
-}
+    function getThumbUrl(photo){
+      if(state.thumbUrl.has(photo.id)) return state.thumbUrl.get(photo.id);
+      const u = URL.createObjectURL(photo.blob);
+      state.thumbUrl.set(photo.id, u);
+      return u;
+    }
+    function revokeThumbUrl(id){
+      const u = state.thumbUrl.get(id);
+      if(u){
+        URL.revokeObjectURL(u);
+        state.thumbUrl.delete(id);
+      }
+    }
+    function revokeAllThumbs(){
+      for(const u of state.thumbUrl.values()) URL.revokeObjectURL(u);
+      state.thumbUrl.clear();
+    }
 
-function openSettings(){
-  $("settingsBackdrop").classList.add("show");
-  // fill values
-  $("lineWorkerUrl").value = state.line.worker || "";
-  $("lineCode").value = state.line.code || "";
-  $("swLineEnable").checked = !!state.line.enabled;
-  updateLineUI();
-}
-function closeSettings(){
-  $("settingsBackdrop").classList.remove("show");
-}
-function updateLineUI(){
-  $("lineStatusBadge").textContent = state.line.enabled ? "เปิดใช้งาน" : "ยังไม่เปิด";
-  $("lineStatusBadge").className = "badge " + (state.line.enabled ? "ok" : "wait");
-}
+    // ===== Add/Replace photo =====
+    async function addPhotoFromBlob(blob, meta = {}){
+      if(state.busy.saving) return;
+      state.busy.saving = true;
 
-/**
- * =========================
- * 15) Boot
- * =========================
- */
-(async function boot(){
-  loadPrefs();
-  loadLineSettings();
+      const next = computeNextSlot(state.photos);
+      const { tag, kind, idx } = next;
 
-  await openDB();
-  await refreshFromDB();
+      const createdAt = now();
+      const record = {
+        tag, kind, idx,
+        createdAt,
+        downloaded: 0,
+        downloadedAt: null,
+        editedAt: null,
+        mime: meta.mime || blob.type || "image/jpeg",
+        width: meta.width || null,
+        height: meta.height || null,
+        size: blob.size,
+        blob
+      };
 
-  wireUI();
-  applyHeaderPadding();
+      setSaveState(`<span class="spin"></span> บันทึก…`, "wait");
+      try{
+        const id = await dbAddPhoto(record);
+        record.id = id;
 
-  // set initial line UI values
-  updateLineUI();
+        state.photos.push(record);
+        state.photos.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
 
-  // auto unlock if goal met
-  await autoUnlockIfGoalMet();
-  renderAll();
+        setSaveState("บันทึกแล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
 
-  log("BOOT OK");
-})();
-</script>
+        heavyRender();
+        updateCamHUD();
+        showCamToast(`บันทึกแล้ว: ${tag}`);
+      }catch(e){
+        setSaveState("บันทึกล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+        log("Save error:", e && (e.message||e.name) ? (e.message||e.name) : e);
+      }finally{
+        state.busy.saving = false;
+      }
+    }
 
-<!--
-=====================================
-วิธีใช้ (สั้น ๆ)
-=====================================
-1) เพิ่มรูป:
-   - กด 📷 เพื่อถ่าย หรือ 🖼️ เพื่ออัปโหลด
-   - ระบบจะใส่แท็กตามลำดับและ “เติมช่องที่หาย” ก่อนเสมอ (แก้ปัญหาแท็กไม่ต่อเนื่องหลังลบ)
+    async function replacePhotoBlob(targetId, blob, meta = {}){
+      const p = state.photos.find(x => x.id === targetId);
+      if(!p) return;
 
-2) ดาวน์โหลด:
-   - กด “↓ โหลดภาพถัดไป” (แนะนำ) หรือกด Download รายรูป
-   - เมื่อ Download ครั้งแรก จะ mark ว่า “โหลดแล้ว” และย้ายไป Downloaded
-   - ดาวน์โหลดซ้ำได้ (แต่สถานะไม่เปลี่ยน)
+      revokeThumbUrl(targetId);
 
-3) เริ่มนับเวลา:
-   - ปุ่มล่าง “⏱️ เริ่มนับเวลา” -> จะล็อกปุ่ม
-   - จะปลดล็อกอัตโนมัติเมื่อ Downloaded >= 40
-   - หรือกด 🔓 เพื่อเปิดหน้าต่างปลดล็อก 3 วินาที (ให้กดปุ่มเริ่ม/รีเซ็ตได้)
+      const editedAt = now();
+      const changes = {
+        blob,
+        mime: meta.mime || blob.type || "image/jpeg",
+        width: meta.width || p.width || null,
+        height: meta.height || p.height || null,
+        size: blob.size,
+        editedAt
+      };
 
-4) แจ้งเตือนผ่าน LINE:
-   - เปิด Settings (⚙️) -> เปิด “LINE แจ้งเตือน”
-   - ใส่ Worker URL (ค่าเริ่มต้นใส่ไว้แล้ว) + ใส่โค้ด เช่น PHANTOM1
-   - ไปที่ LINE ส่งไปหา OA: LINK PHANTOM1
-   - กลับมากด “ทดสอบแจ้งเตือน”
+      setSaveState(`<span class="spin"></span> แทนที่รูป…`, "wait");
+      try{
+        await dbUpdatePhoto(targetId, changes);
+        Object.assign(p, changes);
 
-ข้อจำกัด:
-- เว็บไม่การันตีการปลุกเมื่อตอนปิด Chrome/ปิดแท็บ (ข้อจำกัดของเบราว์เซอร์)
-- LINE แจ้งเตือนต้องมีอินเทอร์เน็ตในตอนส่ง (ถ้าออฟไลน์จะ fallback เป็น toast/beep ในแอป)
--->
+        setSaveState("แทนที่แล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
+
+        heavyRender();
+        showCamToast(`แทนที่แล้ว: ${p.tag}`);
+      }catch(e){
+        setSaveState("แทนที่ล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+        log("Replace error:", e && (e.message||e.name) ? (e.message||e.name) : e);
+      }
+    }
+
+    async function handleFilesAdd(files){
+      if(!files || !files.length) return;
+      setSaveState(`<span class="spin"></span> แปลงรูป…`, "wait");
+      for(const file of files){
+        try{
+          const clean = await imageFileToCleanJpegBlob(file, 1600);
+          await addPhotoFromBlob(clean.blob, clean);
+        }catch(e){
+          log("Upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
+          setSaveState("บันทึกล้มเหลว", "err");
+          setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+        }
+      }
+      heavyRender();
+    }
+
+    async function handleFileReplace(file){
+      if(!file || !state.replace.active || !state.replace.targetId) return;
+      setSaveState(`<span class="spin"></span> แปลงรูป…`, "wait");
+      try{
+        const clean = await imageFileToCleanJpegBlob(file, 1600);
+        await replacePhotoBlob(state.replace.targetId, clean.blob, clean);
+      }catch(e){
+        log("Replace upload error:", e && (e.message || e.name) ? (e.message || e.name) : e);
+        setSaveState("แทนที่ล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+      }
+    }
+
+    // ===== Timer 9:10 lock =====
+    const TIMER_910_MS = (9*60*60 + 10*60) * 1000;
+
+    function loadTimer910(){
+      const t = loadJSON(LS.timer910, null);
+      if(t && typeof t === "object"){
+        state.timer910 = {
+          running: !!t.running,
+          locked: !!t.locked,
+          startAt: t.startAt || null,
+          targetAt: t.targetAt || null
+        };
+      }
+    }
+    function saveTimer910(){ saveJSON(LS.timer910, state.timer910); }
+
+    function isUnlockWindowActive(){
+      return !!state.unlock.until && now() < state.unlock.until;
+    }
+    function clearUnlockWindow(){
+      state.unlock.until = null;
+      if(state.unlock.ticker){
+        clearInterval(state.unlock.ticker);
+        state.unlock.ticker = null;
+      }
+      $("unlockBtn").textContent = "🔓";
+    }
+    function openUnlockWindow3s(){
+      clearUnlockWindow();
+      state.unlock.until = now() + 3000;
+
+      const tick = () => {
+        const leftMs = state.unlock.until - now();
+        const leftSec = Math.max(0, Math.ceil(leftMs / 1000));
+        if(leftSec <= 0){
+          clearUnlockWindow();
+          lightTick();
+          return;
+        }
+        $("unlockBtn").textContent = `🔓${leftSec}`;
+        lightTick();
+      };
+
+      tick();
+      state.unlock.ticker = setInterval(tick, 200);
+      log("Unlock window opened: 3s");
+    }
+
+    function startTimer910(){
+      const startAt = now();
+      const targetAt = startAt + TIMER_910_MS;
+      state.timer910 = { running:true, locked:true, startAt, targetAt };
+      saveTimer910();
+      log("Timer start", fmtDT(startAt), "->", fmtDT(targetAt));
+    }
+
+    function resetTimer910ToReady(){
+      state.timer910 = { running:false, locked:false, startAt:null, targetAt:null };
+      saveTimer910();
+      clearUnlockWindow();
+
+      state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
+      saveJSON(LS.alarm, state.alarm);
+      stopAlarmTimeout();
+      hideToast();
+
+      log("Timer reset -> READY");
+    }
+
+    async function onStartButtonClick(){
+      if(!state.timer910.running){
+        startTimer910();
+        heavyRender();
+        return;
+      }
+
+      const allowed = (!state.timer910.locked) || isUnlockWindowActive();
+      if(!allowed) return;
+
+      resetTimer910ToReady();
+      heavyRender();
+    }
+
+    // ===== counts/sorting =====
+    function computeCounts(){
+      const total = state.photos.length;
+      const downloaded = state.photos.filter(p=>p.downloaded === 1).length;
+      const pending = total - downloaded;
+      return { total, downloaded, pending };
+    }
+    function sortSlot(a,b){
+      const ai = a.idx||0, bi = b.idx||0;
+      if(ai !== bi) return ai - bi;
+      const ak = (String(a.kind).toUpperCase()==="IN") ? 0 : 1;
+      const bk = (String(b.kind).toUpperCase()==="IN") ? 0 : 1;
+      return ak - bk;
+    }
+    function getSortedPending(){
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      pending.sort(sortSlot);
+      return pending;
+    }
+    function getLastDownloadedFirstTime(){
+      const downloaded = state.photos.filter(p=>p.downloaded===1 && p.downloadedAt);
+      if(!downloaded.length) return null;
+      downloaded.sort((a,b)=> (a.downloadedAt||0) - (b.downloadedAt||0));
+      return downloaded[downloaded.length-1] || null;
+    }
+
+    // ===== schedule math (Exact fit to targetAt) =====
+    function minGapMinutes(kind){ return (kind==="IN") ? 3 : 4; }
+    function maxGapMinutes(kind){ return (kind==="IN") ? 25 : 30; }
+
+    function buildContiguousPendingChain(nextExpected, pendingByTag, limit=200){
+      const chain = [];
+      let tag = nextExpected;
+      let missingTag = null;
+      for(let i=0;i<limit;i++){
+        const p = pendingByTag.get(tag);
+        if(!p){
+          missingTag = tag;
+          break;
+        }
+        chain.push(p);
+        const nxt = nextTagInSequence(tag);
+        if(!nxt){ break; }
+        tag = nxt;
+      }
+      return { chain, missingTag };
+    }
+
+    function solveExactAB(totalMin, nIn, nOut){
+      if(nIn===0 && nOut===0) return { ok:false, a:null, b:null };
+
+      if(nOut===0){
+        const a = totalMin / Math.max(1,nIn);
+        const ok = (a >= 3 && a <= 25);
+        return { ok, a: Math.max(3, Math.min(25, a)), b: null };
+      }
+      if(nIn===0){
+        const b = totalMin / Math.max(1,nOut);
+        const ok = (b >= 4 && b <= 30);
+        return { ok, a: null, b: Math.max(4, Math.min(30, b)) };
+      }
+
+      const mean = totalMin / (nIn + nOut);
+      let best = { ok:false, a:null, b:null, score: 1e18 };
+
+      for(let a=3; a<=25.0001; a+=0.01){
+        const b = (totalMin - a*nIn) / nOut;
+        if(b < 4 || b > 30) continue;
+        if(!(b > a + 0.001)) continue;
+        const score = Math.abs(a-mean) + Math.abs(b-mean) + 0.08*Math.abs(b-a);
+        if(score < best.score){
+          best = { ok:true, a, b, score };
+        }
+      }
+
+      if(best.ok) return best;
+      const a0 = Math.max(3, Math.min(25, mean-1));
+      const b0 = Math.max(4, Math.min(30, mean+1));
+      const bAdj = (b0 <= a0) ? Math.min(30, a0 + 0.25) : b0;
+      return { ok:false, a:a0, b:bAdj };
+    }
+
+    function distributeMsToMatchTotal(gapsMs, kinds, totalMs){
+      let sum = gapsMs.reduce((s,x)=>s+x,0);
+      let diff = totalMs - sum;
+      if(diff === 0) return gapsMs;
+
+      let safety = 200000;
+      while(diff !== 0 && safety-- > 0){
+        let moved = false;
+        for(let i=gapsMs.length-1; i>=0 && diff !== 0; i--){
+          const kind = kinds[i];
+          const minMs = Math.round(minGapMinutes(kind) * 60000);
+          const maxMs = Math.round(maxGapMinutes(kind) * 60000);
+          if(diff > 0){
+            if(gapsMs[i] < maxMs){
+              gapsMs[i] += 1; diff -= 1; moved = true;
+            }
+          }else{
+            if(gapsMs[i] > minMs){
+              gapsMs[i] -= 1; diff += 1; moved = true;
+            }
+          }
+        }
+        if(!moved) break;
+      }
+      return gapsMs;
+    }
+
+    function computeScheduleExactFit(){
+      const sched = {
+        ok:false,
+        error:"",
+        warn:"",
+        nextTag:null,
+        nextAt:null,
+        planAtById: new Map(),
+        source: { lastDownloadedTag:null, lastDownloadedAt:null }
+      };
+
+      if(!state.timer910.running || !state.timer910.targetAt){
+        sched.error = "เริ่มนับเวลาก่อน";
+        sched.nextTag = peekNextTag();
+        return sched;
+      }
+
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      const pendingByTag = new Map(pending.map(p=>[p.tag, p]));
+
+      const last = getLastDownloadedFirstTime();
+      let nextExpected = last ? nextTagInSequence(last.tag) : "IN-1";
+      sched.source.lastDownloadedTag = last ? last.tag : null;
+      sched.source.lastDownloadedAt = last ? last.downloadedAt : null;
+
+      const { chain, missingTag } = buildContiguousPendingChain(nextExpected, pendingByTag, 200);
+      sched.nextTag = chain[0]?.tag || nextExpected || "-";
+
+      if(chain.length === 0){
+        sched.error = `ขาดรูป ${nextExpected}`;
+        return sched;
+      }
+
+      const targetAt = state.timer910.targetAt;
+      let baseTime = last ? last.downloadedAt : now();
+      baseTime = Math.max(baseTime, state.timer910.startAt || 0);
+
+      let totalMs = targetAt - baseTime;
+      if(totalMs <= 0){
+        sched.error = "เลยเวลาเป้าหมายแล้ว";
+        sched.nextAt = now();
+        return sched;
+      }
+
+      let kinds = [];
+      let intervals = 0;
+
+      if(last){
+        intervals = chain.length;
+        const lastKind = (parseTag(last.tag)?.kind) || "IN";
+        kinds.push(lastKind);
+        for(let i=1;i<chain.length;i++){
+          kinds.push(String(chain[i-1].kind).toUpperCase());
+        }
+      }else{
+        if(chain.length === 1){
+          sched.planAtById.set(chain[0].id, targetAt);
+          sched.nextAt = targetAt;
+          sched.ok = true;
+          return sched;
+        }
+        intervals = chain.length - 1;
+        for(let i=0;i<chain.length-1;i++){
+          kinds.push(String(chain[i].kind).toUpperCase());
+        }
+      }
+
+      let minSum = 0, maxSum = 0;
+      for(const k of kinds){
+        minSum += minGapMinutes(k)*60000;
+        maxSum += maxGapMinutes(k)*60000;
+      }
+
+      if(totalMs > maxSum + 1){
+        sched.error = missingTag ? `ขาดรูป ${missingTag}` : `รูปไม่พอถึงเป้าหมาย`;
+        const gapsMs = kinds.map(k => Math.round(maxGapMinutes(k)*60000));
+        let t = baseTime;
+        if(last){
+          for(let i=0;i<chain.length;i++){
+            t += gapsMs[i];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }else{
+          sched.planAtById.set(chain[0].id, baseTime);
+          for(let i=1;i<chain.length;i++){
+            t += gapsMs[i-1];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }
+        return sched;
+      }
+
+      if(totalMs < minSum - 1){
+        sched.error = `เวลาน้อยเกินสำหรับจำนวนรูปในลำดับ`;
+        const gapsMs = kinds.map(k => Math.round(minGapMinutes(k)*60000));
+        let t = baseTime;
+        if(last){
+          for(let i=0;i<chain.length;i++){
+            t += gapsMs[i];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }else{
+          sched.planAtById.set(chain[0].id, baseTime);
+          for(let i=1;i<chain.length;i++){
+            t += gapsMs[i-1];
+            sched.planAtById.set(chain[i].id, t);
+          }
+          sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+        }
+        return sched;
+      }
+
+      let nIn=0, nOut=0;
+      for(const k of kinds){ if(k==="IN") nIn++; else nOut++; }
+      const totalMin = totalMs / 60000;
+
+      const { ok:abOk, a, b } = solveExactAB(totalMin, nIn, nOut);
+
+      let gapsMs = new Array(kinds.length).fill(0).map((_,i)=>{
+        const k = kinds[i];
+        const mins = (k==="IN") ? (a ?? 10) : (b ?? 12);
+        const clamped = Math.max(minGapMinutes(k), Math.min(maxGapMinutes(k), mins));
+        return Math.round(clamped * 60000);
+      });
+
+      gapsMs = distributeMsToMatchTotal(gapsMs, kinds, Math.round(totalMs));
+
+      let t = baseTime;
+      if(last){
+        for(let i=0;i<chain.length;i++){
+          t += gapsMs[i];
+          sched.planAtById.set(chain[i].id, t);
+        }
+        sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+      }else{
+        sched.planAtById.set(chain[0].id, baseTime);
+        for(let i=1;i<chain.length;i++){
+          t += gapsMs[i-1];
+          sched.planAtById.set(chain[i].id, t);
+        }
+        sched.nextAt = sched.planAtById.get(chain[0].id) || null;
+      }
+
+      if(!abOk){
+        sched.warn = "เฉลี่ยแบบ IN<OUT เป๊ะไม่ได้ (ใช้ค่าใกล้เคียง)";
+      }
+      sched.ok = !sched.error;
+      return sched;
+    }
+
+    // ===== in-app alarm (best-effort) =====
+    function loadAlarmState(){
+      const a = loadJSON(LS.alarm, null);
+      if(a && typeof a === "object"){
+        state.alarm = {
+          dueAt: a.dueAt || null,
+          nextTag: a.nextTag || null,
+          firedDueAt: a.firedDueAt || null
+        };
+      }
+    }
+    function saveAlarmState(){ saveJSON(LS.alarm, state.alarm); }
+
+    function stopAlarmTimeout(){
+      if(state.alarmTimeout){
+        clearTimeout(state.alarmTimeout);
+        state.alarmTimeout = null;
+      }
+    }
+
+    function tryNotify(body){
+      if(typeof Notification === "undefined") return;
+      if(Notification.permission !== "granted") return;
+      try{ new Notification("Selfie Time Logger", { body }); }catch(_){}
+    }
+
+    function beepOnce(duration=0.14, freq=880){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+        o.connect(g); g.connect(ctx.destination);
+        g.gain.value = 0.08;
+        o.start();
+        setTimeout(()=>{ o.stop(); ctx.close(); }, duration*1000);
+      }catch(_){}
+    }
+    function vibratePattern(){
+      try{ if(navigator.vibrate) navigator.vibrate([120, 70, 120]); }catch(_){}
+    }
+    function beepSoft(){
+      vibratePattern();
+      beepOnce(0.12, 880);
+      setTimeout(()=>beepOnce(0.12, 990), 170);
+    }
+
+    function showToast(text, sub, autoHideMs=6500){
+      $("toastText").textContent = text;
+      $("toastSub").textContent = sub || "";
+      $("toastWrap").classList.add("show");
+      if(state.toastTimer) clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(()=> hideToast(), autoHideMs);
+    }
+    function hideToast(){
+      $("toastWrap").classList.remove("show");
+      if(state.toastTimer){
+        clearTimeout(state.toastTimer);
+        state.toastTimer = null;
+      }
+    }
+
+    function scheduleNextAlarmFromSchedule(){
+      stopAlarmTimeout();
+      const last = getLastDownloadedFirstTime();
+      if(!last){
+        state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
+        saveAlarmState();
+        return;
+      }
+
+      const s = state.schedule;
+      if(!s || !s.nextAt || !s.nextTag || s.error){
+        state.alarm = { dueAt:null, nextTag:null, firedDueAt:null };
+        saveAlarmState();
+        return;
+      }
+
+      const dueAt = s.nextAt;
+      state.alarm.dueAt = dueAt;
+      state.alarm.nextTag = s.nextTag;
+      if(state.alarm.firedDueAt && state.alarm.firedDueAt !== dueAt){
+        state.alarm.firedDueAt = null;
+      }
+      saveAlarmState();
+
+      const delay = Math.max(0, dueAt - now());
+      state.alarmTimeout = setTimeout(()=>{ fireAlarmIfNeeded(true); }, delay + 80);
+
+      fireAlarmIfNeeded(false);
+    }
+
+    function fireAlarmIfNeeded(fromTimeout){
+      const dueAt = state.alarm.dueAt;
+      if(!dueAt) return;
+
+      const isPast = (dueAt - now()) <= 0;
+      if(!isPast) return;
+
+      if(state.alarm.firedDueAt === dueAt) return;
+      if(!fromTimeout && !state.ui.autoWake) return;
+
+      state.alarm.firedDueAt = dueAt;
+      saveAlarmState();
+
+      const nextTag = state.alarm.nextTag || "-";
+      const msg = nextTag.startsWith("OUT-") ? "ครบเวลา Check Out ได้แล้ว" : "ครบเวลา Check In ได้แล้ว";
+
+      showToast(msg, `Next: ${nextTag}`);
+      tryNotify(`${msg} • Next: ${nextTag}`);
+      beepSoft();
+      log("ALARM FIRED:", msg, "dueAt=", fmtDT(dueAt));
+    }
+
+    async function requestNotificationPermission(){
+      if(typeof Notification === "undefined"){
+        alert("อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ Notification");
+        return;
+      }
+      try{
+        const p = await Notification.requestPermission();
+        log("Notification permission:", p);
+        showToast("Permission", `Notification: ${p}`, 2500);
+      }catch(e){
+        log("Permission request error:", e);
+      }
+    }
+
+    // ===== Download & mark downloaded =====
+    async function downloadPhoto(photo){
+      const filename = `${photo.tag}.jpg`;
+
+      const url = URL.createObjectURL(photo.blob);
+      try{
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }finally{
+        URL.revokeObjectURL(url);
+      }
+
+      if(photo.downloaded !== 1){
+        const t = now();
+        await dbUpdatePhoto(photo.id, { downloaded: 1, downloadedAt: t });
+        photo.downloaded = 1;
+        photo.downloadedAt = t;
+        log("Marked downloaded (first time):", photo.tag);
+        heavyRender();
+      }else{
+        log("Downloaded again:", photo.tag);
+      }
+    }
+
+    async function downloadNextFromHeader(){
+      const btn = $("downloadNextBtn");
+      const pending = getSortedPending();
+      if(!pending.length){
+        showToast("ยังไม่มี Pending", "ถ่าย/อัปโหลดรูปก่อน", 2500);
+        return;
+      }
+
+      // priority: if timer running & schedule ok => use schedule.nextTag
+      let chosen = null;
+      const s = state.schedule;
+      if(state.timer910.running && s && !s.error && s.nextTag){
+        chosen = pending.find(p=>p.tag === s.nextTag) || null;
+      }
+
+      // fallback: first pending by slot
+      if(!chosen) chosen = pending[0];
+
+      btn.disabled = true;
+      try{
+        await downloadPhoto(chosen);
+      }finally{
+        btn.disabled = false;
+      }
+    }
+
+    async function deletePhoto(id, tag){
+      await dbDeletePhoto(id);
+      revokeThumbUrl(id);
+      state.photos = state.photos.filter(p => p.id !== id);
+      log("Deleted", tag, "id=", id);
+      heavyRender();
+    }
+
+    function openDrawer(){
+      $("drawerBackdrop").classList.add("show");
+      $("drawer").classList.add("show");
+    }
+    function closeDrawer(){
+      $("drawerBackdrop").classList.remove("show");
+      $("drawer").classList.remove("show");
+    }
+
+    // ===== delete all =====
+    async function deleteAll(){
+      const ok1 = confirm("ต้องการลบรูปทั้งหมดใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)");
+      if(!ok1) return;
+      const ok2 = confirm("ยืนยันอีกครั้ง: ลบรูปทั้งหมด\nการกระทำนี้ย้อนกลับไม่ได้");
+      if(!ok2) return;
+
+      setSaveState(`<span class="spin"></span> ลบ…`, "wait");
+      try{
+        await dbClearAll();
+        revokeAllThumbs();
+        state.photos = [];
+        resetTimer910ToReady();
+        setSaveState("ลบแล้ว ✅", "ok");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 900);
+      }catch(e){
+        setSaveState("ลบล้มเหลว", "err");
+        setTimeout(()=> setSaveState("พร้อมใช้งาน", "wait"), 1200);
+      }
+      heavyRender();
+    }
+
+    async function refresh(){
+      const all = await dbGetAll();
+      all.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+      for(const p of all) ensureKindIdx(p);
+      state.photos = all;
+      heavyRender();
+    }
+
+    // ===== UI state =====
+    function loadUIState(){
+      const u = loadJSON(LS.ui, null);
+      if(u && typeof u === "object"){
+        state.ui.logEnabled = !!u.logEnabled;
+        state.ui.autoWake = (u.autoWake !== false);
+        state.ui.mirrorPref = (u.mirrorPref !== false);
+      }
+      $("logToggle").checked = state.ui.logEnabled;
+      $("autoWakeToggle").checked = state.ui.autoWake;
+      $("mirrorHintToggle").checked = state.ui.mirrorPref;
+      $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
+    }
+    function saveUIState(){
+      saveJSON(LS.ui, {
+        logEnabled: state.ui.logEnabled,
+        autoWake: state.ui.autoWake,
+        mirrorPref: state.ui.mirrorPref
+      });
+    }
+
+    // ===== Camera =====
+    async function openCamera(isReplace = false){
+      $("camModalBackdrop").classList.add("show");
+      $("camModeBadge").textContent = "CAM";
+      $("camModeBadge").className = "badge ok";
+
+      if(isReplace && state.replace.active && state.replace.targetTag){
+        $("replaceBadge").style.display = "";
+        $("replaceBadge").textContent = `REPLACE ${state.replace.targetTag}`;
+      }else{
+        $("replaceBadge").style.display = "none";
+        $("replaceBadge").textContent = "REPLACE -";
+      }
+
+      updateCamHUD();
+      await startCameraStream();
+    }
+
+    function closeCamera(){
+      stopCameraStream();
+      $("camModalBackdrop").classList.remove("show");
+      hideCamToast();
+
+      state.replace.active = false;
+      state.replace.targetId = null;
+      state.replace.targetTag = null;
+      $("replaceBadge").style.display = "none";
+    }
+
+    async function startCameraStream(){
+      stopCameraStream();
+
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        $("camModeBadge").textContent = "NO CAMERA";
+        $("camModeBadge").className = "badge err";
+        log("Camera API not supported");
+        return;
+      }
+
+      const facing = state.cam.facing;
+      const useMirror = (facing === "user") && state.ui.mirrorPref;
+
+      $("camFacingPill").textContent = `facing: ${facing}`;
+      $("camMirrorPill").textContent = `mirror: ${useMirror ? "ON" : "OFF"}`;
+
+      try{
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        state.cam.stream = stream;
+
+        const video = $("camVideo");
+        video.srcObject = stream;
+        video.classList.toggle("mirror", useMirror);
+
+        await video.play();
+      }catch(e){
+        $("camModeBadge").textContent = "CAM ERROR";
+        $("camModeBadge").className = "badge err";
+        log("Camera error:", e && (e.name || e.message) ? (e.name || e.message) : e);
+      }
+    }
+
+    function stopCameraStream(){
+      const s = state.cam.stream;
+      if(s) s.getTracks().forEach(t=>t.stop());
+      state.cam.stream = null;
+      $("camVideo").srcObject = null;
+    }
+
+    async function switchCamera(){
+      state.cam.facing = (state.cam.facing === "user") ? "environment" : "user";
+      await startCameraStream();
+    }
+
+    function camFlash(){
+      const el = $("camFlash");
+      el.classList.add("on");
+      setTimeout(()=> el.classList.remove("on"), 140);
+    }
+    function showCamToast(text){
+      $("camToastInner").textContent = text;
+      $("camToast").classList.add("show");
+      setTimeout(()=> hideCamToast(), 900);
+    }
+    function hideCamToast(){
+      $("camToast").classList.remove("show");
+    }
+
+    function updateCamHUD(){
+      const { total, downloaded, pending } = computeCounts();
+      $("camCountPill").textContent = `📸 Total: ${total} • Pending: ${pending} • DL: ${downloaded}`;
+      const next = state.replace.active ? state.replace.targetTag : peekNextTag();
+      $("camNextPill").textContent = `Next: ${next}`;
+    }
+
+    async function captureFromCamera(){
+      const video = $("camVideo");
+      if(!video || !video.videoWidth){
+        showCamToast("กล้องยังไม่พร้อม");
+        return;
+      }
+
+      camFlash();
+      if(navigator.vibrate) navigator.vibrate(12);
+
+      const facing = state.cam.facing;
+      const mirror = (facing === "user") && state.ui.mirrorPref;
+
+      const outAR = 3/4;
+      const srcW = video.videoWidth;
+      const srcH = video.videoHeight;
+      const srcAR = srcW/srcH;
+
+      let cropW, cropH, sx, sy;
+      if(srcAR > outAR){
+        cropH = srcH;
+        cropW = cropH * outAR;
+        sx = (srcW - cropW)/2;
+        sy = 0;
+      }else{
+        cropW = srcW;
+        cropH = cropW / outAR;
+        sx = 0;
+        sy = (srcH - cropH)/2;
+      }
+
+      const maxH = 1600;
+      let outH = Math.min(maxH, Math.round(cropH));
+      let outW = Math.round(outH * outAR);
+      if(cropH < maxH){
+        outH = Math.round(cropH);
+        outW = Math.round(cropW);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = outW; canvas.height = outH;
+      const ctx = canvas.getContext("2d", { alpha:false });
+
+      if(mirror){
+        ctx.save();
+        ctx.translate(outW, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, outW, outH);
+        ctx.restore();
+      }else{
+        ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, outW, outH);
+      }
+
+      const blob = await canvasToJpegBlob(canvas, 0.92);
+
+      if(state.replace.active && state.replace.targetId){
+        await replacePhotoBlob(state.replace.targetId, blob, { width: outW, height: outH, mime:"image/jpeg" });
+      }else{
+        await addPhotoFromBlob(blob, { width: outW, height: outH, mime:"image/jpeg" });
+      }
+
+      updateCamHUD();
+    }
+
+    // ===== render =====
+    function renderTopCounts(){
+      const { downloaded } = computeCounts();
+      $("dlCountTop").textContent = downloaded;
+    }
+
+    function renderTimerPanel(){
+      const { downloaded } = computeCounts();
+
+      // auto unlock if downloaded >= 40
+      if(state.timer910.running && state.timer910.locked && downloaded >= 40){
+        state.timer910.locked = false;
+        saveTimer910();
+        log("Auto unlock timer (downloaded >= 40)");
+      }
+
+      const b = $("timerLockBadge");
+      if(state.timer910.running){
+        if(state.timer910.locked){
+          b.className = "badge err";
+          b.textContent = "LOCKED";
+        }else{
+          b.className = "badge ok";
+          b.textContent = "UNLOCKED";
+        }
+      }else{
+        b.className = "badge ok";
+        b.textContent = "READY";
+      }
+
+      $("timerMeta").textContent =
+        `startAt: ${fmtDT(state.timer910.startAt)} • targetAt: ${fmtDT(state.timer910.targetAt)}`;
+
+      const startBtn = $("start910Btn");
+      if(!state.timer910.running){
+        startBtn.textContent = "⏱️ เริ่มนับเวลา";
+      }else{
+        startBtn.textContent = `สิ้นสุด ${fmtTimeOnly(state.timer910.targetAt)}`;
+      }
+
+      const canResetNow = state.timer910.running && (!state.timer910.locked || isUnlockWindowActive());
+      startBtn.disabled = state.timer910.running ? !canResetNow : false;
+
+      const unlockBtn = $("unlockBtn");
+      const canUnlock = state.timer910.running && state.timer910.locked && downloaded < 40;
+      unlockBtn.disabled = !canUnlock && !isUnlockWindowActive();
+      if(!isUnlockWindowActive()) unlockBtn.textContent = "🔓";
+
+      if(state.timer910.running && state.timer910.targetAt){
+        $("timerLeftPill").textContent = `เหลือ: ${fmtHMS(state.timer910.targetAt - now())}`;
+      }else{
+        $("timerLeftPill").textContent = "เหลือ: -";
+      }
+    }
+
+    function renderProgressBar(){
+      const { total } = computeCounts();
+      const prog = Math.min(40, total);
+      $("progressBar").style.width = `${(prog/40)*100}%`;
+      $("goalBadge").style.display = (total >= 40) ? "" : "none";
+    }
+
+    function renderHeaderStatus(){
+      const s = state.schedule;
+
+      // Next text
+      const nextText = s.nextTag || peekNextTag() || "-";
+      $("headerNextText").textContent = nextText;
+
+      // DownloadNext button label + enable/disable
+      const pending = getSortedPending();
+      if(!pending.length){
+        $("downloadNextBtn").textContent = "⬇ โหลดภาพถัดไป";
+        $("downloadNextBtn").disabled = true;
+      }else{
+        let labelTag = null;
+        if(state.timer910.running && s && !s.error && s.nextTag) labelTag = s.nextTag;
+        else labelTag = pending[0].tag;
+        $("downloadNextBtn").textContent = labelTag ? `⬇ โหลด ${labelTag}` : "⬇ โหลดภาพถัดไป";
+        $("downloadNextBtn").disabled = false;
+      }
+
+      if(!state.timer910.running){
+        $("headerWhenText").textContent = "-";
+        $("headerCountdownText").textContent = "-";
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = "⚠ เริ่มนับเวลาก่อน";
+        return;
+      }
+
+      if(s.nextAt){
+        const left = s.nextAt - now();
+        $("headerWhenText").textContent = (left <= 0) ? "ตอนนี้" : fmtTimeOnly(s.nextAt);
+        $("headerCountdownText").textContent = (left <= 0) ? "ถึงเวลา" : fmtHMS(left);
+      }else{
+        $("headerWhenText").textContent = "-";
+        $("headerCountdownText").textContent = "-";
+      }
+
+      if(s.error){
+        $("headerWarnLine").style.display = "";
+        $("headerWarnLine").textContent = `⚠ ${s.error}`;
+      }else{
+        $("headerWarnLine").style.display = "none";
+        $("headerWarnLine").textContent = "";
+      }
+    }
+
+    function renderAlarmPanel(){
+      if(state.alarm.dueAt){
+        const left = state.alarm.dueAt - now();
+        if(left <= 0){
+          $("alarmBadge").className = "badge err";
+          $("alarmBadge").textContent = "ครบเวลาแล้ว";
+        }else{
+          $("alarmBadge").className = "badge wait";
+          $("alarmBadge").textContent = "กำลังนับ…";
+        }
+        $("alarmLeftPill").textContent = `เหลือ: ${fmtHMS(left)}`;
+        $("alarmMeta").textContent = `next: ${state.alarm.nextTag || "-"} • dueAt: ${fmtDT(state.alarm.dueAt)}`;
+      }else{
+        $("alarmBadge").className = "badge";
+        $("alarmBadge").textContent = "ยังไม่ตั้ง";
+        $("alarmLeftPill").textContent = "เหลือ: -";
+        $("alarmMeta").textContent = "next: - • dueAt: -";
+      }
+    }
+
+    function renderLists(){
+      const pendingList = $("pendingList");
+      pendingList.innerHTML = "";
+
+      const downloadedList = $("downloadedList");
+      downloadedList.innerHTML = "";
+
+      const pending = state.photos.filter(p=>p.downloaded===0).map(ensureKindIdx);
+      const downloaded = state.photos.filter(p=>p.downloaded===1).map(ensureKindIdx);
+
+      pending.sort(sortSlot);
+      downloaded.sort(sortSlot);
+
+      $("pendingBadge").textContent = pending.length;
+      $("pendingEmpty").style.display = pending.length ? "none" : "";
+
+      $("drawerDownloadedCount").textContent = downloaded.length;
+      $("downloadedEmpty").style.display = downloaded.length ? "none" : "";
+
+      const planMap = state.schedule.planAtById || new Map();
+
+      for(const p of pending) pendingList.appendChild(renderPhotoItem(p, false, planMap));
+      for(const p of downloaded) downloadedList.appendChild(renderPhotoItem(p, true, planMap));
+
+      const { total, downloaded: dlCount, pending: pendCount } = computeCounts();
+      $("totalCount").textContent = total;
+      $("downloadedCount").textContent = dlCount;
+      $("pendingCount").textContent = pendCount;
+    }
+
+    function renderPhotoItem(photo, isDownloaded, planMap){
+      const wrap = document.createElement("div");
+      wrap.className = "photoItem";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = getThumbUrl(photo);
+      img.alt = photo.tag;
+
+      const info = document.createElement("div");
+      info.className = "info";
+
+      const metaTop = document.createElement("div");
+      metaTop.className = "metaTop";
+
+      const left = document.createElement("div");
+      left.className = "metaLine";
+
+      const tagBadge = document.createElement("span");
+      tagBadge.className = "badge ok";
+      tagBadge.textContent = photo.tag;
+
+      const statusBadge = document.createElement("span");
+      statusBadge.className = "badge " + (isDownloaded ? "ok" : "wait");
+      statusBadge.textContent = isDownloaded ? "โหลดแล้ว ✅" : "ยังไม่โหลด";
+
+      left.appendChild(tagBadge);
+      left.appendChild(statusBadge);
+
+      const time = document.createElement("div");
+      time.className = "timeText";
+      time.textContent = fmtDT(photo.createdAt);
+
+      metaTop.appendChild(left);
+      metaTop.appendChild(time);
+
+      const timeUseRow = document.createElement("div");
+      timeUseRow.className = "timeUseRow";
+
+      const reco = document.createElement("div");
+      reco.className = "recoText";
+
+      if(!isDownloaded){
+        const t = planMap.get(photo.id);
+        if(t){
+          const late = (t - now()) <= 0;
+          reco.classList.toggle("late", late);
+          reco.textContent = `Time use ${fmtTimeOnly(t)}${late ? " • ถึงเวลา" : ""}`;
+        }else{
+          reco.classList.add("muted");
+          reco.textContent = "Time use —";
+        }
+      }else{
+        reco.classList.add("muted");
+        reco.textContent = `Time use —`;
+      }
+
+      timeUseRow.appendChild(reco);
+
+      // edit only for Pending
+      if(!isDownloaded){
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn soft btnMini";
+        editBtn.style.width = "auto";
+        editBtn.textContent = "✏️";
+        editBtn.title = "แทนที่รูปใบนี้ (Pending เท่านั้น)";
+        editBtn.onclick = async () => {
+          state.replace.active = true;
+          state.replace.targetId = photo.id;
+          state.replace.targetTag = photo.tag;
+          await openCamera(true);
+        };
+        timeUseRow.appendChild(editBtn);
+      }
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const dlBtn = document.createElement("button");
+      dlBtn.className = "btn primary";
+      dlBtn.textContent = "⬇ Download";
+      dlBtn.onclick = async () => {
+        dlBtn.disabled = true;
+        try{ await downloadPhoto(photo); }
+        finally{ dlBtn.disabled = false; }
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn danger";
+      delBtn.textContent = "🗑 Delete";
+      delBtn.onclick = async () => {
+        const ok = confirm(`ลบรูป ${photo.tag} ใช่ไหม?\n(ลบจริงจากเครื่อง/IndexedDB)`);
+        if(!ok) return;
+        delBtn.disabled = true;
+        try{ await deletePhoto(photo.id, photo.tag); }
+        finally{ delBtn.disabled = false; }
+      };
+
+      actions.appendChild(dlBtn);
+      actions.appendChild(delBtn);
+
+      info.appendChild(metaTop);
+      info.appendChild(timeUseRow);
+      info.appendChild(actions);
+
+      wrap.appendChild(img);
+      wrap.appendChild(info);
+      return wrap;
+    }
+
+    function heavyRender(){
+      state.schedule = computeScheduleExactFit();
+
+      renderTopCounts();
+      renderProgressBar();
+      renderTimerPanel();
+      renderAlarmPanel();
+      renderLists();
+
+      scheduleNextAlarmFromSchedule();
+      fireAlarmIfNeeded(false);
+
+      renderHeaderStatus();
+
+      requestAnimationFrame(()=>measureBars());
+    }
+
+    function lightTick(){
+      renderTimerPanel();
+      renderHeaderStatus();
+      renderAlarmPanel();
+      fireAlarmIfNeeded(false);
+    }
+
+    // ===== bars measuring =====
+    function measureBars(){
+      const top = $("topBar");
+      const bottom = $("stickyBar");
+      const topH = top ? top.offsetHeight : 0;
+      const stickH = bottom ? bottom.offsetHeight : 0;
+      document.documentElement.style.setProperty("--topH", `${topH}px`);
+      document.documentElement.style.setProperty("--stickH", `${stickH}px`);
+    }
+    function installResizeObservers(){
+      const ro = new ResizeObserver(() => measureBars());
+      ro.observe($("topBar"));
+      ro.observe($("stickyBar"));
+    }
+
+    // ===== boot =====
+    async function boot(){
+      loadUIState();
+      loadTimer910();
+      loadAlarmState();
+
+      await initDB();
+      await refresh();
+
+      installResizeObservers();
+      measureBars();
+      window.addEventListener("resize", ()=> measureBars());
+      window.addEventListener("orientationchange", ()=> setTimeout(()=> measureBars(), 200));
+
+      $("uploadBtn").onclick = ()=> $("fileInputAdd").click();
+      $("fileInputAdd").addEventListener("change", async (e)=>{
+        const files = Array.from(e.target.files || []);
+        e.target.value = "";
+        await handleFilesAdd(files);
+      });
+
+      $("fallbackUploadBtn").onclick = ()=> {
+        if(state.replace.active) $("fileInputReplace").click();
+        else $("fileInputAdd").click();
+      };
+      $("fileInputReplace").addEventListener("change", async (e)=>{
+        const file = (e.target.files && e.target.files[0]) ? e.target.files[0] : null;
+        e.target.value = "";
+        await handleFileReplace(file);
+      });
+
+      $("openCameraBtn").onclick = async ()=> {
+        state.replace.active = false;
+        state.replace.targetId = null;
+        state.replace.targetTag = null;
+        await openCamera(false);
+      };
+      $("closeCamBtn").onclick = closeCamera;
+      $("switchCamBtn").onclick = switchCamera;
+      $("captureBtn").onclick = captureFromCamera;
+
+      $("camModalBackdrop").addEventListener("click", (e)=>{
+        if(e.target === $("camModalBackdrop")) closeCamera();
+      });
+
+      $("downloadNextBtn").onclick = downloadNextFromHeader;
+
+      $("openDrawerBtn").onclick = openDrawer;
+      $("closeDrawerBtn").onclick = closeDrawer;
+      $("drawerBackdrop").onclick = closeDrawer;
+
+      $("start910Btn").onclick = onStartButtonClick;
+      $("unlockBtn").onclick = openUnlockWindow3s;
+      $("deleteAllBtn").onclick = deleteAll;
+
+      $("toastDismissBtn").onclick = hideToast;
+
+      $("requestNotifBtn").onclick = requestNotificationPermission;
+      $("testBeepBtn").onclick = ()=> beepSoft();
+
+      $("logToggle").addEventListener("change", ()=>{
+        state.ui.logEnabled = $("logToggle").checked;
+        $("logPanel").style.display = state.ui.logEnabled ? "" : "none";
+        saveUIState();
+        log("Log enabled:", state.ui.logEnabled);
+      });
+      $("autoWakeToggle").addEventListener("change", ()=>{
+        state.ui.autoWake = $("autoWakeToggle").checked;
+        saveUIState();
+        log("AutoWake:", state.ui.autoWake);
+      });
+      $("mirrorHintToggle").addEventListener("change", ()=>{
+        state.ui.mirrorPref = $("mirrorHintToggle").checked;
+        saveUIState();
+
+        const facing = state.cam.facing;
+        const mirror = (facing === "user") && state.ui.mirrorPref;
+        $("camVideo").classList.toggle("mirror", mirror);
+        $("camMirrorPill").textContent = `mirror: ${mirror ? "ON" : "OFF"}`;
+      });
+
+      document.addEventListener("visibilitychange", ()=>{
+        if(!document.hidden){
+          measureBars();
+          if(state.ui.autoWake) fireAlarmIfNeeded(false);
+          lightTick();
+        }
+      });
+
+      if(state.tickInterval) clearInterval(state.tickInterval);
+      state.tickInterval = setInterval(lightTick, 1000);
+
+      setSaveState("พร้อมใช้งาน", "wait");
+      heavyRender();
+
+      log("BOOT OK", "dbType=", state.dbType, "nextSlot=", peekNextTag());
+    }
+
+    window.addEventListener("beforeunload", ()=> revokeAllThumbs());
+    boot();
+  </script>
 </body>
 </html>
