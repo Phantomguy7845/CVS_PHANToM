@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#dff7ef" />
-  <title>Selfie + Time Logger (Mint Light)</title>
+  <title>GhostShift (by PHANToM)</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -640,7 +640,7 @@
     <div class="topInner">
       <div class="topLeft">
         <div class="topTitleRow">
-          <div class="topTitle">Selfie + Time Logger</div>
+          <div class="topTitle">GhostShift</div>
           <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
           <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
         </div>
@@ -669,7 +669,7 @@
         <div class="warnLine" id="headerWarnLine">⚠ -</div>
 
         <div class="mini muted" id="headerHint">
-          * แจ้งเตือนนอก Chrome ไม่การันตี • LINE (ถ้าเปิด) จะส่ง “ตอนถึงเวลา” เท่านั้น
+          • LINE (ถ้าเปิด) จะส่ง “ตอนถึงเวลา” เท่านั้น
         </div>
       </div>
 
@@ -1359,7 +1359,7 @@
 
       const code = String(state.line.code).trim();
       try{
-        const { json } = await linePost("/notify", { code, message: "ทดสอบการแจ้งเตือนจาก Selfie Logger" }, 9000);
+        const { json } = await linePost("/notify", { code, message: "ทดสอบการแจ้งเตือนจาก GhostShift" }, 9000);
         if(json && json.ok){
           showToast("ส่งทดสอบแล้ว ✅", "เช็ค LINE ของคุณ", 3500);
         }else{
