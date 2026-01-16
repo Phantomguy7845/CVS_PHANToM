@@ -1099,7 +1099,7 @@
   </div>
 
 <script>
-(() => {
+(async () => {
   "use strict";
 
   const SETTINGS_KEY = "PT_TS_SETTINGS_V2_4";
@@ -1322,6 +1322,217 @@
     return la>=-90 && la<=90 && ln>=-180 && ln<=180;
   }
 
+  /* =========================
+     ✅ Local Persistence (IndexedDB)
+     - เก็บรูป baseBlob + metadata ให้คงอยู่แม้ปิดแท็บ/เปิดใหม่/เปิดด้วย shortcut
+     - ไม่แตะส่วนอื่นที่ไม่จำเป็น
+     ========================= */
+  const DB_NAME = "PT_TS_CAMERA_DB_V2_4";
+  const DB_VERSION = 1;
+  const STORE_PHOTOS = "photos";
+  const STORE_KV = "kv";
+  let _dbP = null;
+
+  function idbReq(req){
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IDB request error"));
+    });
+  }
+  function idbTxDone(tx){
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("IDB tx error"));
+      tx.onabort = () => reject(tx.error || new Error("IDB tx abort"));
+    });
+  }
+  function openDB(){
+    if (!("indexedDB" in window)) return Promise.resolve(null);
+    if (_dbP) return _dbP;
+    _dbP = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_PHOTOS)){
+          const s = db.createObjectStore(STORE_PHOTOS, { keyPath: "id" });
+          s.createIndex("seq", "seq", { unique:false });
+        }
+        if (!db.objectStoreNames.contains(STORE_KV)){
+          db.createObjectStore(STORE_KV, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IDB open error"));
+    });
+    return _dbP;
+  }
+
+  async function idbGetSeqCounter(){
+    const db = await openDB();
+    if (!db) return 0;
+    const tx = db.transaction(STORE_KV, "readonly");
+    const store = tx.objectStore(STORE_KV);
+    const rec = await idbReq(store.get("seqCounter")).catch(() => null);
+    await idbTxDone(tx).catch(() => {});
+    const v = Number(rec?.value);
+    return Number.isFinite(v) ? v : 0;
+  }
+  async function idbSetSeqCounter(v){
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_KV, "readwrite");
+    tx.objectStore(STORE_KV).put({ key:"seqCounter", value: v });
+    await idbTxDone(tx).catch(() => {});
+  }
+
+  async function idbGetAllPhotos(){
+    const db = await openDB();
+    if (!db) return [];
+    const tx = db.transaction(STORE_PHOTOS, "readonly");
+    const store = tx.objectStore(STORE_PHOTOS);
+    let items = [];
+    try{
+      const idx = store.index("seq");
+      items = await idbReq(idx.getAll());
+    } catch {
+      items = await idbReq(store.getAll());
+    }
+    await idbTxDone(tx).catch(() => {});
+    return Array.isArray(items) ? items : [];
+  }
+
+  async function idbPutPhoto(rec){
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_PHOTOS, "readwrite");
+    tx.objectStore(STORE_PHOTOS).put(rec);
+    await idbTxDone(tx).catch(() => {});
+  }
+
+  async function idbDeletePhoto(id){
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_PHOTOS, "readwrite");
+    tx.objectStore(STORE_PHOTOS).delete(id);
+    await idbTxDone(tx).catch(() => {});
+  }
+
+  async function idbClearPhotos(){
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_PHOTOS, "readwrite");
+    tx.objectStore(STORE_PHOTOS).clear();
+    await idbTxDone(tx).catch(() => {});
+  }
+
+  function photoToRecord(p){
+    return {
+      id: p.id,
+      seq: Number.isFinite(p.seq) ? p.seq : 0,
+      baseBlob: p.baseBlob,
+      w: p.w,
+      h: p.h,
+      thumbUrl: null,             // ไม่ต้องเก็บ (blob:url ใช้ไม่ได้ข้าม session)
+      createdAtISO: p.createdAtISO,
+      timeMode: p.timeMode,
+      timeValueISO: p.timeValueISO,
+      sourceName: p.sourceName,
+      fromFrontMirror: !!p.fromFrontMirror
+    };
+  }
+
+  async function persistPhoto(p){
+    try{
+      await idbPutPhoto(photoToRecord(p));
+    } catch (e){
+      addLog("persist photo failed: " + String(e?.message||e));
+    }
+  }
+
+  async function persistDeletePhoto(id){
+    try{
+      await idbDeletePhoto(id);
+    } catch (e){
+      addLog("persist delete failed: " + String(e?.message||e));
+    }
+  }
+
+  async function persistClearAllPhotos(){
+    try{
+      await idbClearPhotos();
+    } catch (e){
+      addLog("persist clear failed: " + String(e?.message||e));
+    }
+  }
+
+  async function restorePhotosFromStorage(){
+    try{
+      const items = await idbGetAllPhotos();
+      if (!items || items.length === 0) return 0;
+
+      // เผื่อบาง record ไม่มี seq ให้ sort ด้วย createdAtISO
+      items.sort((a,b) => {
+        const sa = Number.isFinite(a?.seq) ? a.seq : null;
+        const sb = Number.isFinite(b?.seq) ? b.seq : null;
+        if (sa !== null && sb !== null) return sa - sb;
+        const ta = Date.parse(a?.createdAtISO || "") || 0;
+        const tb = Date.parse(b?.createdAtISO || "") || 0;
+        return ta - tb;
+      });
+
+      // เคลียร์ของเดิม (memory)
+      for (const p of state.photos){
+        try{ URL.revokeObjectURL(p.thumbUrl); } catch {}
+      }
+      state.photos = [];
+
+      for (const rec of items){
+        if (!rec || !rec.baseBlob) continue;
+
+        const thumbUrl = await createThumbUrlFromBlob(rec.baseBlob);
+        const p = {
+          id: rec.id,
+          seq: Number.isFinite(rec.seq) ? rec.seq : 0,
+          baseBlob: rec.baseBlob,
+          w: rec.w || 0,
+          h: rec.h || 0,
+          thumbUrl,
+          createdAtISO: rec.createdAtISO || new Date().toISOString(),
+          timeMode: rec.timeMode || "now",
+          timeValueISO: rec.timeValueISO || rec.createdAtISO || new Date().toISOString(),
+          sourceName: rec.sourceName || "restored",
+          fromFrontMirror: !!rec.fromFrontMirror
+        };
+        state.photos.push(p);
+      }
+
+      addLog(`restored photos from IDB: ${state.photos.length}`);
+      return state.photos.length;
+    } catch (e){
+      addLog("restore photos failed: " + String(e?.message||e));
+      return 0;
+    }
+  }
+
+  async function ensureSeqReady(){
+    if (state.persist.seqReady) return;
+    try{
+      state.persist.seq = await idbGetSeqCounter();
+      state.persist.seqReady = true;
+      addLog("seqCounter loaded: " + state.persist.seq);
+    } catch {
+      state.persist.seq = 0;
+      state.persist.seqReady = true;
+    }
+  }
+
+  async function nextSeq(){
+    await ensureSeqReady();
+    state.persist.seq = (Number.isFinite(state.persist.seq) ? state.persist.seq : 0) + 1;
+    idbSetSeqCounter(state.persist.seq).catch(() => {});
+    return state.persist.seq;
+  }
+
   /* State */
   const state = {
     settings: readSettings(),
@@ -1341,6 +1552,12 @@
     map: null,
     marker: null,
     pendingPick: null,
+
+    // ✅ persistence state (minimal)
+    persist: {
+      seq: 0,
+      seqReady: false
+    }
   };
 
   /* Settings */
@@ -1774,8 +1991,11 @@
   async function addPhotoFromBaseCanvas(baseCanvas, {sourceName="camera", fromFrontMirror=false} = {}){
     const baseBlob = await canvasToBlob(baseCanvas, "image/jpeg", 0.95); // strips EXIF
     const t = getDefaultPhotoTime();
+    const seq = await nextSeq();
+
     const p = {
       id: uid(),
+      seq,
       baseBlob,
       w: baseCanvas.width,
       h: baseCanvas.height,
@@ -1787,6 +2007,10 @@
       fromFrontMirror: !!fromFrontMirror
     };
     state.photos.push(p);
+
+    // ✅ persist photo to local (IndexedDB)
+    persistPhoto(p).catch(() => {});
+
     updateGallery();
     updateButtons();
     showToast("เพิ่มรูปแล้ว");
@@ -1813,6 +2037,10 @@
     const idx = state.photos.findIndex(p => p.id === id);
     if (idx < 0) return;
     try{ URL.revokeObjectURL(state.photos[idx].thumbUrl); } catch {}
+
+    // ✅ persist delete
+    persistDeletePhoto(id).catch(() => {});
+
     state.photos.splice(idx, 1);
     if (state.selectedId === id) state.selectedId = null;
     updateGallery();
@@ -1825,6 +2053,10 @@
     for (const p of state.photos){
       try{ URL.revokeObjectURL(p.thumbUrl); } catch {}
     }
+
+    // ✅ persist clear all
+    persistClearAllPhotos().catch(() => {});
+
     state.photos = [];
     state.selectedId = null;
     updateGallery();
@@ -2145,6 +2377,10 @@
       photoCustomTime.disabled = false;
       showToast("ตั้งเวลาเอง (ต่อรูปนี้)");
     }
+
+    // ✅ persist time change
+    persistPhoto(p).catch(() => {});
+
     renderPreview();
   }
 
@@ -2641,6 +2877,10 @@
     const v = photoCustomTime.value;
     const d = v ? new Date(v) : new Date();
     p.timeValueISO = d.toISOString();
+
+    // ✅ persist custom time while editing
+    persistPhoto(p).catch(() => {});
+
     renderPreview();
   });
 
@@ -2707,6 +2947,14 @@
   /* Boot */
   addLog("boot camera-first (locked no page scroll; gallery only horizontal)");
   applySettingsToUI();
+
+  // ✅ restore photos from local storage (IndexedDB)
+  await ensureSeqReady();
+  const restored = await restorePhotosFromStorage();
+  if (restored > 0){
+    showToast(`คืนค่ารูปแล้ว: ${restored} รูป`);
+  }
+
   updateGallery();
   updateButtons();
 
