@@ -33,7 +33,7 @@
     }
 
     *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+    html,body{ height:100%; overflow-x:hidden; }
     body{
       margin:0;
       background:var(--bg);
@@ -41,10 +41,12 @@
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
       padding-top: calc(var(--topH) + 10px);
-      padding-bottom: calc(var(--stickH) + 12px);
+      /* FIX: เพิ่มพื้นที่กัน stickyBar บัง log/เนื้อหาด้านล่าง */
+      padding-bottom: calc(var(--stickH) + 42px);
+      overflow-x:hidden;
     }
 
-    .wrap{ max-width: 980px; margin: 0 auto; padding: 0 14px 24px; }
+    .wrap{ max-width: 980px; margin: 0 auto; padding: 0 14px 24px; overflow-x:hidden; }
     .mini{ font-size: 12px; color: var(--muted2); }
     .muted{ color: var(--muted); }
 
@@ -1008,7 +1010,8 @@
         workerUrl: DEFAULT_LINE_WORKER_URL, // hidden
         code: "",
         lastScheduleKey: "",
-        lastStartDate: "" // YYYY-MM-DD
+        lastScheduledCode: "",   // NEW: จำโค้ดที่ “เคย schedule สำเร็จล่าสุด” เพื่อ cleanup/cancel ได้ถูก
+        lastStartDate: ""        // YYYY-MM-DD
       },
 
       tickInterval: null,
@@ -1109,6 +1112,7 @@
         state.line.enabled = !!cfg.enabled;
         state.line.code = cfg.code ? String(cfg.code) : "";
         state.line.lastScheduleKey = cfg.lastScheduleKey ? String(cfg.lastScheduleKey) : "";
+        state.line.lastScheduledCode = cfg.lastScheduledCode ? String(cfg.lastScheduledCode) : "";
         state.line.lastStartDate = cfg.lastStartDate ? String(cfg.lastStartDate) : "";
         // workerUrl hidden แต่ยังรองรับข้อมูลเก่าที่เคยเก็บไว้
         state.line.workerUrl = (cfg.workerUrl ? String(cfg.workerUrl) : DEFAULT_LINE_WORKER_URL) || DEFAULT_LINE_WORKER_URL;
@@ -1123,6 +1127,7 @@
         workerUrl: String(state.line.workerUrl || DEFAULT_LINE_WORKER_URL).trim().replace(/\/+$/,""),
         code: String(state.line.code || "").trim(),
         lastScheduleKey: String(state.line.lastScheduleKey || ""),
+        lastScheduledCode: String(state.line.lastScheduledCode || ""),
         lastStartDate: String(state.line.lastStartDate || "")
       });
     }
@@ -1200,9 +1205,12 @@
       }
     }
 
-    function isCodeNotLinkedError(json){
+    // NEW: ตรวจ code not linked แบบแน่นขึ้น (รองรับ 403/404)
+    function isCodeNotLinked(res, json){
+      const st = res ? res.status : (json && json.status);
+      if(st === 403 || st === 404) return true;
       const msg = String((json && (json.error || json.detail || json.message)) || "").toLowerCase();
-      return msg.includes("not linked") || msg.includes("code not linked") || msg.includes("code not linked yet");
+      return msg.includes("not linked") || msg.includes("code not linked") || msg.includes("forbidden");
     }
 
     async function lineNotifyStartDayIfNeeded(){
@@ -1221,14 +1229,14 @@
       const msg = `เริ่มงานวันนี้ ${fmtDateOnly(Date.now())}`;
 
       try{
-        const { json } = await linePost("/notify", { code, message: msg }, 9000);
+        const { res, json } = await linePost("/notify", { code, message: msg }, 9000);
         if(json && json.ok){
           state.line.lastStartDate = ymd;
           saveLineCfg();
           log("LINE start-day sent:", msg);
         }else{
           log("LINE start-day failed:", json);
-          if(isCodeNotLinkedError(json)){
+          if(isCodeNotLinked(res, json)){
             showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
             openQuickLink(code);
           }else{
@@ -1242,11 +1250,23 @@
     }
 
     function clampDueAtMs(rawDueAtMs){
-      // ต้องเป็น “อนาคต” เสมอ + เร็วขึ้น 1-2 วิจริงๆ (แต่ไม่ต่ำกว่าปัจจุบัน)
-      const earlyMs = 1200;
-      const minFuture = now() + 700;
+      // NEW: ส่งล่วงหน้า 10 วินาที + ต้องเป็น “อนาคต” เสมอ
+      const earlyMs = 10000;
+      const minFuture = now() + 800;
       const due = Math.round(rawDueAtMs || 0) - earlyMs;
       return Math.max(minFuture, due);
+    }
+
+    // NEW: cancel schedule แบบระบุโค้ด (ใช้ตอนเปลี่ยน code / boot cleanup)
+    async function lineCancelScheduleForCode(code, reason=""){
+      const c = String(code || "").trim();
+      if(!c) return;
+      try{
+        const { json } = await linePost("/cancel", { code: c }, 9000);
+        log("LINE cancel:", reason, json);
+      }catch(e){
+        log("LINE cancel error:", reason, e && (e.name||e.message) ? (e.name||e.message) : e);
+      }
     }
 
     async function lineScheduleNextFromCurrentSchedule(reason=""){
@@ -1261,16 +1281,22 @@
 
       const dueAtMs = clampDueAtMs(s.nextAt);
       const nextTag = String(s.nextTag);
-      const message = nextTag.startsWith("OUT-") ? "ครบเวลา Check Out แล้ว" : "ครบเวลา Check In แล้ว";
+
+      // NEW: แจ้งเตือนล่วงหน้า 10 วิ (ให้ข้อความตรงความจริง)
+      const message = nextTag.startsWith("OUT-")
+        ? "อีก 10 วินาที: ถึงเวลา Check Out"
+        : "อีก 10 วินาที: ถึงเวลา Check In";
+
       const scheduleKey = `${nextTag}@${dueAtMs}`;
 
       if(state.line.lastScheduleKey === scheduleKey) return;
 
       const code = String(state.line.code).trim();
       try{
-        const { json } = await linePost("/schedule", { code, dueAtMs, message, scheduleKey }, 9000);
+        const { res, json } = await linePost("/schedule", { code, dueAtMs, message, scheduleKey }, 9000);
         if(json && json.ok){
           state.line.lastScheduleKey = scheduleKey;
+          state.line.lastScheduledCode = code; // NEW
           saveLineCfg();
           log("LINE scheduled:", { scheduleKey, dueAtMs, message, reason });
         }else{
@@ -1278,7 +1304,7 @@
           state.line.lastScheduleKey = "";
           saveLineCfg();
 
-          if(isCodeNotLinkedError(json)){
+          if(isCodeNotLinked(res, json)){
             showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
             openQuickLink(code);
           }else{
@@ -1295,15 +1321,18 @@
 
     async function lineCancelSchedule(reason=""){
       if(!state.line.enabled) return;
-      const code = String(state.line.code||"").trim();
+      // ใช้โค้ดที่เคย schedule สำเร็จล่าสุดก่อน (กันกรณี user เปลี่ยน code แล้ว)
+      const code = String(state.line.lastScheduledCode || state.line.code || "").trim();
       if(!code) return;
+
       try{
         const { json } = await linePost("/cancel", { code }, 9000);
         log("LINE cancel:", reason, json);
       }catch(e){
-        log("LINE cancel error:", e && (e.name||e.message) ? (e.name||e.message) : e);
+        log("LINE cancel error:", reason, e && (e.name||e.message) ? (e.name||e.message) : e);
       }finally{
         state.line.lastScheduleKey = "";
+        state.line.lastScheduledCode = "";
         saveLineCfg();
       }
     }
@@ -1336,6 +1365,8 @@
       state.line.code = code;
       state.line.workerUrl = DEFAULT_LINE_WORKER_URL;
       state.line.enabled = true;
+      // เคลียร์ เพื่อให้ schedule ถูกส่งแน่นอนหลังคำนวณ
+      state.line.lastScheduleKey = "";
       saveLineCfg();
 
       const script = `LINK ${code}`;
@@ -1359,12 +1390,12 @@
 
       const code = String(state.line.code).trim();
       try{
-        const { json } = await linePost("/notify", { code, message: "ทดสอบการแจ้งเตือนจาก GhostShift" }, 9000);
+        const { res, json } = await linePost("/notify", { code, message: "ทดสอบการแจ้งเตือนจาก GhostShift" }, 9000);
         if(json && json.ok){
           showToast("ส่งทดสอบแล้ว ✅", "เช็ค LINE ของคุณ", 3500);
         }else{
           log("LINE test failed:", json);
-          if(isCodeNotLinkedError(json)){
+          if(isCodeNotLinked(res, json)){
             showToast("ยังไม่ลิงก์ LINE", "กดลิงก์กับ LINE แล้วส่งคำว่า LINK ... ใน OA", 5200);
             openQuickLink(code);
           }else{
@@ -1407,9 +1438,21 @@
     function maybeSyncLineSchedule(reason){
       // เรียกหลัง schedule คำนวณใหม่ (add/replace/delete/download/reset ฯลฯ)
       if(!state.line.enabled) return;
+      const code = String(state.line.code || "").trim();
+      if(!code) return;
       if(!state.timer910.running) return;
+
       // ส่งไป worker เฉพาะเมื่อมีการดาวน์โหลดแล้ว
       if(!state.schedule?.source?.lastDownloadedAt) return;
+
+      // NEW: ถ้าคำนวณไม่ได้/มี error -> cancel schedule เดิม กันแจ้งเตือนหลง
+      if(!state.schedule || state.schedule.error || !state.schedule.nextAt || !state.schedule.nextTag){
+        if(state.line.lastScheduleKey || state.line.lastScheduledCode){
+          void lineCancelSchedule("schedule invalid: " + String(state.schedule?.error||""));
+        }
+        return;
+      }
+
       void lineScheduleNextFromCurrentSchedule(reason);
     }
 
@@ -1998,8 +2041,6 @@
       let kinds = [];
 
       if(last){
-        // chain length = number of upcoming images to download
-        // intervals count = chain length (gap from last -> each item in chain)
         const lastKind = (parseTag(last.tag)?.kind) || "IN";
         kinds.push(lastKind);
         for(let i=1;i<chain.length;i++){
@@ -2012,7 +2053,6 @@
           sched.ok = true;
           return sched;
         }
-        // intervals = chain.length - 1
         for(let i=0;i<chain.length-1;i++){
           kinds.push(String(chain[i].kind).toUpperCase());
         }
@@ -2567,8 +2607,6 @@
     }
 
     function renderTimerPanel(){
-      const { downloaded } = computeCounts();
-
       const b = $("timerLockBadge");
       if(state.timer910.running){
         if(state.timer910.locked){
@@ -2795,7 +2833,6 @@
       actions.appendChild(dlBtn);
 
       if(isDownloaded){
-        // Downloaded ยังลบได้ (มี confirm) — ถ้าไม่ต้องการ บอกได้ เดี๋ยวผมปิดให้
         const delBtn = document.createElement("button");
         delBtn.className = "btn danger";
         delBtn.textContent = "🗑 Delete";
@@ -2808,7 +2845,6 @@
         };
         actions.appendChild(delBtn);
       }else{
-        // Pending: ไม่มีปุ่ม delete ตามที่สั่ง
         actions.classList.add("oneCol");
       }
 
@@ -2873,6 +2909,19 @@
       loadTimer910();
       loadAlarmState();
       loadLineCfg();
+
+      // NEW: boot cleanup — ถ้าเคย schedule ด้วยโค้ดเก่า แล้วตอนนี้เปลี่ยน code
+      // ให้ cancel ของเก่าทิ้ง เพื่อลดปัญหา “โค้ดเก่าค้าง แต่ client ไม่รู้”
+      if(state.line.enabled && state.line.lastScheduledCode){
+        const cur = String(state.line.code || "").trim();
+        const lastScheduled = String(state.line.lastScheduledCode || "").trim();
+        if(lastScheduled && lastScheduled !== cur){
+          void lineCancelScheduleForCode(lastScheduled, "boot cleanup (code changed)");
+          state.line.lastScheduleKey = "";
+          state.line.lastScheduledCode = "";
+          saveLineCfg();
+        }
+      }
 
       await tryPersistStorage();
 
@@ -2943,18 +2992,38 @@
 
       $("lineEnableToggle").addEventListener("change", async ()=>{
         syncLineStateFromUI();
+        // NEW: เปิด -> บังคับให้ schedule ใหม่ได้ (เคลียร์ key)
         if(state.line.enabled){
+          state.line.lastScheduleKey = "";
+          saveLineCfg();
           if(!state.line.code) openQuickLink(state.line.code);
-          // ถ้าเปิดแล้วและมี lastDownloaded อยู่ ให้ schedule ล่าสุดทันที
           maybeSyncLineSchedule("toggle-on");
         }else{
           await lineCancelSchedule("disabled");
         }
       });
 
-      $("lineCodeInput").addEventListener("change", ()=>{
-        syncLineStateFromUI();
-        maybeSyncLineSchedule("code-change");
+      // NEW: เปลี่ยน code -> cancel ของเก่าทันที + เคลียร์ scheduleKey เพื่อให้ส่งใหม่แน่นอน
+      $("lineCodeInput").addEventListener("change", async ()=>{
+        const oldCode = String(state.line.code || "").trim();
+        const newCode = String($("lineCodeInput").value || "").trim();
+
+        state.line.enabled = $("lineEnableToggle").checked;
+        state.line.workerUrl = DEFAULT_LINE_WORKER_URL;
+
+        if(oldCode && oldCode !== newCode){
+          await lineCancelScheduleForCode(oldCode, "code changed");
+        }
+
+        state.line.code = newCode;
+        state.line.lastScheduleKey = "";
+        state.line.lastScheduledCode = "";
+        saveLineCfg();
+
+        if(state.line.enabled){
+          if(!state.line.code) openQuickLink("");
+          else maybeSyncLineSchedule("code-change");
+        }
       });
 
       $("lineLinkBtn").onclick = doLinkFlowFromSettings;
@@ -2967,6 +3036,7 @@
         state.line.code = "";
         state.line.workerUrl = DEFAULT_LINE_WORKER_URL;
         state.line.lastScheduleKey = "";
+        state.line.lastScheduledCode = "";
         saveLineCfg();
         syncLineUIFromState();
         showToast("ล้างค่าแล้ว ✅", "ตั้งค่าใหม่ได้เลย", 3000);
