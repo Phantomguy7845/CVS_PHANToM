@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>GBKK4 Tracker</title>
 
-  <!-- Leaflet + OSM (ฟรี ไม่ใช้ API key) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root{
-      /* Mint Light (กลางแจ้งอ่านชัด) */
       --bg:#f4fbf9;
       --card:#ffffff;
       --text:#071915;
@@ -24,20 +22,19 @@
       --tap:44px;
       --danger:#e23a3a;
 
-      /* ความสูงแถบแท็บล่าง */
       --bottomTabsH:76px;
 
-
-      /* Calculated fixed heights (JS updates) */
       --hdrH: 0px;
       --tabsH: var(--bottomTabsH);
-      /* Sidebar */
+
       --sbW: 290px;
       --sbZ: 100001;
 
-      /* Report Popup */
       --repZ: 100002;
       --repBarH: 56px;
+
+      --setZ: 100003;
+      --setBarH: 56px;
     }
     *{box-sizing:border-box}
     html, body{ height:100%; }
@@ -50,8 +47,8 @@
     }
     body.rep-open{ overflow:hidden; }
     body.map-open{ overflow:hidden; }
+    body.set-open{ overflow:hidden; }
 
-    /* header */
     header{
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
@@ -59,11 +56,8 @@
       padding:12px 14px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .hdr{
-      display:flex; gap:10px; align-items:center;
-    }
+    .hdr{ display:flex; gap:10px; align-items:center; }
 
-    /* ✅ ปุ่มเมนู Sidebar */
     .menu-btn{
       min-height:40px;
       min-width:44px;
@@ -85,7 +79,6 @@
       flex-wrap:wrap;
       line-height:1.15;
     }
-    /* ✅ สเตตัสในบรรทัดเดียวกับชื่อ */
     .tstats{
       display:inline-flex;
       align-items:center;
@@ -110,7 +103,6 @@
       white-space:nowrap;
     }
 
-    /* controls mobile-first */
     .controls{
       margin-top:10px;
       display:flex;
@@ -166,7 +158,6 @@
       padding-bottom: calc(14px + var(--bottomTabsH) + env(safe-area-inset-bottom));
     }
 
-    /* pages */
     .page{ display:none; }
     .page.active{ display:block; }
 
@@ -192,7 +183,6 @@
       white-space:nowrap;
     }
 
-    /* list items */
     .list{display:flex; flex-direction:column}
     .item{
       padding:12px 14px;
@@ -235,7 +225,6 @@
       color:#071915;
     }
 
-    /* loading */
     .center{
       padding:22px 14px;
       text-align:center;
@@ -252,7 +241,6 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* map page */
     .map-wrap{
       background:var(--card);
       border:1px solid var(--line);
@@ -265,10 +253,17 @@
       display:flex; gap:10px; align-items:center;
       border-bottom:1px solid var(--line);
       background:linear-gradient(180deg,#fff,#fbfffe);
+      flex-wrap:wrap;
     }
     .map-h strong{font-size:14px}
-    .pill{
+    .pills{
       margin-left:auto;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .pill{
       padding:8px 10px;
       border-radius:999px;
       border:1px solid rgba(20,184,166,.30);
@@ -278,21 +273,20 @@
       font-weight:1000;
       cursor:pointer;
       user-select:none;
+      white-space:nowrap;
     }
+    .pill:active{ transform:scale(.99); }
     #map{height:72vh; min-height:360px; width:100%}
 
-    /* ✅ Map view full-screen (no scroll) */
     body.map-open main{
       height: calc(100vh - var(--hdrH) - var(--tabsH));
       overflow:hidden;
-      padding-bottom: 14px; /* remove extra bottom padding */
+      padding-bottom: 14px;
     }
     body.map-open #pageMap.active{ height:100%; }
     body.map-open #pageMap.active .map-wrap{ height:100%; display:flex; flex-direction:column; }
     body.map-open #pageMap.active #map{ flex:1 1 auto; height:auto; min-height:0; width:100%; }
 
-
-    /* modal */
     .backdrop{
       position:fixed; inset:0;
       display:none; align-items:center; justify-content:center;
@@ -347,7 +341,6 @@
       color:#7b1111;
     }
 
-    /* toast */
     .toast{
       position:fixed;
       left:50%;
@@ -366,7 +359,6 @@
       z-index:100000;
     }
 
-    /* Leaflet popup buttons */
     .map-link{
       display:inline-flex;
       align-items:center;
@@ -411,7 +403,6 @@
       pointer-events:none;
     }
 
-    /* Current location marker */
     .me-icon{ background: transparent !important; border: none !important; }
     .me-dot{
       width: 18px;
@@ -435,7 +426,6 @@
       100% { transform: scale(1.25); opacity: 0; }
     }
 
-    /* Bottom Tabs */
     .bottom-tabs{
       position:fixed;
       left:0; right:0; bottom:0;
@@ -473,9 +463,6 @@
     }
     .tabbtn:active{ transform:scale(.99); }
 
-    /* =========================
-       ✅ SIDEBAR
-       ========================= */
     .sb-overlay{
       position:fixed;
       inset:0;
@@ -497,10 +484,17 @@
       transition:transform .22s ease;
       padding:12px;
       padding-top: calc(12px + env(safe-area-inset-top));
-      overflow:auto;
-      -webkit-overflow-scrolling: touch;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
     }
     .sb-overlay.show .sidebar{ transform:translateX(0); }
+
+    .sb-body{
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom:10px;
+    }
 
     .sb-head{
       display:flex;
@@ -552,6 +546,11 @@
       text-decoration:none;
       cursor:pointer;
     }
+    button.sb-link{
+      text-align:left;
+      appearance:none;
+      -webkit-appearance:none;
+    }
     .sb-link:active{ transform:scale(.99); }
     .sb-ico{
       width:34px; height:34px;
@@ -560,22 +559,29 @@
       border:1px solid rgba(20,184,166,.22);
       display:flex; align-items:center; justify-content:center;
       font-size:18px;
+      flex:0 0 auto;
     }
     .sb-text{
       display:flex;
       flex-direction:column;
       line-height:1.15;
+      min-width:0;
     }
     .sb-text small{
       font-weight:900;
       color:rgba(6,78,70,.75);
       margin-top:4px;
       font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .sb-footer{
+      margin-top:auto;
+      padding-top:10px;
+      border-top:1px solid rgba(7,25,21,.10);
     }
 
-    /* =========================
-       ✅ REPORT POPUP
-       ========================= */
     .rep-overlay{
       position:fixed;
       inset:0;
@@ -636,43 +642,194 @@
       border:0;
       background:#fff;
     }
+
+    .set-overlay{
+      position:fixed;
+      inset:0;
+      z-index:var(--setZ);
+      background:rgba(0,0,0,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+    }
+    .set-overlay.show{ display:flex; }
+    .set-modal{
+      width:min(900px, 100%);
+      height:min(92vh, 100%);
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.10);
+      box-shadow:0 20px 70px rgba(0,0,0,.28);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .set-bar{
+      height:var(--setBarH);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      background:linear-gradient(90deg,#0f8f83,#0b7c73);
+      color:#fff;
+    }
+    .set-title{
+      font-weight:1000;
+      white-space:nowrap;
+    }
+    .set-sub{
+      font-weight:900;
+      font-size:12px;
+      opacity:.92;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .set-close{
+      margin-left:auto;
+      min-height:40px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.14);
+      color:#fff;
+      padding:8px 12px;
+      font-weight:1000;
+      cursor:pointer;
+    }
+    .set-body{
+      padding:14px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      background:linear-gradient(180deg,#fff,#fbfffe);
+    }
+    .set-card{
+      background:#fff;
+      border:1px solid rgba(7,25,21,.10);
+      border-radius:18px;
+      box-shadow:0 12px 24px rgba(0,0,0,.06);
+      padding:14px;
+    }
+    .set-h{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-bottom:12px;
+    }
+    .set-h strong{
+      font-weight:1000;
+      color:#071915;
+      font-size:14px;
+    }
+    .set-h small{
+      font-weight:900;
+      color:#3b6760;
+      font-size:12px;
+    }
+    .seg{
+      display:flex;
+      gap:10px;
+      padding:10px;
+      border-radius:18px;
+      border:1px solid rgba(20,184,166,.20);
+      background:rgba(20,184,166,.08);
+      flex-wrap:wrap;
+    }
+    .seg label{
+      flex:1 1 240px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .seg input{ display:none; }
+    .seg .seg-pill{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:46px;
+      padding:10px 12px;
+      border-radius:16px;
+      border:1px solid rgba(7,25,21,.10);
+      background:#fff;
+      color:#071915;
+      font-weight:1000;
+      font-size:14px;
+      box-shadow:0 8px 16px rgba(0,0,0,.06);
+    }
+    .seg input:checked + .seg-pill{
+      background:linear-gradient(90deg,#0f8f83,#0b7c73);
+      border-color:rgba(15,143,131,.25);
+      color:#fff;
+    }
+    .set-actions{
+      padding:12px 14px;
+      border-top:1px solid rgba(0,0,0,.10);
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      background:#fff;
+    }
+    .set-btn{
+      min-height:var(--tap);
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#f0f5f4;
+      color:#071915;
+      padding:10px 12px;
+      font-weight:1000;
+      cursor:pointer;
+    }
+    .set-save{
+      background:rgba(20,184,166,.16);
+      border-color:rgba(20,184,166,.35);
+      color:#064e46;
+    }
   </style>
 </head>
 
 <body>
 
-<!-- ✅ Sidebar Overlay -->
 <div id="sbOverlay" class="sb-overlay" aria-hidden="true">
   <aside class="sidebar" role="navigation" aria-label="Tools Sidebar">
-    <div class="sb-head">
-      <div class="sb-title">🧰 Tools</div>
-      <button id="sbClose" class="sb-close" type="button">ปิด</button>
+    <div class="sb-body">
+      <div class="sb-head">
+        <div class="sb-title">🧰 Tools</div>
+        <button id="sbClose" class="sb-close" type="button">ปิด</button>
+      </div>
+
+      <div class="sb-section">เครื่องมือ</div>
+
+      <a class="sb-link" href="Tools/Report.html">
+        <div class="sb-ico">🧾</div>
+        <div class="sb-text">
+          Report Script
+          <small>เปิดหน้า Report.html (เต็มหน้า)</small>
+        </div>
+      </a>
+
+      <a class="sb-link" href="Tools/Timestamp.html">
+        <div class="sb-ico">⏱️</div>
+        <div class="sb-text">
+          Timestamp Camera
+          <small>เปิดหน้า Timestamp.html (เต็มหน้า)</small>
+        </div>
+      </a>
     </div>
 
-    <div class="sb-section">เครื่องมือ</div>
-
-    <!-- ✅ เปิดหน้าเต็ม (ไม่เรียก popup) -->
-    <a class="sb-link" href="Tools/Report.html">
-      <div class="sb-ico">🧾</div>
-      <div class="sb-text">
-        Report Script
-        <small>เปิดหน้า Report.html (เต็มหน้า)</small>
-      </div>
-    </a>
-
-    <a class="sb-link" href="Tools/Timestamp.html">
-      <div class="sb-ico">⏱️</div>
-      <div class="sb-text">
-        Timestamp Camera
-        <small>เปิดหน้า Timestamp.html (เต็มหน้า)</small>
-      </div>
-    </a>
+    <div class="sb-footer">
+      <button id="sbSettings" class="sb-link" type="button">
+        <div class="sb-ico">⚙️</div>
+        <div class="sb-text">
+          Settings
+          <small>ตั้งค่าการนำทางและอื่น ๆ</small>
+        </div>
+      </button>
+    </div>
   </aside>
 </div>
 
 <header>
   <div class="hdr">
-    <!-- ✅ ปุ่มเปิด Sidebar -->
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
     <div class="title">
@@ -719,7 +876,11 @@
     <section class="map-wrap">
       <div class="map-h">
         <strong>แผนที่</strong>
-        <div id="gpsPill" class="pill">กดเพื่อหา GPS</div>
+        <div class="pills">
+          <div id="fitPill" class="pill">จัดเฟรมให้พอดี</div>
+          <div id="mePill" class="pill">ไปหาตำแหน่งฉัน</div>
+          <div id="gpsPill" class="pill">กดเพื่อหา GPS</div>
+        </div>
       </div>
       <div id="map"></div>
     </section>
@@ -746,7 +907,6 @@
 
 <div id="toast" class="toast">—</div>
 
-<!-- ✅ Report Popup -->
 <div id="repOverlay" class="rep-overlay" aria-hidden="true">
   <div class="rep-modal" role="dialog" aria-modal="true">
     <div class="rep-bar">
@@ -758,26 +918,58 @@
   </div>
 </div>
 
-<script>
-  /** =========================
-   *  CONFIG (แก้แค่จุดนี้)
-   *  ========================= */
-  const CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbxT9l21k-IusbjU6T8of0PwHwCVeqrseDSaM1lPWz9B0qwhF6SgmdtZw7oDSvU2HykAwg/exec',
+<div id="setOverlay" class="set-overlay" aria-hidden="true">
+  <div class="set-modal" role="dialog" aria-modal="true">
+    <div class="set-bar">
+      <div class="set-title">⚙️ Settings</div>
+      <div class="set-sub">ตั้งค่าการนำทาง</div>
+      <button id="setClose" class="set-close" type="button">ปิด</button>
+    </div>
 
-    // ✅ path ของ Report.html (relative path → same-origin เพื่อคุม iframe ได้)
+    <div class="set-body">
+      <div class="set-card">
+        <div class="set-h">
+          <strong>Navigation Priority</strong>
+          <small>เลือกว่าจะให้ “ลิงก์” หรือ “lat/lng” ถูกใช้เป็นอันดับแรก</small>
+        </div>
+
+        <div class="seg" role="radiogroup" aria-label="Navigation Priority">
+          <label>
+            <input type="radio" name="navPriority" value="linkFirst">
+            <div class="seg-pill">ใช้ลิงก์ก่อน (Link-first)</div>
+          </label>
+          <label>
+            <input type="radio" name="navPriority" value="latLngFirst">
+            <div class="seg-pill">ใช้ lat/lng ก่อน (LatLng-first)</div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-actions">
+      <button id="setCancel" class="set-btn" type="button">ปิด</button>
+      <button id="setSave" class="set-btn set-save" type="button">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbw91N5J4z1Jjn0rZz8qnn-ZFmP6bYJ2IZaKrOXrDaTj3aJoAvGJCVJBy982T_pXilNS/exec',
     REPORT_PATH: 'Tools/Report.html'
   };
 
-  // ✅ keys ของ Report.html (จากไฟล์ Report.html ที่คุณใช้)
   const REPORT_KEYS = {
     FORM: 'PT_REPORT_FORM_V1',
     HISTORY: 'PT_REPORT_HISTORY_V1'
   };
 
+  const SETTINGS_KEY = 'PT_GBKK4_SETTINGS_V1';
+  const CACHE_KEY = 'PT_GBKK4_PLACES_CACHE_V1';
+  const MAPSTATE_KEY = 'PT_GBKK4_MAPSTATE_V1';
+
   function $(id){ return document.getElementById(id); }
 
-  // ✅ Update CSS vars for header/tabs heights (used for full-screen map)
   function updateFixedHeights(){
     try{
       var hdr = document.querySelector('header');
@@ -802,13 +994,21 @@
     showToast._t = setTimeout(function(){ t.style.display='none'; }, 2200);
   }
 
+  function debounce(fn, ms){
+    var t = null;
+    return function(){
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(null, args); }, ms);
+    };
+  }
+
   function openModal(opts){
     opts = opts || {};
     $('mTitle').textContent = opts.title || 'ยืนยัน';
     $('mBody').textContent  = opts.body  || '—';
     $('mOk').textContent    = opts.okText || 'ตกลง';
     $('mCancel').textContent= opts.cancelText || 'ยกเลิก';
-
     $('mOk').className = 'm-btn ' + (opts.danger ? 'm-danger' : 'm-ok');
 
     $('backdrop').style.display = 'flex';
@@ -826,9 +1026,6 @@
     });
   }
 
-  /** =========================
-   *  ✅ SIDEBAR LOGIC
-   *  ========================= */
   function openSidebar(){
     var o = $('sbOverlay');
     o.classList.add('show');
@@ -851,36 +1048,18 @@
     e.stopPropagation();
     closeSidebar();
   });
-
   $('sbOverlay').addEventListener('click', function(ev){
-    if(ev.target && ev.target.id === 'sbOverlay'){
-      closeSidebar();
-    }
+    if(ev.target && ev.target.id === 'sbOverlay'){ closeSidebar(); }
   });
-
-  // คลิกบนลิงก์ใน sidebar → ปิด sidebar (แล้วปล่อยให้เปลี่ยนหน้าเต็มตามปกติ)
   (function(){
     var links = $('sbOverlay').querySelectorAll('a.sb-link');
     links.forEach(function(a){
-      a.addEventListener('click', function(){
-        // ปิดก่อนเปลี่ยนหน้า (optional)
-        closeSidebar();
-      });
+      a.addEventListener('click', function(){ closeSidebar(); });
     });
   })();
 
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && sidebarIsOpen()){
-      closeSidebar();
-    }
-  });
-
-  /** =========================
-   *  JSONP Helper
-   *  ========================= */
   function jsonp(url, timeoutMs){
     timeoutMs = timeoutMs || 15000;
-
     return new Promise(function(resolve, reject){
       var cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*1e9);
       var timedOut = false;
@@ -916,12 +1095,11 @@
   }
 
   function apiUrl(action, params){
-    if(!CONFIG.API_URL || CONFIG.API_URL === 'PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE'){
-      return '';
-    }
+    if(!CONFIG.API_URL || CONFIG.API_URL === 'PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE'){ return ''; }
     var base = CONFIG.API_URL;
     var qs = 'action=' + encodeURIComponent(action);
     params = params || {};
+    params._ts = Date.now();
     Object.keys(params).forEach(function(k){
       qs += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k]));
     });
@@ -946,23 +1124,105 @@
     return await jsonp(url);
   }
 
-  // ===== Data =====
-  var META = { total:0, visited:0, remaining:0 };
+  var SETTINGS = loadSettings_();
+
+  function loadSettings_(){
+    var def = { navPriority: 'linkFirst' };
+    try{
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if(!raw) return def;
+      var obj = JSON.parse(raw);
+      if(!obj || typeof obj !== 'object') return def;
+      var v = (obj.navPriority === 'latLngFirst') ? 'latLngFirst' : 'linkFirst';
+      return { navPriority: v };
+    }catch(e){
+      return def;
+    }
+  }
+  function saveSettings_(next){
+    SETTINGS = next || SETTINGS;
+    try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){}
+  }
+
+  function openSettings(){
+    closeSidebar();
+    var v = (SETTINGS && SETTINGS.navPriority) ? SETTINGS.navPriority : 'linkFirst';
+    var radios = document.querySelectorAll('input[name="navPriority"]');
+    radios.forEach(function(r){ r.checked = (r.value === v); });
+
+    $('setOverlay').classList.add('show');
+    $('setOverlay').setAttribute('aria-hidden','false');
+    document.body.classList.add('set-open');
+  }
+  function closeSettings(){
+    $('setOverlay').classList.remove('show');
+    $('setOverlay').setAttribute('aria-hidden','true');
+    document.body.classList.remove('set-open');
+  }
+  function saveSettingsFromUI(){
+    var sel = document.querySelector('input[name="navPriority"]:checked');
+    var v = sel ? String(sel.value) : 'linkFirst';
+    v = (v === 'latLngFirst') ? 'latLngFirst' : 'linkFirst';
+    saveSettings_({ navPriority: v });
+    closeSettings();
+    showToast('บันทึกแล้ว ✅');
+  }
+
+  $('sbSettings').addEventListener('click', function(e){
+    e.preventDefault();
+    openSettings();
+  });
+  $('setClose').addEventListener('click', closeSettings);
+  $('setCancel').addEventListener('click', closeSettings);
+  $('setSave').addEventListener('click', saveSettingsFromUI);
+  $('setOverlay').addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'setOverlay') closeSettings();
+  });
+
+  var META = { total:0, visited:0, remaining:0, rev:null };
   var PLACES = [];
+  var PENDING = new Map();
 
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-
     $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
   }
 
-  // ===== Map =====
   var map = null;
-  var layer = null;
+  var placesLayer = null;
   var currentMarker = null;
   var currentLatLng = null;
   var meIcon = null;
+  var markerById = new Map();
+
+  var mapState = loadMapState_();
+
+  function loadMapState_(){
+    var def = { center:null, zoom:null, userInteracted:false, autoFitted:false };
+    try{
+      var raw = localStorage.getItem(MAPSTATE_KEY);
+      if(!raw) return def;
+      var obj = JSON.parse(raw);
+      if(!obj || typeof obj !== 'object') return def;
+      if(obj.center && typeof obj.center.lat === 'number' && typeof obj.center.lng === 'number' && typeof obj.zoom === 'number'){
+        return { center: obj.center, zoom: obj.zoom, userInteracted:true, autoFitted:true };
+      }
+      return def;
+    }catch(e){
+      return def;
+    }
+  }
+
+  function saveMapStateSoon_(){
+    clearTimeout(saveMapStateSoon_._t);
+    saveMapStateSoon_._t = setTimeout(function(){
+      try{
+        if(!mapState.center || typeof mapState.zoom !== 'number') return;
+        localStorage.setItem(MAPSTATE_KEY, JSON.stringify({ center: mapState.center, zoom: mapState.zoom }));
+      }catch(e){}
+    }, 250);
+  }
 
   function initMap(){
     if(map) return;
@@ -973,14 +1233,30 @@
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
-      layer = L.layerGroup().addTo(map);
-      map.setView([13.95, 100.40], 11);
+      placesLayer = L.layerGroup().addTo(map);
 
       meIcon = L.divIcon({
         className: 'me-icon',
         html: '<div class="me-dot"></div>',
         iconSize: [26, 26],
         iconAnchor: [13, 13]
+      });
+
+      if(mapState.center && typeof mapState.zoom === 'number'){
+        map.setView([mapState.center.lat, mapState.center.lng], mapState.zoom);
+      }else{
+        map.setView([13.95, 100.40], 11);
+      }
+
+      map.on('dragstart', function(){ mapState.userInteracted = true; });
+      map.on('zoomstart', function(){ mapState.userInteracted = true; });
+      map.on('moveend zoomend', function(){
+        try{
+          var c = map.getCenter();
+          mapState.center = { lat: c.lat, lng: c.lng };
+          mapState.zoom = map.getZoom();
+          saveMapStateSoon_();
+        }catch(e){}
       });
 
       if(currentLatLng){
@@ -995,12 +1271,27 @@
   function setCurrentLocation(lat, lng){
     currentLatLng = { lat:lat, lng:lng };
     if(!map) return;
-    if(currentMarker) currentMarker.remove();
 
-    currentMarker = L.marker([lat,lng], {
-      icon: meIcon,
-      zIndexOffset: 10000
-    }).addTo(map).bindPopup('📍 ตำแหน่งปัจจุบัน');
+    if(currentMarker){
+      try{ currentMarker.setLatLng([lat,lng]); }catch(e){}
+      return;
+    }
+
+    currentMarker = L.marker([lat,lng], { icon: meIcon, zIndexOffset: 10000 })
+      .addTo(map)
+      .bindPopup('📍 ตำแหน่งปัจจุบัน');
+  }
+
+  function recenterToMe(){
+    if(!map){ showToast('แผนที่ยังไม่พร้อม'); return; }
+    if(!currentLatLng){ showToast('ยังไม่มีตำแหน่ง (กด GPS)'); return; }
+    mapState.userInteracted = true;
+    mapState.autoFitted = true;
+    try{
+      var z = map.getZoom();
+      var nextZ = Math.max(16, z || 16);
+      map.setView([currentLatLng.lat, currentLatLng.lng], nextZ, { animate:true });
+    }catch(e){}
   }
 
   function haversineKm(a, b){
@@ -1014,14 +1305,29 @@
     return 2*R*Math.asin(Math.sqrt(s));
   }
 
+  function hasLatLng_(p){
+    return !!(p && p.lat !== null && p.lat !== undefined && p.lng !== null && p.lng !== undefined);
+  }
+
   function getOpenLink(place){
     var mapsUrl = (place && place.mapsUrl) ? String(place.mapsUrl).trim() : '';
-    if(mapsUrl) return mapsUrl;
+    var hasLL = hasLatLng_(place);
 
-    if(place && place.lat !== null && place.lat !== undefined && place.lng !== null && place.lng !== undefined){
+    function genFromLL(){
       var dest = place.lat + ',' + place.lng;
       return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dest) + '&travelmode=driving&dir_action=navigate';
     }
+
+    var mode = (SETTINGS && SETTINGS.navPriority) ? SETTINGS.navPriority : 'linkFirst';
+
+    if(mode === 'latLngFirst'){
+      if(hasLL) return genFromLL();
+      if(mapsUrl) return mapsUrl;
+      return '';
+    }
+
+    if(mapsUrl) return mapsUrl;
+    if(hasLL) return genFromLL();
     return '';
   }
 
@@ -1047,7 +1353,7 @@
     if(mode === 'nearest' && currentLatLng){
       arr = arr.map(function(p){
         var d = Number.POSITIVE_INFINITY;
-        if(p && p.lat !== null && p.lat !== undefined && p.lng !== null && p.lng !== undefined){
+        if(hasLatLng_(p)){
           d = haversineKm(currentLatLng, {lat:p.lat, lng:p.lng});
         }
         p._d = d;
@@ -1073,13 +1379,9 @@
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
-  /** =========================
-   *  ✅ REPORT POPUP
-   *  ========================= */
   var REPORT_CTX = null;
   var REPORT_FRAME_READY = false;
   var REPORT_TRIMMED = false;
-
   var REPORT_EMBED_PATCHED = false;
   var REPORT_COPY_HOOKED = false;
 
@@ -1090,7 +1392,6 @@
   function openReport(place){
     REPORT_CTX = place || null;
 
-    // subtitle
     if(place){
       var subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
       var a = place.account ? (' | ' + place.account) : '';
@@ -1106,32 +1407,24 @@
     document.body.classList.add('rep-open');
 
     var frame = $('repFrame');
-
-    // ✅ โหลด iframe แบบ "ชัวร์" (กันกรณี frame.src เป็น about:blank หรือเท่ากับหน้า index เอง)
     var targetRel = CONFIG.REPORT_PATH + (CONFIG.REPORT_PATH.indexOf('?')>=0 ? '&' : '?') + 'embed=1';
     var targetAbs = '';
     try{ targetAbs = new URL(targetRel, location.href).href; }catch(e){ targetAbs = targetRel; }
 
     var curAbs = String(frame.src || '').split('#')[0];
     var curOk = false;
-    try{
-      // ต้องเป็นหน้า Report.html จริง (อนุญาตให้มีพารามิเตอร์เพิ่ม เช่น &t=...)
-      curOk = !!curAbs && curAbs.indexOf('about:blank') !== 0 && curAbs.indexOf(targetAbs) === 0;
-    }catch(e){ curOk = false; }
+    try{ curOk = !!curAbs && curAbs.indexOf('about:blank') !== 0 && curAbs.indexOf(targetAbs) === 0; }catch(e){ curOk = false; }
 
     function afterFrameReady(){
       REPORT_FRAME_READY = true;
-      // ทำงานฝั่ง iframe: ตัด UI + patch storage + hook copy
       tryTrimReportUI();
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
-      // เคลียร์ช่อง 3 ช่องก่อน แล้วค่อย prefill
       clearRestrictedFieldsOnce();
       startPrefillLoop();
     }
 
     if(!curOk){
-      // รีโหลดแบบ cache-bust กัน iframe ว่าง/ค้าง
       REPORT_FRAME_READY = false;
       REPORT_TRIMMED = false;
       REPORT_EMBED_PATCHED = false;
@@ -1142,7 +1435,6 @@
       var bust = targetAbs + (targetAbs.indexOf('?')>=0 ? '&' : '?') + 't=' + Date.now();
       frame.src = bust;
     }else{
-      // เปิดซ้ำ (iframe ถูกต้องแล้ว)
       try{
         var d0 = getReportDoc();
         if(d0 && d0.body) REPORT_FRAME_READY = true;
@@ -1161,60 +1453,41 @@
   $('repOverlay').addEventListener('click', function(ev){
     if(ev.target && ev.target.id === 'repOverlay') closeReport();
   });
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && $('repOverlay').classList.contains('show')){
-      closeReport();
-    }
-  });
 
   function getReportDoc(){
     var frame = $('repFrame');
-    try{
-      return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null;
-    }catch(e){
-      return null;
-    }
+    try{ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null; }
+    catch(e){ return null; }
   }
   function getReportWin(){
     try{ return $('repFrame').contentWindow; }catch(e){ return null; }
   }
 
-  // ✅ ตัดปุ่ม "สรุปยอด" และซ่อนการ์ด "ประวัติ" เฉพาะ popup
   function tryTrimReportUI(){
     if(REPORT_TRIMMED) return;
     var doc = getReportDoc();
     if(!doc || !doc.body) return;
 
     try{
-      // 1) ซ่อนปุ่มสรุปยอดตาม id (ถ้ามี)
       var btnSum = doc.getElementById('btnSummary');
       if(btnSum) btnSum.style.display = 'none';
 
-      // 2) ซ่อนการ์ดประวัติ: ถ้ามี histList ให้ซ่อน card ที่ครอบ
       var histList = doc.getElementById('histList');
       if(histList){
         var card = histList.closest ? histList.closest('.card') : null;
         if(card) card.style.display = 'none';
       }
 
-      // 3) fallback: ซ่อน element ที่มีข้อความ "สรุปยอด"
       var btns = doc.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
       btns.forEach(function(el){
         var t = normText(el.textContent || el.value || '');
-        if(t.indexOf('สรุปยอด') !== -1){
-          el.style.display = 'none';
-        }
+        if(t.indexOf('สรุปยอด') !== -1){ el.style.display = 'none'; }
       });
 
       REPORT_TRIMMED = true;
-    }catch(e){
-      console.warn('trim report failed', e);
-    }
+    }catch(e){}
   }
 
-  // ✅ คุม LocalStorage ใน iframe เฉพาะ embed=1:
-  // - FORM (PT_REPORT_FORM_V1) จะถูก sanitize ให้ account/branchCode/branchName = '' เสมอ
-  // - HISTORY ยังเซฟได้ตามปกติ (เพราะคุณต้องใช้สรุปยอดใน Report.html เต็มหน้า)
   function patchReportEmbedStorageOnce(){
     if(REPORT_EMBED_PATCHED) return;
     var win = getReportWin();
@@ -1245,34 +1518,24 @@
 
       LS.getItem = function(k){
         var v = origGet(k);
-        if(String(k) === REPORT_KEYS.FORM && v){
-          return sanitizeForm(v);
-        }
+        if(String(k) === REPORT_KEYS.FORM && v){ return sanitizeForm(v); }
         return v;
       };
 
       LS.setItem = function(k, v){
-        try{
-          if(String(k) === REPORT_KEYS.FORM){
-            v = sanitizeForm(v);
-          }
-        }catch(e){}
+        try{ if(String(k) === REPORT_KEYS.FORM){ v = sanitizeForm(v); } }catch(e){}
         return origSet(k, v);
       };
 
       LS.__pt_embed_patched = true;
       REPORT_EMBED_PATCHED = true;
-    }catch(e){
-      console.warn('patchReportEmbedStorageOnce failed', e);
-    }
+    }catch(e){}
   }
 
-  // ✅ หา input แบบ "id ก่อน" แล้วค่อย semantic (กัน report.html เปลี่ยน class)
   function findField(doc, ids, keywords){
     doc = doc || getReportDoc();
     if(!doc) return null;
 
-    // 0) id
     if(Array.isArray(ids)){
       for(var i=0;i<ids.length;i++){
         var el0 = doc.getElementById(ids[i]);
@@ -1280,7 +1543,6 @@
       }
     }
 
-    // 1) label
     keywords = (keywords || []).map(function(x){ return normText(x); }).filter(Boolean);
 
     var labels = doc.querySelectorAll('label');
@@ -1305,7 +1567,6 @@
       if(near) return near;
     }
 
-    // 2) placeholder / aria-label
     var fields = doc.querySelectorAll('input, textarea, select');
     for(var j=0;j<fields.length;j++){
       var f = fields[j];
@@ -1318,10 +1579,7 @@
     return null;
   }
 
-  // ✅ เคลียร์ 3 ช่องทุกครั้งที่เปิด popup (กันค่าเก่าจาก full-page)
-  var _clearedOnce = false;
   function clearRestrictedFieldsOnce(){
-    // เคลียร์ทุกครั้งที่ openReport ถูกเรียก (ไม่ใช้ _clearedOnce)
     var doc = getReportDoc();
     var win = getReportWin();
     if(!doc || !win) return;
@@ -1355,7 +1613,6 @@
     var win = getReportWin();
     if(!win) return false;
 
-    // ค่าจากคอลัม F/G/H → place.account / place.number / place.account_name
     var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
     var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
     var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
@@ -1371,7 +1628,6 @@
         el.removeAttribute('disabled');
         el.style.pointerEvents = 'auto';
       }catch(e){}
-
       try{
         el.value = val || '';
         el.dispatchEvent(new win.Event('input', { bubbles:true }));
@@ -1380,12 +1636,10 @@
       return true;
     }
 
-    // ตัด UI + patch storage + hook copy
     tryTrimReportUI();
     patchReportEmbedStorageOnce();
     attachCopyHistoryHookOnce();
 
-    // เซ็ตค่า (ถ้าไม่มี/หาไม่เจอ → ปล่อยว่าง)
     var okA = setVal(accEl, acc);
     var okN = setVal(numEl, num);
     var okS = setVal(nameEl, nam);
@@ -1395,12 +1649,11 @@
 
   function startPrefillLoop(){
     var tries = 0;
-    var maxTries = 50;        // ~50*120ms = 6s
+    var maxTries = 50;
     var interval = 120;
 
     var t = setInterval(function(){
       tries++;
-
       tryTrimReportUI();
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
@@ -1408,14 +1661,11 @@
       var ok = prefillReportOnce();
       if(ok || tries >= maxTries){
         clearInterval(t);
-        if(!ok){
-          showToast('Prefill ไม่เจอช่องใน Report.html (ปล่อยว่างไว้)');
-        }
+        if(!ok){ showToast('Prefill ไม่เจอช่องใน Report.html (ปล่อยว่างไว้)'); }
       }
     }, interval);
   }
 
-  // ✅ Hook: กด "COPY + เปิด LINE กลุ่ม" แล้วต้องมี history อยู่ใน localStorage (Report.html จะเห็นด้วย)
   function attachCopyHistoryHookOnce(){
     if(REPORT_COPY_HOOKED) return;
     var doc = getReportDoc();
@@ -1424,8 +1674,6 @@
 
     try{
       var btn = doc.getElementById('btnCopy');
-
-      // fallback: หาโดยข้อความ
       if(!btn){
         var allBtns = doc.querySelectorAll('button');
         for(var i=0;i<allBtns.length;i++){
@@ -1436,21 +1684,15 @@
           }
         }
       }
-
       if(!btn || btn.__pt_hooked) return;
 
       btn.__pt_hooked = true;
       btn.addEventListener('click', function(){
-        // ให้ Report.html ทำงานของมันก่อน (copy + save history ตามโค้ดเดิม)
-        setTimeout(function(){
-          ensureHistoryExistsFallback();
-        }, 350);
+        setTimeout(function(){ ensureHistoryExistsFallback(); }, 350);
       }, true);
 
       REPORT_COPY_HOOKED = true;
-    }catch(e){
-      console.warn('attachCopyHistoryHookOnce failed', e);
-    }
+    }catch(e){}
   }
 
   function readHistoryArray(win){
@@ -1459,18 +1701,14 @@
       if(!raw) return [];
       var arr = JSON.parse(raw);
       return Array.isArray(arr) ? arr : [];
-    }catch(e){
-      return [];
-    }
+    }catch(e){ return []; }
   }
 
   function writeHistoryArray(win, arr){
     try{
       win.localStorage.setItem(REPORT_KEYS.HISTORY, JSON.stringify(arr));
       return true;
-    }catch(e){
-      return false;
-    }
+    }catch(e){ return false; }
   }
 
   function ensureHistoryExistsFallback(){
@@ -1478,29 +1716,21 @@
     var win = getReportWin();
     if(!doc || !win || !win.localStorage) return;
 
-    // อ่าน preview text (ตัวจริงของรายงาน)
     var previewEl = doc.getElementById('preview');
     var reportText = previewEl ? String(previewEl.textContent || '').trim() : '';
-    if(!reportText){
-      // ถ้าไม่มี preview ก็ไม่ฝืน (กันบัค)
-      return;
-    }
+    if(!reportText) return;
 
     var now = Date.now();
     var arr = readHistoryArray(win);
 
-    // ถ้ามีรายการที่ reportText เหมือนกันอยู่แล้ว (ภายใน 10 วิ) → ไม่ต้องเพิ่มซ้ำ
     for(var i=0;i<Math.min(arr.length, 12);i++){
       var it = arr[i];
       if(!it) continue;
       var sameText = String(it.reportText || '') === reportText;
       var t = Number(it.createdAt || 0);
-      if(sameText && (Math.abs(now - t) <= 10000 || t === 0)){
-        return;
-      }
+      if(sameText && (Math.abs(now - t) <= 10000 || t === 0)) return;
     }
 
-    // สร้าง entry แบบเดียวกับ Report.html (เท่าที่ทำได้)
     function gv(id){ var el = doc.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 
     var entry = {
@@ -1514,16 +1744,9 @@
     };
 
     arr.unshift(entry);
-
-    // กันบวม (เก็บซัก 80 รายการพอ)
     if(arr.length > 80) arr = arr.slice(0, 80);
-
     writeHistoryArray(win, arr);
   }
-
-  /** =========================
-   *  ✅ END REPORT POPUP
-   *  ========================= */
 
   function renderList(){
     renderHeader();
@@ -1543,15 +1766,14 @@
 
     var items = filteredPlaces();
     if(items.length === 0){
-      $('list').innerHTML =
-        '<div class="center">ไม่พบรายการ (ลองล้างคำค้นหา หรือกดรีเฟรช)</div>';
+      $('list').innerHTML = '<div class="center">ไม่พบรายการ (ลองล้างคำค้นหา หรือกดรีเฟรช)</div>';
       return;
     }
 
     var html = '';
     for(var i=0;i<items.length;i++){
       var p = items[i];
-      var hasLL = (p.lat !== null && p.lat !== undefined && p.lng !== null && p.lng !== undefined);
+      var hasLL = hasLatLng_(p);
       var locText = hasLL ? (Number(p.lat).toFixed(6) + ', ' + Number(p.lng).toFixed(6)) : '<span class="warn">⚠ ไม่มีพิกัด</span>';
 
       html +=
@@ -1566,61 +1788,31 @@
         '</div>';
     }
     $('list').innerHTML = html;
+  }
 
-    var nodes = $('list').querySelectorAll('.item');
-    nodes.forEach(function(el){
-      var id = el.getAttribute('data-id');
-      var place = PLACES.find(function(x){ return String(x.id) === String(id); });
+  function fitFrameNow(force){
+    if(!map) return;
+    var items = filteredPlaces().filter(hasLatLng_);
+    var pts = [];
+    if(currentLatLng) pts.push([currentLatLng.lat, currentLatLng.lng]);
+    items.forEach(function(p){ pts.push([p.lat, p.lng]); });
+    if(!pts.length) return;
 
-      el.querySelector('[data-act="nav"]').onclick = function(){
-        openMaps(place);
-      };
+    mapState.userInteracted = true;
+    mapState.autoFitted = true;
 
-      el.querySelector('[data-act="report"]').onclick = function(){
-        openReport(place);
-      };
-
-      el.querySelector('[data-act="done"]').onclick = async function(){
-        var ok = await openModal({
-          title:'ยืนยันว่าไปแล้ว',
-          body:'[' + place.id + '] ' + place.name + '\n\nระบบจะจำค่า visited และรายการจะหายไปทันที',
-          okText:'ยืนยัน',
-          cancelText:'ยกเลิก',
-          danger:false
-        });
-        if(!ok) return;
-
-        var btn = el.querySelector('[data-act="done"]');
-        btn.disabled = true;
-        btn.textContent = 'กำลังบันทึก…';
-
-        try{
-          var res = await apiMarkVisited(place.id);
-          if(!res || !res.ok){
-            btn.disabled = false;
-            btn.innerHTML = '<b>ไปแล้ว</b>';
-            showToast(res && res.message ? res.message : 'บันทึกไม่สำเร็จ');
-            return;
-          }
-          showToast('บันทึกแล้ว ✅');
-          await loadPlaces();
-        }catch(err){
-          console.error(err);
-          btn.disabled = false;
-          btn.innerHTML = '<b>ไปแล้ว</b>';
-          showToast('ผิดพลาดตอนบันทึก');
-        }
-      };
-    });
+    try{
+      map.fitBounds(L.latLngBounds(pts).pad(0.15), { animate: !!force });
+    }catch(e){}
   }
 
   function renderMap(){
-    if(!map || !layer) return;
-    layer.clearLayers();
+    if(!map || !placesLayer) return;
 
-    var items = filteredPlaces().filter(function(p){
-      return (p.lat !== null && p.lat !== undefined && p.lng !== null && p.lng !== undefined);
-    });
+    placesLayer.clearLayers();
+    markerById.clear();
+
+    var items = filteredPlaces().filter(hasLatLng_);
 
     items.forEach(function(p){
       var link = getOpenLink(p);
@@ -1639,88 +1831,87 @@
         '<div style="font-weight:1000;color:#071915">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
         '<div class="map-actions">' + navHtml + reportHtml + doneHtml + '</div>';
 
-      L.marker([p.lat, p.lng]).addTo(layer).bindPopup(popup);
+      var mk = L.marker([p.lat, p.lng]).addTo(placesLayer).bindPopup(popup);
+      markerById.set(String(p.id), mk);
     });
 
-    var pts = [];
-    if(currentLatLng) pts.push([currentLatLng.lat, currentLatLng.lng]);
-    items.forEach(function(p){ pts.push([p.lat, p.lng]); });
-    if(pts.length){
-      try{ map.fitBounds(L.latLngBounds(pts).pad(0.15)); }catch(e){}
+    if(!mapState.userInteracted && !mapState.autoFitted){
+      var pts = [];
+      if(currentLatLng) pts.push([currentLatLng.lat, currentLatLng.lng]);
+      items.forEach(function(p){ pts.push([p.lat, p.lng]); });
+      if(pts.length){
+        try{ map.fitBounds(L.latLngBounds(pts).pad(0.15)); }catch(e){}
+        mapState.autoFitted = true;
+      }
     }
   }
 
-  // คลิกปุ่ม “ไปแล้ว” ใน popup map
-  document.addEventListener('click', function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest('.map-done') : null;
-    if(!btn) return;
+  function removeMarkerById_(id){
+    id = String(id);
+    var mk = markerById.get(id);
+    if(mk){
+      try{ mk.remove(); }catch(e){}
+      markerById.delete(id);
+    }
+  }
 
-    ev.preventDefault();
-    ev.stopPropagation();
+  function cacheWrite_(payload){
+    try{
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), payload: payload }));
+    }catch(e){}
+  }
 
-    var id = btn.getAttribute('data-id');
-    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
-    if(!place){
-      showToast('ไม่พบรายการสำหรับปุ่มนี้');
-      return;
+  function cacheRead_(){
+    try{
+      var raw = localStorage.getItem(CACHE_KEY);
+      if(!raw) return null;
+      var obj = JSON.parse(raw);
+      if(!obj || typeof obj !== 'object' || !obj.payload) return null;
+      return obj;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function renderFromCacheIfAny_(){
+    var cached = cacheRead_();
+    if(!cached || !cached.payload) return false;
+
+    var res = cached.payload;
+    if(!res || !res.ok) return false;
+
+    META = {
+      total: (res && res.total) ? res.total : 0,
+      visited: (res && res.visited) ? res.visited : 0,
+      remaining: (res && res.remaining) ? res.remaining : 0,
+      rev: (res && res.rev) ? res.rev : null
+    };
+
+    PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
+    renderList();
+    if(map) renderMap();
+
+    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
+    return true;
+  }
+
+  async function loadPlaces(opts){
+    opts = opts || {};
+    await doLoadPlaces_(opts);
+  }
+
+  async function doLoadPlaces_(opts){
+    opts = opts || {};
+    var forceSpinner = !!opts.force;
+
+    if(forceSpinner || (!PLACES || PLACES.length === 0)){
+      var usedCache = renderFromCacheIfAny_();
+      if(!usedCache) showLoading();
+      else $('badge').textContent = 'กำลังอัปเดท…';
+    }else{
+      $('badge').textContent = 'กำลังอัปเดท…';
     }
 
-    try{ if(map) map.closePopup(); }catch(e){}
-
-    openModal({
-      title:'ยืนยันว่าไปแล้ว',
-      body:'[' + place.id + '] ' + place.name + '\n\nระบบจะตั้งค่า visited = 1 ในชีท และรายการจะหายไปทันที',
-      okText:'ยืนยัน (ไปแล้ว)',
-      cancelText:'ยกเลิก',
-      danger:false
-    }).then(async function(ok){
-      if(!ok) return;
-
-      btn.disabled = true;
-      btn.textContent = 'กำลังบันทึก…';
-
-      try{
-        var res = await apiMarkVisited(place.id);
-        if(!res || !res.ok){
-          btn.disabled = false;
-          btn.textContent = 'ไปแล้ว';
-          showToast(res && res.message ? res.message : 'บันทึกไม่สำเร็จ');
-          return;
-        }
-        showToast('บันทึกแล้ว ✅');
-        await loadPlaces();
-      }catch(err){
-        console.error(err);
-        btn.disabled = false;
-        btn.textContent = 'ไปแล้ว';
-        showToast('ผิดพลาดตอนบันทึก');
-      }
-    });
-  }, true);
-
-  // คลิกปุ่ม “Report” ใน popup map
-  document.addEventListener('click', function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest('.map-report') : null;
-    if(!btn) return;
-
-    ev.preventDefault();
-    ev.stopPropagation();
-
-    var id = btn.getAttribute('data-id');
-    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
-    if(!place){
-      showToast('ไม่พบรายการสำหรับปุ่มนี้');
-      return;
-    }
-
-    try{ if(map) map.closePopup(); }catch(e){}
-    openReport(place);
-  }, true);
-
-  async function loadPlaces(){ await doLoadPlaces_(); }
-
-  async function doLoadPlaces_(){
-    showLoading();
     try{
       var res = await apiGetPlaces();
       if(!res || !res.ok){
@@ -1736,11 +1927,12 @@
       META = {
         total: (res && res.total) ? res.total : 0,
         visited: (res && res.visited) ? res.visited : 0,
-        remaining: (res && res.remaining) ? res.remaining : 0
+        remaining: (res && res.remaining) ? res.remaining : 0,
+        rev: (res && res.rev) ? res.rev : null
       };
 
-      // ✅ รองรับคอลัม F/G/H: place.account / place.number / place.account_name
       PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
+      cacheWrite_(res);
 
       renderList();
       if(map) renderMap();
@@ -1752,6 +1944,151 @@
     }
   }
 
+  function applyOptimisticVisited_(placeId){
+    var id = String(placeId);
+    if(PENDING.has(id)) return null;
+
+    var idx = PLACES.findIndex(function(x){ return String(x.id) === id; });
+    if(idx < 0) return null;
+
+    var place = PLACES[idx];
+    var snapshot = {
+      id: id,
+      place: place,
+      idx: idx,
+      meta: { total: META.total, visited: META.visited, remaining: META.remaining, rev: META.rev }
+    };
+
+    PENDING.set(id, snapshot);
+
+    PLACES.splice(idx, 1);
+
+    META.visited = Math.min(META.total, (META.visited || 0) + 1);
+    META.remaining = Math.max(0, META.total - META.visited);
+
+    var el = $('list').querySelector('.item[data-id="' + CSS.escape(id) + '"]');
+    if(el && el.parentNode) el.parentNode.removeChild(el);
+
+    renderHeader();
+
+    if(map) removeMarkerById_(id);
+
+    if(META.total > 0 && META.remaining === 0){
+      renderList();
+      if(map) renderMap();
+    }
+
+    return snapshot;
+  }
+
+  function rollbackOptimisticVisited_(placeId){
+    var id = String(placeId);
+    var snap = PENDING.get(id);
+    if(!snap) return;
+
+    META = { total: snap.meta.total, visited: snap.meta.visited, remaining: snap.meta.remaining, rev: snap.meta.rev };
+    var ins = Math.min(snap.idx, PLACES.length);
+    PLACES.splice(ins, 0, snap.place);
+    PENDING.delete(id);
+
+    renderList();
+    if(map) renderMap();
+  }
+
+  async function commitVisited_(placeId){
+    var id = String(placeId);
+
+    try{
+      var res = await apiMarkVisited(id);
+      if(!res || !res.ok) throw new Error(res && res.message ? res.message : 'บันทึกไม่สำเร็จ');
+
+      PENDING.delete(id);
+      showToast('บันทึกแล้ว ✅');
+
+      var cached = cacheRead_();
+      if(cached && cached.payload && cached.payload.ok){
+        cached.payload.total = META.total;
+        cached.payload.visited = META.visited;
+        cached.payload.remaining = META.remaining;
+        cached.payload.places = PLACES;
+        cacheWrite_(cached.payload);
+      }
+    }catch(err){
+      console.error(err);
+      rollbackOptimisticVisited_(id);
+      showToast('บันทึกไม่สำเร็จ (คืนค่าแล้ว)');
+    }
+  }
+
+  async function confirmAndMarkVisited(place){
+    if(!place) return;
+
+    var ok = await openModal({
+      title:'ยืนยันว่าไปแล้ว',
+      body:'[' + place.id + '] ' + place.name + '\n\nรายการจะหายทันที และค่อยซิงก์กับระบบ',
+      okText:'ยืนยัน',
+      cancelText:'ยกเลิก',
+      danger:false
+    });
+    if(!ok) return;
+
+    var snap = applyOptimisticVisited_(place.id);
+    if(!snap){
+      showToast('รายการนี้ถูกบันทึกไปแล้วหรือไม่พบ');
+      return;
+    }
+
+    commitVisited_(place.id);
+  }
+
+  $('list').addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('[data-act]') : null;
+    if(!btn) return;
+
+    var item = btn.closest('.item');
+    if(!item) return;
+
+    var id = item.getAttribute('data-id');
+    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
+    if(!place){ showToast('ไม่พบรายการ'); return; }
+
+    var act = btn.getAttribute('data-act');
+
+    if(act === 'nav'){ openMaps(place); return; }
+    if(act === 'report'){ openReport(place); return; }
+    if(act === 'done'){ confirmAndMarkVisited(place); return; }
+  }, true);
+
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.map-done') : null;
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var id = btn.getAttribute('data-id');
+    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
+    if(!place){ showToast('ไม่พบรายการสำหรับปุ่มนี้'); return; }
+
+    try{ if(map) map.closePopup(); }catch(e){}
+    confirmAndMarkVisited(place);
+  }, true);
+
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.map-report') : null;
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var id = btn.getAttribute('data-id');
+    var place = PLACES.find(function(x){ return String(x.id) === String(id); });
+    if(!place){ showToast('ไม่พบรายการสำหรับปุ่มนี้'); return; }
+
+    try{ if(map) map.closePopup(); }catch(e){}
+    openReport(place);
+  }, true);
+
   function requestGPS(){
     if(!navigator.geolocation){
       $('gpsPill').textContent = 'GPS: ไม่รองรับ';
@@ -1761,15 +2098,21 @@
     navigator.geolocation.getCurrentPosition(function(pos){
       var lat = pos.coords.latitude;
       var lng = pos.coords.longitude;
+
       if(map) setCurrentLocation(lat, lng);
       else currentLatLng = {lat:lat, lng:lng};
+
       $('gpsPill').textContent = 'GPS: พร้อม';
-      if($('sortMode').value === 'nearest'){ renderList(); }
-      if(map) renderMap();
+
+      if($('sortMode').value === 'nearest'){
+        renderList();
+        if(map) renderMap();
+      }else{
+        if(map) renderMap();
+      }
     }, function(err){
       console.warn(err);
       $('gpsPill').textContent = 'GPS: ปฏิเสธ/ผิดพลาด';
-      if(map) renderMap();
     }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
   }
 
@@ -1791,10 +2134,14 @@
         showToast(res && res.message ? res.message : 'ล้างไม่สำเร็จ');
         return;
       }
+
+      PENDING.clear();
+      try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
+
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
       $('sortMode').value = 'default';
-      await loadPlaces();
+      await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
       showToast('ผิดพลาดตอนล้าง');
@@ -1804,7 +2151,6 @@
   function setPage(page){
     var isMap = (page === 'map');
 
-    // ✅ lock scroll + size map to viewport
     document.body.classList.toggle('map-open', isMap);
     updateFixedHeights();
 
@@ -1829,17 +2175,30 @@
     else setPage('list');
   }
 
-  $('q').addEventListener('input', function(){ renderList(); if(map) renderMap(); });
+  var rerenderAll = debounce(function(){
+    renderList();
+    if(map) renderMap();
+  }, 90);
+
+  $('q').addEventListener('input', rerenderAll);
   $('sortMode').addEventListener('change', function(){
     if($('sortMode').value === 'nearest' && !currentLatLng){
       showToast('ยังไม่มีตำแหน่ง (กด GPS)');
     }
-    renderList(); if(map) renderMap();
+    rerenderAll();
   });
 
-  $('btnRefresh').onclick = function(){ loadPlaces(); requestGPS(); showToast('รีเฟรชแล้ว'); };
+  $('btnRefresh').onclick = function(){
+    loadPlaces({ force:true });
+    requestGPS();
+    showToast('รีเฟรชแล้ว');
+  };
+
   $('btnResetAll').onclick = onResetAll;
+
   $('gpsPill').onclick = requestGPS;
+  $('mePill').onclick = recenterToMe;
+  $('fitPill').onclick = function(){ fitFrameNow(true); };
 
   $('tabList').onclick = function(){ location.hash = '#list'; };
   $('tabMap').onclick = function(){ location.hash = '#map'; };
@@ -1852,9 +2211,16 @@
     }
   });
 
-  // ===== Boot =====
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      if(document.body.classList.contains('set-open')){ closeSettings(); return; }
+      if(document.body.classList.contains('rep-open')){ closeReport(); return; }
+      if(sidebarIsOpen()){ closeSidebar(); return; }
+    }
+  });
+
   updateFixedHeights();
-  loadPlaces();
+  loadPlaces({ force:true });
   requestGPS();
   syncPageFromHash();
 </script>
