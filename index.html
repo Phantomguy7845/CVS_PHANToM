@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>GBKK4 Tracker</title>
+  <title>GBKK Tracker</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -110,6 +110,102 @@
       flex-wrap:wrap;
       align-items:center;
     }
+
+    .sheetpick{
+      position:relative;
+      flex:0 0 auto;
+    }
+    .sheetbtn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-height:var(--tap);
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.14);
+      color:#fff;
+      padding:10px 12px;
+      font-weight:900;
+      font-size:14px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space:nowrap;
+    }
+    .sheetbtn:active{transform:scale(.99)}
+    .sheetdrop{
+      position:absolute;
+      left:0;
+      top: calc(100% + 10px);
+      width:min(380px, calc(100vw - 28px));
+      background:#fff;
+      color:var(--text);
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.10);
+      box-shadow:0 20px 60px rgba(0,0,0,.22);
+      padding:10px;
+      display:none;
+      z-index:100010;
+    }
+    .sheetdrop.show{ display:block; }
+    .sheetsearch{
+      min-height:44px;
+      display:flex; align-items:center; gap:10px;
+      border-radius:16px;
+      border:1px solid rgba(7,25,21,.10);
+      background:rgba(7,25,21,.04);
+      padding:10px 12px;
+      color:var(--muted);
+    }
+    .sheetsearch input{
+      width:100%;
+      border:none; outline:none;
+      background:transparent;
+      color:var(--text);
+      font-size:14px;
+      font-weight:900;
+    }
+    .sheetsearch input::placeholder{ color:rgba(59,103,96,.75); }
+    .sheetlist{
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height:46vh;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom:2px;
+    }
+    .sheetitem{
+      width:100%;
+      min-height:44px;
+      border-radius:16px;
+      border:1px solid rgba(20,184,166,.22);
+      background:rgba(20,184,166,.10);
+      color:#064e46;
+      padding:10px 12px;
+      font-weight:1000;
+      font-size:14px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      text-align:left;
+    }
+    .sheetitem.active{
+      background:linear-gradient(90deg,#0f8f83,#0b7c73);
+      border-color:rgba(15,143,131,.25);
+      color:#fff;
+    }
+    .sheetitem:active{ transform:scale(.99); }
+    .sheethint{
+      margin-top:8px;
+      text-align:center;
+      color:rgba(59,103,96,.85);
+      font-weight:900;
+      font-size:12px;
+    }
+
     .search{
       flex:1 1 240px;
       min-height:var(--tap);
@@ -833,13 +929,25 @@
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
     <div class="title">
-      📍 GBKK4 Tracker
+      📍 <span id="projTitle">GBKK Tracker</span>
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
     <div id="badge" class="badge">กำลังโหลด…</div>
   </div>
 
   <div id="controls" class="controls">
+    <div class="sheetpick" id="sheetPicker">
+      <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
+      <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
+        <div class="sheetsearch">
+          🔎
+          <input id="sheetSearch" type="search" placeholder="ค้นหาชีท…" autocomplete="off">
+        </div>
+        <div id="sheetList" class="sheetlist"></div>
+        <div id="sheetHint" class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่/สถิติ</div>
+      </div>
+    </div>
+
     <div class="search">
       🔎
       <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
@@ -965,7 +1073,8 @@
   };
 
   const SETTINGS_KEY = 'PT_GBKK4_SETTINGS_V1';
-  const CACHE_KEY = 'PT_GBKK4_PLACES_CACHE_V1';
+  const SELECTED_SHEET_KEY = 'PT_GBKK_SELECTED_SHEET_V1';
+  const CACHE_KEY_BASE = 'PT_GBKK_PLACES_CACHE_V1';
   const MAPSTATE_KEY = 'PT_GBKK4_MAPSTATE_V1';
 
   function $(id){ return document.getElementById(id); }
@@ -1106,20 +1215,32 @@
     return base + (base.indexOf('?') >= 0 ? '&' : '?') + qs;
   }
 
-  async function apiGetPlaces(){
-    var url = apiUrl('getPlaces');
+  async function apiGetSheets(){
+    var url = apiUrl('getSheets');
     if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
     return await jsonp(url);
   }
 
-  async function apiMarkVisited(id){
-    var url = apiUrl('markVisited', { id:id });
+  async function apiGetPlaces(sheetName){
+    var params = {};
+    if(sheetName) params.sheet = sheetName;
+    var url = apiUrl('getPlaces', params);
     if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
     return await jsonp(url);
   }
 
-  async function apiResetVisitedAll(){
-    var url = apiUrl('resetVisitedAll');
+  async function apiMarkVisited(id, sheetName){
+    var params = { id:id };
+    if(sheetName) params.sheet = sheetName;
+    var url = apiUrl('markVisited', params);
+    if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
+    return await jsonp(url);
+  }
+
+  async function apiResetVisitedAll(sheetName){
+    var params = {};
+    if(sheetName) params.sheet = sheetName;
+    var url = apiUrl('resetVisitedAll', params);
     if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
     return await jsonp(url);
   }
@@ -1178,6 +1299,116 @@
   $('setOverlay').addEventListener('click', function(ev){
     if(ev.target && ev.target.id === 'setOverlay') closeSettings();
   });
+
+  var SHEETS = [];
+  var CURRENT_SHEET = '';
+
+  function sheetKeyPart_(s){
+    return String(s || '').replace(/[^\wก-๙]/g, '_');
+  }
+
+  function projectTitleText_(){
+    var s = CURRENT_SHEET ? String(CURRENT_SHEET) : 'GBKK';
+    return s + ' Tracker';
+  }
+
+  function applyProjectTitle_(){
+    var t = projectTitleText_();
+    document.title = t;
+    $('projTitle').textContent = t;
+    $('sheetLabel').textContent = CURRENT_SHEET ? String(CURRENT_SHEET) : '—';
+  }
+
+  function openSheetDrop_(){
+    $('sheetDrop').classList.add('show');
+    $('sheetDrop').setAttribute('aria-hidden','false');
+    setTimeout(function(){
+      try{ $('sheetSearch').focus(); }catch(e){}
+    }, 0);
+  }
+  function closeSheetDrop_(){
+    $('sheetDrop').classList.remove('show');
+    $('sheetDrop').setAttribute('aria-hidden','true');
+  }
+  function sheetDropIsOpen_(){
+    return $('sheetDrop').classList.contains('show');
+  }
+
+  function renderSheetList_(){
+    var q = String($('sheetSearch').value || '').trim().toLowerCase();
+    var arr = SHEETS.slice();
+
+    if(q){
+      arr = arr.filter(function(n){
+        return String(n || '').toLowerCase().indexOf(q) !== -1;
+      });
+    }
+
+    if(!arr.length){
+      $('sheetList').innerHTML = '<div class="sheethint">ไม่พบชีท</div>';
+      return;
+    }
+
+    var html = '';
+    for(var i=0;i<arr.length;i++){
+      var name = String(arr[i] || '');
+      var active = (name === String(CURRENT_SHEET));
+      html +=
+        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sheet="' + escapeHtml(name) + '">' +
+          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</span>' +
+          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
+        '</button>';
+    }
+    $('sheetList').innerHTML = html;
+  }
+
+  function setSelectedSheet_(name, persist){
+    CURRENT_SHEET = String(name || '').trim();
+    if(persist){
+      try{ localStorage.setItem(SELECTED_SHEET_KEY, CURRENT_SHEET); }catch(e){}
+    }
+    $('sheetSearch').value = '';
+    applyProjectTitle_();
+    renderSheetList_();
+    updateFixedHeights();
+  }
+
+  $('sheetBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if(sheetDropIsOpen_()) closeSheetDrop_();
+    else openSheetDrop_();
+  });
+
+  $('sheetSearch').addEventListener('input', renderSheetList_);
+
+  $('sheetList').addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sheet]') : null;
+    if(!btn) return;
+    var name = btn.getAttribute('data-sheet');
+    if(!name) return;
+    if(String(name) === String(CURRENT_SHEET)){
+      closeSheetDrop_();
+      return;
+    }
+
+    closeSheetDrop_();
+    PENDING.clear();
+    setSelectedSheet_(name, true);
+    loadPlaces({ force:true });
+  }, true);
+
+  document.addEventListener('click', function(ev){
+    if(!sheetDropIsOpen_()) return;
+    var p = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
+    if(!p) closeSheetDrop_();
+  }, true);
+
+  function cacheKey_(sheetName){
+    var s = (sheetName !== undefined && sheetName !== null) ? String(sheetName) : '';
+    s = s || CURRENT_SHEET || 'default';
+    return CACHE_KEY_BASE + '_' + sheetKeyPart_(s);
+  }
 
   var META = { total:0, visited:0, remaining:0, rev:null };
   var PLACES = [];
@@ -1300,7 +1531,8 @@
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
     var la1 = toRad(a.lat);
-    var la2 = toRad(b.lat);
+    var la2 = toRad(a.lat);
+    la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -1855,15 +2087,15 @@
     }
   }
 
-  function cacheWrite_(payload){
+  function cacheWrite_(payload, sheetName){
     try{
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), payload: payload }));
+      localStorage.setItem(cacheKey_(sheetName), JSON.stringify({ ts: Date.now(), payload: payload }));
     }catch(e){}
   }
 
-  function cacheRead_(){
+  function cacheRead_(sheetName){
     try{
-      var raw = localStorage.getItem(CACHE_KEY);
+      var raw = localStorage.getItem(cacheKey_(sheetName));
       if(!raw) return null;
       var obj = JSON.parse(raw);
       if(!obj || typeof obj !== 'object' || !obj.payload) return null;
@@ -1873,8 +2105,12 @@
     }
   }
 
-  function renderFromCacheIfAny_(){
-    var cached = cacheRead_();
+  function cacheRemove_(sheetName){
+    try{ localStorage.removeItem(cacheKey_(sheetName)); }catch(e){}
+  }
+
+  function renderFromCacheIfAny_(sheetName){
+    var cached = cacheRead_(sheetName);
     if(!cached || !cached.payload) return false;
 
     var res = cached.payload;
@@ -1903,9 +2139,10 @@
   async function doLoadPlaces_(opts){
     opts = opts || {};
     var forceSpinner = !!opts.force;
+    var sheetAtCall = CURRENT_SHEET || '';
 
     if(forceSpinner || (!PLACES || PLACES.length === 0)){
-      var usedCache = renderFromCacheIfAny_();
+      var usedCache = renderFromCacheIfAny_(sheetAtCall);
       if(!usedCache) showLoading();
       else $('badge').textContent = 'กำลังอัปเดท…';
     }else{
@@ -1913,7 +2150,9 @@
     }
 
     try{
-      var res = await apiGetPlaces();
+      var res = await apiGetPlaces(sheetAtCall);
+      if(sheetAtCall !== (CURRENT_SHEET || '')) return;
+
       if(!res || !res.ok){
         console.error('getPlaces failed:', res);
         $('badge').textContent = 'ผิดพลาด';
@@ -1932,11 +2171,12 @@
       };
 
       PLACES = (res && res.places) ? res.places.filter(function(p){ return p && p.id && p.name; }) : [];
-      cacheWrite_(res);
+      cacheWrite_(res, sheetAtCall);
 
       renderList();
       if(map) renderMap();
     }catch(err){
+      if(sheetAtCall !== (CURRENT_SHEET || '')) return;
       console.error(err);
       $('badge').textContent = 'ผิดพลาด';
       $('list').innerHTML =
@@ -1956,6 +2196,7 @@
       id: id,
       place: place,
       idx: idx,
+      sheet: (CURRENT_SHEET || ''),
       meta: { total: META.total, visited: META.visited, remaining: META.remaining, rev: META.rev }
     };
 
@@ -1986,6 +2227,11 @@
     var snap = PENDING.get(id);
     if(!snap) return;
 
+    if(String(snap.sheet || '') !== String(CURRENT_SHEET || '')){
+      PENDING.delete(id);
+      return;
+    }
+
     META = { total: snap.meta.total, visited: snap.meta.visited, remaining: snap.meta.remaining, rev: snap.meta.rev };
     var ins = Math.min(snap.idx, PLACES.length);
     PLACES.splice(ins, 0, snap.place);
@@ -1995,23 +2241,26 @@
     if(map) renderMap();
   }
 
-  async function commitVisited_(placeId){
+  async function commitVisited_(placeId, sheetName){
     var id = String(placeId);
+    var sh = String(sheetName || '');
 
     try{
-      var res = await apiMarkVisited(id);
+      var res = await apiMarkVisited(id, sh);
       if(!res || !res.ok) throw new Error(res && res.message ? res.message : 'บันทึกไม่สำเร็จ');
 
       PENDING.delete(id);
       showToast('บันทึกแล้ว ✅');
 
-      var cached = cacheRead_();
-      if(cached && cached.payload && cached.payload.ok){
-        cached.payload.total = META.total;
-        cached.payload.visited = META.visited;
-        cached.payload.remaining = META.remaining;
-        cached.payload.places = PLACES;
-        cacheWrite_(cached.payload);
+      if(sh === String(CURRENT_SHEET || '')){
+        var cached = cacheRead_(sh);
+        if(cached && cached.payload && cached.payload.ok){
+          cached.payload.total = META.total;
+          cached.payload.visited = META.visited;
+          cached.payload.remaining = META.remaining;
+          cached.payload.places = PLACES;
+          cacheWrite_(cached.payload, sh);
+        }
       }
     }catch(err){
       console.error(err);
@@ -2038,7 +2287,7 @@
       return;
     }
 
-    commitVisited_(place.id);
+    commitVisited_(place.id, snap.sheet);
   }
 
   $('list').addEventListener('click', function(ev){
@@ -2128,15 +2377,17 @@
 
     showToast('กำลังล้าง…');
 
+    var sheetAtCall = CURRENT_SHEET || '';
+
     try{
-      var res = await apiResetVisitedAll();
+      var res = await apiResetVisitedAll(sheetAtCall);
       if(!res || !res.ok){
         showToast(res && res.message ? res.message : 'ล้างไม่สำเร็จ');
         return;
       }
 
       PENDING.clear();
-      try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
+      cacheRemove_(sheetAtCall);
 
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
@@ -2213,14 +2464,44 @@
 
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
     }
   });
 
+  async function bootSheets_(){
+    applyProjectTitle_();
+    $('sheetList').innerHTML = '<div class="sheethint">กำลังโหลดชีท…</div>';
+
+    try{
+      var res = await apiGetSheets();
+      if(res && res.ok && Array.isArray(res.sheets) && res.sheets.length){
+        SHEETS = res.sheets.slice();
+        var def = res.defaultSheet ? String(res.defaultSheet) : '';
+        var saved = '';
+        try{ saved = localStorage.getItem(SELECTED_SHEET_KEY) || ''; }catch(e){ saved = ''; }
+
+        var pick = '';
+        if(saved && SHEETS.indexOf(saved) !== -1) pick = saved;
+        else if(def && SHEETS.indexOf(def) !== -1) pick = def;
+        else pick = SHEETS[0];
+
+        setSelectedSheet_(pick, true);
+        return;
+      }
+    }catch(e){}
+
+    SHEETS = [];
+    setSelectedSheet_(CURRENT_SHEET || '', false);
+    $('sheetList').innerHTML = '<div class="sheethint">โหลดรายชื่อชีทไม่สำเร็จ</div>';
+  }
+
   updateFixedHeights();
-  loadPlaces({ force:true });
+  bootSheets_().then(function(){
+    loadPlaces({ force:true });
+  });
   requestGPS();
   syncPageFromHash();
 </script>
