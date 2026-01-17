@@ -156,6 +156,67 @@
 
     svg{ width: var(--icon); height: var(--icon); fill: currentColor; }
 
+    /* ===== ✅ Camera Toggle (แทนปุ่ม 3 ขีดซ้ายบน) ===== */
+    .camToggle{
+      width: calc(var(--iconBtn) + 18px);
+      height: var(--iconBtn);
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      display:flex;
+      align-items:center;
+      padding: 4px;
+      gap: 6px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+      flex: 0 0 auto;
+      position: relative;
+      overflow:hidden;
+    }
+    .camToggle:active{ transform: translateY(1px); }
+    .camToggle[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .camToggle .track{
+      position:absolute;
+      inset: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .camToggle .knob{
+      position: relative;
+      z-index: 1;
+      width: calc(var(--iconBtn) - 10px);
+      height: calc(var(--iconBtn) - 10px);
+      border-radius: 999px;
+      display:grid;
+      place-items:center;
+      font-size: clamp(16px, 5vw, 22px);
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      transform: translateX(0);
+      transition: transform .14s ease, background .14s ease, border-color .14s ease;
+      will-change: transform;
+    }
+    .camToggle.on .knob{
+      transform: translateX(calc(var(--iconBtn) - 6px));
+      background: rgba(16,185,129,.18);
+      border-color: rgba(16,185,129,.35);
+    }
+    .camToggle .hintMini{
+      position: relative;
+      z-index: 1;
+      font-size: 11px;
+      font-weight: 900;
+      color: rgba(255,255,255,.70);
+      letter-spacing:.2px;
+      white-space:nowrap;
+      margin-left: calc(var(--iconBtn) - 6px);
+      display:none; /* ไม่ให้รก */
+    }
+
     /* ===== Stage: เอาให้ Viewfinder ใหญ่สุด ===== */
     .stage{
       position:relative;
@@ -284,9 +345,9 @@
 
     /* ✅ ย้าย meta+gallery มาไว้ล่าง เพื่อไม่ให้บีบ viewfinder */
     .metaBar{
-      width: 100%;                 /* ✅ ปรับใหม่: กินพื้นที่ภายใน แต่ไม่เกิน max */
+      width: 100%;
       max-width: 980px;
-      min-width: 0;                /* ✅ สำคัญ: กัน flex min-content ดันกว้าง */
+      min-width: 0;
       display:grid;
       gap: 10px;
       padding: 10px 12px;
@@ -295,7 +356,7 @@
       background: rgba(18,18,18,.72);
       backdrop-filter: blur(10px);
       flex: 0 0 auto;
-      overflow: hidden;            /* ✅ กันขยายแนวนอน */
+      overflow: hidden;
     }
     .metaRow{
       display:flex;
@@ -382,17 +443,17 @@
       box-shadow: 0 0 0 4px rgba(16,185,129,.18);
     }
 
-    /* ✅ Gallery strip: “มีแค่การ์ดรูปเท่านั้นที่เลื่อนซ้าย-ขวาได้” + ไม่ทำให้หน้า expand แนวนอน */
+    /* ✅ Gallery strip: เลื่อนซ้าย-ขวาได้เฉพาะตรงนี้ */
     .gallery{
       width: 100%;
       max-width: 980px;
-      min-width: 0;                /* ✅ สำคัญที่สุด: กัน flex min-content ดันกว้าง */
+      min-width: 0;
       display:flex;
       align-items:center;
       gap: 10px;
 
       flex-wrap: nowrap;
-      overflow-x: auto;            /* ✅ เลื่อนซ้าย-ขวาได้เฉพาะตรงนี้ */
+      overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x;
@@ -405,14 +466,14 @@
       scroll-snap-type: x proximity;
       flex: 0 0 auto;
 
-      overscroll-behavior-x: contain; /* ✅ กันลากแล้วไปทำ scroll ที่ body */
+      overscroll-behavior-x: contain;
       overscroll-behavior-y: none;
     }
     .gallery::-webkit-scrollbar{ display:none; }
 
     .thumb{
       width: var(--thumb);
-      min-width: var(--thumb);     /* ✅ กันตัวการ์ดยุบ/คำนวณแปลก */
+      min-width: var(--thumb);
       height: var(--thumb);
       border-radius: 16px;
       background: rgba(255,255,255,.06);
@@ -465,13 +526,13 @@
     .ctrlRow{
       width: 100%;
       max-width: 980px;
-      min-width: 0;                /* ✅ กันขยายแนวนอน */
+      min-width: 0;
       display:grid;
       grid-template-columns: 1fr auto 1fr;
       align-items:center;
       gap: 10px;
       flex: 0 0 auto;
-      overflow: hidden;            /* ✅ กันหน้า expand */
+      overflow: hidden;
     }
 
     .actionBtn{
@@ -599,7 +660,7 @@
     }
     .modalBody{
       padding: 12px;
-      overflow:auto;               /* ✅ modal ยังเลื่อนได้ภายใน */
+      overflow:auto;
       display:grid;
       gap: 12px;
       min-height: 0;
@@ -743,9 +804,13 @@
     <!-- Top Bar -->
     <div class="topbar">
       <div class="left">
-        <button class="iconBtn" id="btnLog" title="Log">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v2H4V4zm0 14h16v2H4v-2zm0-7h16v2H4v-2z"/></svg>
+        <!-- ✅ เปลี่ยนจากปุ่ม 3 ขีด -> Toggle เปิด/ปิดกล้อง -->
+        <button class="camToggle" id="btnCamToggle" title="Camera On/Off" aria-pressed="true">
+          <div class="track" aria-hidden="true"></div>
+          <div class="knob" id="camToggleKnob" aria-hidden="true">📷</div>
+          <div class="hintMini" aria-hidden="true">CAM</div>
         </button>
+
         <div class="brand">
           <div class="title">PT Timestamp Camera</div>
         </div>
@@ -1104,6 +1169,70 @@
 
   const SETTINGS_KEY = "PT_TS_SETTINGS_V2_4";
 
+  /* ✅ เพิ่ม IndexedDB เพื่อเก็บรูปแบบ local (ปิดแอป/รีบูต/เปิดแท็บใหม่/เปิดจาก shortcut แล้วยังอยู่) */
+  const IDB_NAME = "PT_TS_DB_V1";
+  const IDB_VERSION = 1;
+  const STORE_PHOTOS = "photos";
+
+  function idbOpen(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_PHOTOS)){
+          db.createObjectStore(STORE_PHOTOS, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbGetAllPhotos(){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_PHOTOS, "readonly");
+      const store = tx.objectStore(STORE_PHOTOS);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+    });
+  }
+
+  async function idbPutPhoto(rec){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_PHOTOS, "readwrite");
+      const store = tx.objectStore(STORE_PHOTOS);
+      store.put(rec);
+      tx.oncomplete = () => { db.close(); resolve(true); };
+      tx.onerror = () => { const e = tx.error || new Error("idbPutPhoto failed"); db.close(); reject(e); };
+    });
+  }
+
+  async function idbDeletePhoto(id){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_PHOTOS, "readwrite");
+      const store = tx.objectStore(STORE_PHOTOS);
+      store.delete(id);
+      tx.oncomplete = () => { db.close(); resolve(true); };
+      tx.onerror = () => { const e = tx.error || new Error("idbDeletePhoto failed"); db.close(); reject(e); };
+    });
+  }
+
+  async function idbClearPhotos(){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_PHOTOS, "readwrite");
+      const store = tx.objectStore(STORE_PHOTOS);
+      store.clear();
+      tx.oncomplete = () => { db.close(); resolve(true); };
+      tx.onerror = () => { const e = tx.error || new Error("idbClearPhotos failed"); db.close(); reject(e); };
+    });
+  }
+
   const DEFAULT_SETTINGS = {
     useNow: true,
     customTime: "",
@@ -1127,6 +1256,9 @@
     placeQuery: "",
 
     enableLogPanel: false,
+
+    /* ✅ กล้องเปิด/ปิดจาก toggle */
+    cameraEnabled: true,
   };
 
   /* DOM */
@@ -1146,7 +1278,6 @@
   const btnImport = document.getElementById("btnImport");
   const btnDownloadAll = document.getElementById("btnDownloadAll");
   const btnSettings = document.getElementById("btnSettings");
-  const btnLog = document.getElementById("btnLog");
 
   const btnShutter = document.getElementById("btnShutter");
   const btnSwitchCam = document.getElementById("btnSwitchCam");
@@ -1162,6 +1293,10 @@
   const locSummary = document.getElementById("locSummary");
 
   const toast = document.getElementById("toast");
+
+  // ✅ Camera toggle
+  const btnCamToggle = document.getElementById("btnCamToggle");
+  const camToggleKnob = document.getElementById("camToggleKnob");
 
   // Preview
   const previewBackdrop = document.getElementById("previewBackdrop");
@@ -1322,217 +1457,6 @@
     return la>=-90 && la<=90 && ln>=-180 && ln<=180;
   }
 
-  /* =========================
-     ✅ Local Persistence (IndexedDB)
-     - เก็บรูป baseBlob + metadata ให้คงอยู่แม้ปิดแท็บ/เปิดใหม่/เปิดด้วย shortcut
-     - ไม่แตะส่วนอื่นที่ไม่จำเป็น
-     ========================= */
-  const DB_NAME = "PT_TS_CAMERA_DB_V2_4";
-  const DB_VERSION = 1;
-  const STORE_PHOTOS = "photos";
-  const STORE_KV = "kv";
-  let _dbP = null;
-
-  function idbReq(req){
-    return new Promise((resolve, reject) => {
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error || new Error("IDB request error"));
-    });
-  }
-  function idbTxDone(tx){
-    return new Promise((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error || new Error("IDB tx error"));
-      tx.onabort = () => reject(tx.error || new Error("IDB tx abort"));
-    });
-  }
-  function openDB(){
-    if (!("indexedDB" in window)) return Promise.resolve(null);
-    if (_dbP) return _dbP;
-    _dbP = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(STORE_PHOTOS)){
-          const s = db.createObjectStore(STORE_PHOTOS, { keyPath: "id" });
-          s.createIndex("seq", "seq", { unique:false });
-        }
-        if (!db.objectStoreNames.contains(STORE_KV)){
-          db.createObjectStore(STORE_KV, { keyPath: "key" });
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error || new Error("IDB open error"));
-    });
-    return _dbP;
-  }
-
-  async function idbGetSeqCounter(){
-    const db = await openDB();
-    if (!db) return 0;
-    const tx = db.transaction(STORE_KV, "readonly");
-    const store = tx.objectStore(STORE_KV);
-    const rec = await idbReq(store.get("seqCounter")).catch(() => null);
-    await idbTxDone(tx).catch(() => {});
-    const v = Number(rec?.value);
-    return Number.isFinite(v) ? v : 0;
-  }
-  async function idbSetSeqCounter(v){
-    const db = await openDB();
-    if (!db) return;
-    const tx = db.transaction(STORE_KV, "readwrite");
-    tx.objectStore(STORE_KV).put({ key:"seqCounter", value: v });
-    await idbTxDone(tx).catch(() => {});
-  }
-
-  async function idbGetAllPhotos(){
-    const db = await openDB();
-    if (!db) return [];
-    const tx = db.transaction(STORE_PHOTOS, "readonly");
-    const store = tx.objectStore(STORE_PHOTOS);
-    let items = [];
-    try{
-      const idx = store.index("seq");
-      items = await idbReq(idx.getAll());
-    } catch {
-      items = await idbReq(store.getAll());
-    }
-    await idbTxDone(tx).catch(() => {});
-    return Array.isArray(items) ? items : [];
-  }
-
-  async function idbPutPhoto(rec){
-    const db = await openDB();
-    if (!db) return;
-    const tx = db.transaction(STORE_PHOTOS, "readwrite");
-    tx.objectStore(STORE_PHOTOS).put(rec);
-    await idbTxDone(tx).catch(() => {});
-  }
-
-  async function idbDeletePhoto(id){
-    const db = await openDB();
-    if (!db) return;
-    const tx = db.transaction(STORE_PHOTOS, "readwrite");
-    tx.objectStore(STORE_PHOTOS).delete(id);
-    await idbTxDone(tx).catch(() => {});
-  }
-
-  async function idbClearPhotos(){
-    const db = await openDB();
-    if (!db) return;
-    const tx = db.transaction(STORE_PHOTOS, "readwrite");
-    tx.objectStore(STORE_PHOTOS).clear();
-    await idbTxDone(tx).catch(() => {});
-  }
-
-  function photoToRecord(p){
-    return {
-      id: p.id,
-      seq: Number.isFinite(p.seq) ? p.seq : 0,
-      baseBlob: p.baseBlob,
-      w: p.w,
-      h: p.h,
-      thumbUrl: null,             // ไม่ต้องเก็บ (blob:url ใช้ไม่ได้ข้าม session)
-      createdAtISO: p.createdAtISO,
-      timeMode: p.timeMode,
-      timeValueISO: p.timeValueISO,
-      sourceName: p.sourceName,
-      fromFrontMirror: !!p.fromFrontMirror
-    };
-  }
-
-  async function persistPhoto(p){
-    try{
-      await idbPutPhoto(photoToRecord(p));
-    } catch (e){
-      addLog("persist photo failed: " + String(e?.message||e));
-    }
-  }
-
-  async function persistDeletePhoto(id){
-    try{
-      await idbDeletePhoto(id);
-    } catch (e){
-      addLog("persist delete failed: " + String(e?.message||e));
-    }
-  }
-
-  async function persistClearAllPhotos(){
-    try{
-      await idbClearPhotos();
-    } catch (e){
-      addLog("persist clear failed: " + String(e?.message||e));
-    }
-  }
-
-  async function restorePhotosFromStorage(){
-    try{
-      const items = await idbGetAllPhotos();
-      if (!items || items.length === 0) return 0;
-
-      // เผื่อบาง record ไม่มี seq ให้ sort ด้วย createdAtISO
-      items.sort((a,b) => {
-        const sa = Number.isFinite(a?.seq) ? a.seq : null;
-        const sb = Number.isFinite(b?.seq) ? b.seq : null;
-        if (sa !== null && sb !== null) return sa - sb;
-        const ta = Date.parse(a?.createdAtISO || "") || 0;
-        const tb = Date.parse(b?.createdAtISO || "") || 0;
-        return ta - tb;
-      });
-
-      // เคลียร์ของเดิม (memory)
-      for (const p of state.photos){
-        try{ URL.revokeObjectURL(p.thumbUrl); } catch {}
-      }
-      state.photos = [];
-
-      for (const rec of items){
-        if (!rec || !rec.baseBlob) continue;
-
-        const thumbUrl = await createThumbUrlFromBlob(rec.baseBlob);
-        const p = {
-          id: rec.id,
-          seq: Number.isFinite(rec.seq) ? rec.seq : 0,
-          baseBlob: rec.baseBlob,
-          w: rec.w || 0,
-          h: rec.h || 0,
-          thumbUrl,
-          createdAtISO: rec.createdAtISO || new Date().toISOString(),
-          timeMode: rec.timeMode || "now",
-          timeValueISO: rec.timeValueISO || rec.createdAtISO || new Date().toISOString(),
-          sourceName: rec.sourceName || "restored",
-          fromFrontMirror: !!rec.fromFrontMirror
-        };
-        state.photos.push(p);
-      }
-
-      addLog(`restored photos from IDB: ${state.photos.length}`);
-      return state.photos.length;
-    } catch (e){
-      addLog("restore photos failed: " + String(e?.message||e));
-      return 0;
-    }
-  }
-
-  async function ensureSeqReady(){
-    if (state.persist.seqReady) return;
-    try{
-      state.persist.seq = await idbGetSeqCounter();
-      state.persist.seqReady = true;
-      addLog("seqCounter loaded: " + state.persist.seq);
-    } catch {
-      state.persist.seq = 0;
-      state.persist.seqReady = true;
-    }
-  }
-
-  async function nextSeq(){
-    await ensureSeqReady();
-    state.persist.seq = (Number.isFinite(state.persist.seq) ? state.persist.seq : 0) + 1;
-    idbSetSeqCounter(state.persist.seq).catch(() => {});
-    return state.persist.seq;
-  }
-
   /* State */
   const state = {
     settings: readSettings(),
@@ -1552,12 +1476,6 @@
     map: null,
     marker: null,
     pendingPick: null,
-
-    // ✅ persistence state (minimal)
-    persist: {
-      seq: 0,
-      seqReady: false
-    }
   };
 
   /* Settings */
@@ -1583,6 +1501,14 @@
         addLog("save settings failed: " + String(e?.message||e));
       }
     }, 220);
+  }
+
+  function syncCameraToggleUI(){
+    const on = !!state.settings.cameraEnabled;
+    btnCamToggle.classList.toggle("on", on);
+    btnCamToggle.setAttribute("aria-pressed", on ? "true" : "false");
+    camToggleKnob.textContent = on ? "📷" : "🚫📷";
+    btnCamToggle.title = on ? "Camera: ON" : "Camera: OFF";
   }
 
   function applySettingsToUI(){
@@ -1613,6 +1539,7 @@
     useNowMain.checked = !!state.settings.useNow;
     customTimeMain.value = state.settings.customTime || "";
 
+    syncCameraToggleUI();
     updateTimeUI();
     updateOutputUI();
     updateOverlayUI();
@@ -1820,6 +1747,11 @@
 
   async function switchCamera(){
     try{
+      if (!state.settings.cameraEnabled){
+        showToast("กล้องปิดอยู่");
+        return;
+      }
+
       if (state.cam.devices.length >= 2){
         state.cam.deviceIndex = (state.cam.deviceIndex + 1) % state.cam.devices.length;
         const next = state.cam.devices[state.cam.deviceIndex];
@@ -1988,14 +1920,69 @@
     return URL.createObjectURL(blob);
   }
 
+  async function persistPhotoToIDB(p){
+    try{
+      await idbPutPhoto({
+        id: p.id,
+        baseBlob: p.baseBlob,
+        w: p.w,
+        h: p.h,
+        createdAtISO: p.createdAtISO,
+        timeMode: p.timeMode,
+        timeValueISO: p.timeValueISO,
+        sourceName: p.sourceName,
+        fromFrontMirror: p.fromFrontMirror
+      });
+      addLog(`idb saved photo: ${p.id}`);
+    } catch (e){
+      addLog("idb save failed: " + String(e?.message||e));
+    }
+  }
+
+  async function restorePhotosFromIDB(){
+    try{
+      if (!("indexedDB" in window)){
+        addLog("indexedDB not available");
+        return;
+      }
+      const rows = await idbGetAllPhotos();
+      if (!Array.isArray(rows) || rows.length === 0){
+        addLog("idb restore: 0 photos");
+        return;
+      }
+
+      // sort by createdAtISO (best-effort)
+      rows.sort((a,b) => String(a.createdAtISO||"").localeCompare(String(b.createdAtISO||"")));
+
+      for (const r of rows){
+        if (!r || !r.id || !r.baseBlob) continue;
+        const p = {
+          id: r.id,
+          baseBlob: r.baseBlob,
+          w: r.w || 0,
+          h: r.h || 0,
+          thumbUrl: await createThumbUrlFromBlob(r.baseBlob),
+          createdAtISO: r.createdAtISO || new Date().toISOString(),
+          timeMode: r.timeMode || "now",
+          timeValueISO: r.timeValueISO || (r.createdAtISO || new Date().toISOString()),
+          sourceName: r.sourceName || "restored",
+          fromFrontMirror: !!r.fromFrontMirror
+        };
+        state.photos.push(p);
+      }
+
+      addLog(`idb restore: ${state.photos.length} photos`);
+      showToast(`กู้คืน ${state.photos.length} รูป`);
+    } catch (e){
+      addLog("idb restore failed: " + String(e?.message||e));
+    }
+  }
+
   async function addPhotoFromBaseCanvas(baseCanvas, {sourceName="camera", fromFrontMirror=false} = {}){
     const baseBlob = await canvasToBlob(baseCanvas, "image/jpeg", 0.95); // strips EXIF
     const t = getDefaultPhotoTime();
-    const seq = await nextSeq();
-
     const p = {
       id: uid(),
-      seq,
       baseBlob,
       w: baseCanvas.width,
       h: baseCanvas.height,
@@ -2008,8 +1995,8 @@
     };
     state.photos.push(p);
 
-    // ✅ persist photo to local (IndexedDB)
-    persistPhoto(p).catch(() => {});
+    // ✅ persist
+    await persistPhotoToIDB(p);
 
     updateGallery();
     updateButtons();
@@ -2037,12 +2024,12 @@
     const idx = state.photos.findIndex(p => p.id === id);
     if (idx < 0) return;
     try{ URL.revokeObjectURL(state.photos[idx].thumbUrl); } catch {}
-
-    // ✅ persist delete
-    persistDeletePhoto(id).catch(() => {});
-
     state.photos.splice(idx, 1);
     if (state.selectedId === id) state.selectedId = null;
+
+    // ✅ delete from idb (fire and forget)
+    idbDeletePhoto(id).catch(e => addLog("idb delete failed: " + String(e?.message||e)));
+
     updateGallery();
     updateButtons();
     showToast("ลบรูปแล้ว");
@@ -2053,12 +2040,12 @@
     for (const p of state.photos){
       try{ URL.revokeObjectURL(p.thumbUrl); } catch {}
     }
-
-    // ✅ persist clear all
-    persistClearAllPhotos().catch(() => {});
-
     state.photos = [];
     state.selectedId = null;
+
+    // ✅ clear idb
+    idbClearPhotos().catch(e => addLog("idb clear failed: " + String(e?.message||e)));
+
     updateGallery();
     updateButtons();
     showToast("ลบทั้งหมดแล้ว");
@@ -2071,6 +2058,12 @@
     btnDeleteAll.disabled = !has;
     btnDeleteAllInSettings.disabled = !has;
     photoCountPill.textContent = `${state.photos.length} รูป`;
+
+    // ✅ lock shutter/switchcam if camera off
+    const camOn = !!state.settings.cameraEnabled;
+    btnShutter.disabled = !camOn;
+    btnSwitchCam.disabled = (!camOn) || (state.cam.devices.length < 2) || !state.cam.stream;
+    btnTorch.disabled = (!camOn) || !state.cam.torchSupported || !state.cam.stream;
   }
 
   function updateGallery(){
@@ -2271,6 +2264,10 @@
 
   /* ✅ Capture: ครอปตาม “สิ่งที่เห็นใน viewfinder” */
   async function captureFromCamera(){
+    if (!state.settings.cameraEnabled){
+      showToast("กล้องปิดอยู่ (เปิดจาก toggle ซ้ายบน)");
+      return;
+    }
     if (!state.cam.stream){
       showToast("ยังไม่มีกล้อง — ใช้ Import แทนได้");
       return;
@@ -2379,7 +2376,17 @@
     }
 
     // ✅ persist time change
-    persistPhoto(p).catch(() => {});
+    idbPutPhoto({
+      id: p.id,
+      baseBlob: p.baseBlob,
+      w: p.w,
+      h: p.h,
+      createdAtISO: p.createdAtISO,
+      timeMode: p.timeMode,
+      timeValueISO: p.timeValueISO,
+      sourceName: p.sourceName,
+      fromFrontMirror: p.fromFrontMirror
+    }).catch(e => addLog("idb update time failed: " + String(e?.message||e)));
 
     renderPreview();
   }
@@ -2630,6 +2637,27 @@
     await refreshAddressIfNeeded();
   }
 
+  /* ✅ Camera Toggle handler */
+  async function setCameraEnabled(on){
+    state.settings.cameraEnabled = !!on;
+    syncCameraToggleUI();
+    scheduleSaveSettings();
+
+    if (!state.settings.cameraEnabled){
+      await stopCamera();
+      vfHint.textContent = "กล้องปิดอยู่ (เปิดจาก toggle ซ้ายบน) — ยังสามารถ Import รูปได้";
+      showToast("Camera: OFF");
+      addLog("camera toggled off");
+    } else {
+      vfHint.textContent = "กำลังเปิดกล้อง…";
+      showToast("Camera: ON");
+      addLog("camera toggled on");
+      await startCamera({ facingMode: state.cam.facingMode });
+    }
+    updateButtons();
+    requestAnimationFrame(updatePresetGuide);
+  }
+
   /* Events */
   btnTorch.addEventListener("click", toggleTorch);
   btnImport.addEventListener("click", () => { fileInput.value = ""; fileInput.click(); });
@@ -2657,13 +2685,9 @@
     showToast("บันทึกแล้ว");
   });
 
-  btnLog.addEventListener("click", () => {
-    openBackdrop(settingsBackdrop);
-    enableLogPanel.checked = true;
-    state.settings.enableLogPanel = true;
-    updateLogUI();
-    scheduleSaveSettings();
-    showToast("เปิด Log");
+  // ✅ Toggle click (ซ้าย=ปิด ขวา=เปิด)
+  btnCamToggle.addEventListener("click", async () => {
+    await setCameraEnabled(!state.settings.cameraEnabled);
   });
 
   // Main time controls
@@ -2878,8 +2902,18 @@
     const d = v ? new Date(v) : new Date();
     p.timeValueISO = d.toISOString();
 
-    // ✅ persist custom time while editing
-    persistPhoto(p).catch(() => {});
+    // ✅ persist
+    idbPutPhoto({
+      id: p.id,
+      baseBlob: p.baseBlob,
+      w: p.w,
+      h: p.h,
+      createdAtISO: p.createdAtISO,
+      timeMode: p.timeMode,
+      timeValueISO: p.timeValueISO,
+      sourceName: p.sourceName,
+      fromFrontMirror: p.fromFrontMirror
+    }).catch(e => addLog("idb update time failed: " + String(e?.message||e)));
 
     renderPreview();
   });
@@ -2948,19 +2982,20 @@
   addLog("boot camera-first (locked no page scroll; gallery only horizontal)");
   applySettingsToUI();
 
-  // ✅ restore photos from local storage (IndexedDB)
-  await ensureSeqReady();
-  const restored = await restorePhotosFromStorage();
-  if (restored > 0){
-    showToast(`คืนค่ารูปแล้ว: ${restored} รูป`);
-  }
-
+  // ✅ restore photos from IndexedDB first
+  await restorePhotosFromIDB();
   updateGallery();
   updateButtons();
 
   dlQuality.disabled = (dlType.value === "image/png");
 
-  startCamera({ facingMode: state.cam.facingMode });
+  // ✅ start camera only if enabled
+  if (state.settings.cameraEnabled){
+    await startCamera({ facingMode: state.cam.facingMode });
+  } else {
+    vfHint.textContent = "กล้องปิดอยู่ (เปิดจาก toggle ซ้ายบน) — ยังสามารถ Import รูปได้";
+  }
+
   refreshAddressIfNeeded().catch(() => {});
 })();
 </script>
