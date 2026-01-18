@@ -19,7 +19,7 @@
       --mint2:#0ea293;
       --shadow:0 10px 26px rgba(0,0,0,.08);
       --r:18px;
-      --tap:clamp(2.75rem, 9.5vw, 3.25rem);
+      --tap:44px;
       --danger:#e23a3a;
 
       --bottomTabsH:76px;
@@ -53,31 +53,28 @@
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
-      padding:clamp(.65rem, 2.6vw, .95rem) clamp(.8rem, 3.2vw, 1.05rem);
+      padding:12px 14px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .hdr{ display:flex; gap:clamp(.5rem, 2.2vw, .75rem); align-items:center; flex-wrap:wrap; }
+    .hdr{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
     .menu-btn{
-      min-height:var(--tap);
-      min-width:var(--tap);
+      min-height:40px;
+      min-width:44px;
       border-radius:14px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       color:#fff;
       font-weight:1000;
-      font-size:clamp(1rem, 4.6vw, 1.15rem);
+      font-size:18px;
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
     }
     .menu-btn:active{ transform:scale(.99); }
 
     .title{
       font-weight:1000;
-      font-size:clamp(1.02rem, 4.6vw, 1.15rem);
+      font-size:18px;
       display:flex; gap:8px; align-items:center;
       flex-wrap:wrap;
       line-height:1.15;
@@ -93,73 +90,23 @@
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       font-weight:1000;
-      font-size:clamp(.72rem, 3.1vw, .82rem);
+      font-size:12px;
       white-space:nowrap;
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .badge{
-      flex:0 0 16%;
-      min-width:10%;
-      max-width:20%;
-      padding:8px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.25);
-      background:rgba(255,255,255,.16);
-      font-weight:900;
-      font-size:clamp(.74rem, 3.2vw, .86rem);
-      white-space:nowrap;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    #btnResetAll{
-      margin-left:auto;
-      flex:0 0 16%;
-      min-width:10%;
-      max-width:20%;
-      white-space:nowrap;
-      width:100%;
-      min-height:var(--tap);
-      overflow:hidden;
-      text-overflow:ellipsis;
-      font-size:clamp(.74rem, 3.2vw, .9rem);
     }
 
     .controls{
-      margin-top:clamp(.55rem, 2.2vw, .85rem);
+      margin-top:10px;
       display:flex;
-      flex-direction:column;
-      gap:clamp(.5rem, 2.2vw, .75rem);
-      align-items:stretch;
-    }
-    .ctrl-row{
-      width:100%;
-      display:flex;
-      gap:clamp(.5rem, 2.2vw, .75rem);
+      gap:10px;
+      flex-wrap:wrap;
       align-items:center;
-      min-width:0;
     }
-    .ctrl-row1{ flex-wrap:nowrap; }
-    .ctrl-row2{ flex-wrap:nowrap; }
 
     .sheetpick{
       position:relative;
       flex:0 0 auto;
-      min-width:0;
+      margin-left:auto;
     }
-    .ctrl-row1 .sheetpick{
-      flex:0 0 16%;
-      min-width:10%;
-      max-width:20%;
-    }
-
     .sheetbtn{
       display:inline-flex;
       align-items:center;
@@ -169,16 +116,13 @@
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       color:#fff;
-      padding:.65em .8em;
+      padding:10px 12px;
       font-weight:900;
-      font-size:clamp(.78rem, 3.2vw, .92rem);
+      font-size:14px;
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       white-space:nowrap;
-      width:100%;
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      max-width:min(380px, calc(100vw - 28px));
     }
     .sheetbtn:active{transform:scale(.99)}
     #sheetLabel{
@@ -186,15 +130,13 @@
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
-      display:inline-block;
-      max-width:100%;
+      max-width:22ch;
     }
-
     .sheetdrop{
       position:absolute;
-      left:0;
+      right:0;
       top: calc(100% + 10px);
-      width:min(92vw, 28rem);
+      width:min(380px, calc(100vw - 28px));
       background:#fff;
       color:var(--text);
       border-radius:18px;
@@ -206,12 +148,12 @@
     }
     .sheetdrop.show{ display:block; }
     .sheetsearch{
-      min-height:var(--tap);
+      min-height:44px;
       display:flex; align-items:center; gap:10px;
       border-radius:16px;
       border:1px solid rgba(7,25,21,.10);
       background:rgba(7,25,21,.04);
-      padding:.65em .8em;
+      padding:10px 12px;
       color:var(--muted);
     }
     .sheetsearch input{
@@ -221,7 +163,6 @@
       color:var(--text);
       font-size:14px;
       font-weight:900;
-      min-width:0;
     }
     .sheetsearch input::placeholder{ color:rgba(59,103,96,.75); }
     .sheetlist{
@@ -236,12 +177,12 @@
     }
     .sheetitem{
       width:100%;
-      min-height:var(--tap);
+      min-height:44px;
       border-radius:16px;
       border:1px solid rgba(20,184,166,.22);
       background:rgba(20,184,166,.10);
       color:#064e46;
-      padding:.65em .8em;
+      padding:10px 12px;
       font-weight:1000;
       font-size:14px;
       cursor:pointer;
@@ -250,7 +191,6 @@
       justify-content:space-between;
       gap:10px;
       text-align:left;
-      min-width:0;
     }
     .sheetitem.active{
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
@@ -267,20 +207,13 @@
     }
 
     .search{
-      flex:1 1 auto;
+      flex:1 1 240px;
       min-height:var(--tap);
       display:flex; align-items:center; gap:10px;
       border-radius:16px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
-      padding:.65em .8em;
-      min-width:0;
-      width:100%;
-    }
-    .ctrl-row1 .search{
-      flex:1 1 auto;
-      max-width:none;
-      min-width:0;
+      padding:10px 12px;
     }
     .search input{
       width:100%;
@@ -288,7 +221,6 @@
       background:transparent;
       color:#fff;
       font-size:16px;
-      min-width:0;
     }
     .search input::placeholder{color:rgba(255,255,255,.78)}
     select, button{
@@ -297,12 +229,11 @@
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       color:#fff;
-      padding:.65em .8em;
+      padding:10px 12px;
       font-weight:900;
       font-size:14px;
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
-      min-width:0;
     }
     button:active{transform:scale(.99)}
     .btn-solid{
@@ -316,15 +247,14 @@
       border-color:rgba(255,255,255,.25);
     }
 
-    #sortMode{ display:none; }
-
-    .ctrl-row2 .sheetpick.sortpick{
-      flex:0 0 16%;
-      min-width:10%;
-      max-width:20%;
-    }
-    .ctrl-row2 #btnRefresh{
-      flex:1 1 auto;
+    @media (max-width: 520px){
+      header{ padding:10px 12px; }
+      .title{ font-size:16px; flex:1 1 100%; }
+      .tstats{ font-size:12px; }
+      .controls{ margin-top:8px; gap:8px; }
+      .search{ flex:1 1 100%; }
+      .sheetbtn{ font-size:13px; padding:9px 10px; }
+      #sheetLabel{ max-width:18ch; }
     }
 
     main{
@@ -435,12 +365,12 @@
     .pills{
       margin-left:auto;
       display:flex;
-      gap:10px;
+      gap:8px;
       align-items:center;
       flex-wrap:wrap;
     }
     .pill{
-      padding:8px 10px;
+      padding:7px 10px;
       border-radius:999px;
       border:1px solid rgba(20,184,166,.30);
       background:rgba(20,184,166,.12);
@@ -452,7 +382,6 @@
       white-space:nowrap;
     }
     .pill:active{ transform:scale(.99); }
-    #gpsPill{ display:none; }
     #map{height:72vh; min-height:360px; width:100%}
 
     body.map-open main{
@@ -1014,44 +943,32 @@
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
 
-    <div id="badge" class="badge">…</div>
-    <button id="btnResetAll" class="btn-danger" type="button">ล้างทั้งหมด</button>
+    <div class="sheetpick" id="sheetPicker">
+      <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
+      <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
+        <div class="sheetsearch">
+          🔎
+          <input id="sheetSearch" type="search" placeholder="ค้นหาชีท…" autocomplete="off">
+        </div>
+        <div id="sheetList" class="sheetlist"></div>
+        <div id="sheetHint" class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่/สถิติ</div>
+      </div>
+    </div>
   </div>
 
   <div id="controls" class="controls">
-    <div class="ctrl-row ctrl-row1">
-      <div class="sheetpick" id="sheetPicker">
-        <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
-        <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
-          <div class="sheetsearch">
-            🔎
-            <input id="sheetSearch" type="search" placeholder="ค้นหาชีท…" autocomplete="off">
-          </div>
-          <div id="sheetList" class="sheetlist"></div>
-          <div id="sheetHint" class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่/สถิติ</div>
-        </div>
-      </div>
-
-      <div class="search">
-        🔎
-        <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
-      </div>
+    <div class="search">
+      🔎
+      <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
     </div>
 
-    <div class="ctrl-row ctrl-row2">
-      <div class="sheetpick sortpick" id="sortPicker">
-        <button id="sortBtn" class="sheetbtn" type="button">↕️ <span id="sortLabel">—</span> ▾</button>
-        <select id="sortMode" aria-label="เรียงลำดับ">
-          <option value="default">ค่าเดิม</option>
-          <option value="nearest">ใกล้ฉัน</option>
-        </select>
-        <div id="sortDrop" class="sheetdrop" aria-hidden="true">
-          <div id="sortList" class="sheetlist"></div>
-        </div>
-      </div>
+    <select id="sortMode" aria-label="เรียงลำดับ">
+      <option value="default">ค่าเดิม</option>
+      <option value="nearest">ใกล้ฉัน</option>
+    </select>
 
-      <button id="btnRefresh" class="btn-solid" type="button">รีเฟรช</button>
-    </div>
+    <button id="btnRefresh" class="btn-solid" type="button">รีเฟรช</button>
+    <button id="btnResetAll" class="btn-danger" type="button">ล้างทั้งหมด</button>
   </div>
 </header>
 
@@ -1079,7 +996,6 @@
         <div class="pills">
           <div id="fitPill" class="pill">จัดเฟรม</div>
           <div id="mePill" class="pill">ตำแหน่งฉัน</div>
-          <div id="gpsPill" class="pill">GPS</div>
         </div>
       </div>
       <div id="map"></div>
@@ -1496,78 +1412,6 @@
     if(!p) closeSheetDrop_();
   }, true);
 
-  function sortLabelOf_(val){
-    val = String(val || 'default');
-    if(val === 'nearest') return 'ใกล้ฉัน';
-    return 'ค่าเดิม';
-  }
-
-  function syncSortLabel_(){
-    $('sortLabel').textContent = sortLabelOf_($('sortMode').value);
-    renderSortList_();
-  }
-
-  function openSortDrop_(){
-    $('sortDrop').classList.add('show');
-    $('sortDrop').setAttribute('aria-hidden','false');
-  }
-  function closeSortDrop_(){
-    $('sortDrop').classList.remove('show');
-    $('sortDrop').setAttribute('aria-hidden','true');
-  }
-  function sortDropIsOpen_(){
-    return $('sortDrop').classList.contains('show');
-  }
-
-  function renderSortList_(){
-    var cur = String($('sortMode').value || 'default');
-    var opts = [
-      { v:'default', t:'ค่าเดิม' },
-      { v:'nearest', t:'ใกล้ฉัน' }
-    ];
-
-    var html = '';
-    for(var i=0;i<opts.length;i++){
-      var o = opts[i];
-      var active = (String(o.v) === cur);
-      html +=
-        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sort="' + escapeHtml(o.v) + '">' +
-          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(o.t) + '</span>' +
-          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
-        '</button>';
-    }
-    $('sortList').innerHTML = html;
-  }
-
-  $('sortBtn').addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    if(sortDropIsOpen_()) closeSortDrop_();
-    else openSortDrop_();
-  });
-
-  $('sortList').addEventListener('click', function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sort]') : null;
-    if(!btn) return;
-    var v = btn.getAttribute('data-sort');
-    if(!v) return;
-
-    closeSortDrop_();
-
-    var cur = String($('sortMode').value || 'default');
-    if(String(v) === cur) return;
-
-    $('sortMode').value = String(v);
-    try{ $('sortMode').dispatchEvent(new Event('change', { bubbles:true })); }catch(e){}
-    syncSortLabel_();
-  }, true);
-
-  document.addEventListener('click', function(ev){
-    if(!sortDropIsOpen_()) return;
-    var p = ev.target && ev.target.closest ? ev.target.closest('#sortPicker') : null;
-    if(!p) closeSortDrop_();
-  }, true);
-
   function cacheKey_(sheetName){
     var s = (sheetName !== undefined && sheetName !== null) ? String(sheetName) : '';
     s = s || CURRENT_SHEET || 'default';
@@ -1581,7 +1425,6 @@
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-    $('badge').textContent = (META.total ? (META.remaining + '/' + META.total) : '…');
   }
 
   var map = null;
@@ -1679,7 +1522,7 @@
 
   function recenterToMe(){
     if(!map){ showToast('แผนที่ยังไม่พร้อม'); return; }
-    if(!currentLatLng){ showToast('ยังไม่มีตำแหน่ง'); return; }
+    if(!currentLatLng){ showToast('ยังไม่มีตำแหน่ง (กด "ตำแหน่งฉัน")'); return; }
     mapState.userInteracted = true;
     mapState.autoFitted = true;
     try{
@@ -1771,7 +1614,6 @@
         '<div class="spinner"></div>' +
         'กำลังโหลดข้อมูล…' +
       '</div>';
-    $('badge').textContent = '…';
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
@@ -2291,7 +2133,6 @@
     renderList();
     if(map) renderMap();
 
-    $('badge').textContent = (META.total ? (META.remaining + '/' + META.total) : '✓');
     return true;
   }
 
@@ -2308,9 +2149,7 @@
     if(forceSpinner || (!PLACES || PLACES.length === 0)){
       var usedCache = renderFromCacheIfAny_(sheetAtCall);
       if(!usedCache) showLoading();
-      else $('badge').textContent = 'อัปเดท…';
     }else{
-      $('badge').textContent = 'อัปเดท…';
     }
 
     try{
@@ -2319,7 +2158,6 @@
 
       if(!res || !res.ok){
         console.error('getPlaces failed:', res);
-        $('badge').textContent = 'ผิดพลาด';
         $('list').innerHTML =
           '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
           escapeHtml(res && res.message ? res.message : 'ไม่ทราบสาเหตุ') +
@@ -2342,7 +2180,6 @@
     }catch(err){
       if(sheetAtCall !== (CURRENT_SHEET || '')) return;
       console.error(err);
-      $('badge').textContent = 'ผิดพลาด';
       $('list').innerHTML =
         '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' + escapeHtml(err && err.message ? err.message : String(err)) + '</span></div>';
     }
@@ -2502,32 +2339,23 @@
     openReport(place);
   }, true);
 
-  var GPS_INFLIGHT = null;
+  function requestGPS(opts){
+    opts = opts || {};
+    var silent = !!opts.silent;
 
-  function requestGPS(force){
-    if(GPS_INFLIGHT) return GPS_INFLIGHT;
+    return new Promise(function(resolve){
+      if(!navigator.geolocation){
+        if(!silent) showToast('GPS: ไม่รองรับ');
+        resolve({ ok:false, message:'GPS: ไม่รองรับ' });
+        return;
+      }
 
-    var gp = $('gpsPill');
-
-    if(!navigator.geolocation){
-      if(gp) gp.textContent = 'GPS: ไม่รองรับ';
-      return Promise.resolve(null);
-    }
-
-    if(gp) gp.textContent = 'กำลังหา GPS…';
-    showToast('กำลังหา GPS…');
-
-    var opts = { enableHighAccuracy:true, timeout:10000, maximumAge: force ? 0 : 15000 };
-
-    GPS_INFLIGHT = new Promise(function(resolve){
       navigator.geolocation.getCurrentPosition(function(pos){
         var lat = pos.coords.latitude;
         var lng = pos.coords.longitude;
 
         if(map) setCurrentLocation(lat, lng);
         else currentLatLng = {lat:lat, lng:lng};
-
-        if(gp) gp.textContent = 'GPS: พร้อม';
 
         if($('sortMode').value === 'nearest'){
           renderList();
@@ -2536,17 +2364,14 @@
           if(map) renderMap();
         }
 
-        GPS_INFLIGHT = null;
-        resolve({ lat:lat, lng:lng });
+        if(!silent) showToast('GPS พร้อม ✅');
+        resolve({ ok:true, lat:lat, lng:lng });
       }, function(err){
         console.warn(err);
-        if(gp) gp.textContent = 'GPS: ปฏิเสธ/ผิดพลาด';
-        GPS_INFLIGHT = null;
-        resolve(null);
-      }, opts);
+        if(!silent) showToast('GPS: ปฏิเสธ/ผิดพลาด');
+        resolve({ ok:false, message:'GPS: ปฏิเสธ/ผิดพลาด', err: err });
+      }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
     });
-
-    return GPS_INFLIGHT;
   }
 
   async function onResetAll(){
@@ -2576,7 +2401,6 @@
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
       $('sortMode').value = 'default';
-      syncSortLabel_();
       await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
@@ -2618,28 +2442,26 @@
 
   $('q').addEventListener('input', rerenderAll);
   $('sortMode').addEventListener('change', function(){
-    syncSortLabel_();
     if($('sortMode').value === 'nearest' && !currentLatLng){
-      showToast('ยังไม่มีตำแหน่ง (แตะ "ตำแหน่งฉัน")');
+      showToast('ยังไม่มีตำแหน่ง (กด "ตำแหน่งฉัน")');
     }
     rerenderAll();
   });
 
   $('btnRefresh').onclick = function(){
     loadPlaces({ force:true });
-    requestGPS(true);
+    requestGPS({ silent:true });
     showToast('รีเฟรชแล้ว');
   };
 
   $('btnResetAll').onclick = onResetAll;
 
-  $('gpsPill').onclick = function(){ requestGPS(true); };
   $('mePill').onclick = async function(){
-    await requestGPS(true);
+    await requestGPS({ silent:true });
     recenterToMe();
   };
   $('fitPill').onclick = async function(){
-    await requestGPS(true);
+    await requestGPS({ silent:true });
     fitFrameNow(true);
   };
 
@@ -2657,7 +2479,6 @@
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
       if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
-      if(sortDropIsOpen_()){ closeSortDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
@@ -2691,12 +2512,11 @@
     $('sheetList').innerHTML = '<div class="sheethint">โหลดรายชื่อชีทไม่สำเร็จ</div>';
   }
 
-  syncSortLabel_();
   updateFixedHeights();
   bootSheets_().then(function(){
     loadPlaces({ force:true });
   });
-  requestGPS(false);
+  requestGPS({ silent:true });
   syncPageFromHash();
 </script>
 </body>
