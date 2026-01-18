@@ -56,7 +56,7 @@
       padding:12px 14px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .hdr{ display:flex; gap:10px; align-items:center; }
+    .hdr{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
     .menu-btn{
       min-height:40px;
@@ -78,6 +78,8 @@
       display:flex; gap:8px; align-items:center;
       flex-wrap:wrap;
       line-height:1.15;
+      flex:1 1 auto;
+      min-width:0;
     }
     .tstats{
       display:inline-flex;
@@ -92,17 +94,6 @@
       white-space:nowrap;
     }
 
-    .badge{
-      margin-left:auto;
-      padding:8px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.25);
-      background:rgba(255,255,255,.16);
-      font-weight:900;
-      font-size:13px;
-      white-space:nowrap;
-    }
-
     .controls{
       margin-top:10px;
       display:flex;
@@ -114,6 +105,7 @@
     .sheetpick{
       position:relative;
       flex:0 0 auto;
+      margin-left:auto;
     }
     .sheetbtn{
       display:inline-flex;
@@ -130,11 +122,19 @@
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       white-space:nowrap;
+      max-width:min(380px, calc(100vw - 28px));
     }
     .sheetbtn:active{transform:scale(.99)}
+    #sheetLabel{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width:22ch;
+    }
     .sheetdrop{
       position:absolute;
-      left:0;
+      right:0;
       top: calc(100% + 10px);
       width:min(380px, calc(100vw - 28px));
       background:#fff;
@@ -247,6 +247,16 @@
       border-color:rgba(255,255,255,.25);
     }
 
+    @media (max-width: 520px){
+      header{ padding:10px 12px; }
+      .title{ font-size:16px; flex:1 1 100%; }
+      .tstats{ font-size:12px; }
+      .controls{ margin-top:8px; gap:8px; }
+      .search{ flex:1 1 100%; }
+      .sheetbtn{ font-size:13px; padding:9px 10px; }
+      #sheetLabel{ max-width:18ch; }
+    }
+
     main{
       max-width:920px;
       margin:0 auto;
@@ -355,12 +365,12 @@
     .pills{
       margin-left:auto;
       display:flex;
-      gap:10px;
+      gap:8px;
       align-items:center;
       flex-wrap:wrap;
     }
     .pill{
-      padding:8px 10px;
+      padding:7px 10px;
       border-radius:999px;
       border:1px solid rgba(20,184,166,.30);
       background:rgba(20,184,166,.12);
@@ -932,10 +942,7 @@
       📍 <span id="projTitle">GBKK Tracker</span>
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
-    <div id="badge" class="badge">กำลังโหลด…</div>
-  </div>
 
-  <div id="controls" class="controls">
     <div class="sheetpick" id="sheetPicker">
       <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
       <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
@@ -947,7 +954,9 @@
         <div id="sheetHint" class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่/สถิติ</div>
       </div>
     </div>
+  </div>
 
+  <div id="controls" class="controls">
     <div class="search">
       🔎
       <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
@@ -985,9 +994,8 @@
       <div class="map-h">
         <strong>แผนที่</strong>
         <div class="pills">
-          <div id="fitPill" class="pill">จัดเฟรมให้พอดี</div>
-          <div id="mePill" class="pill">ไปหาตำแหน่งฉัน</div>
-          <div id="gpsPill" class="pill">กดเพื่อหา GPS</div>
+          <div id="fitPill" class="pill">จัดเฟรม</div>
+          <div id="mePill" class="pill">ตำแหน่งฉัน</div>
         </div>
       </div>
       <div id="map"></div>
@@ -1417,7 +1425,6 @@
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
   }
 
   var map = null;
@@ -1515,7 +1522,7 @@
 
   function recenterToMe(){
     if(!map){ showToast('แผนที่ยังไม่พร้อม'); return; }
-    if(!currentLatLng){ showToast('ยังไม่มีตำแหน่ง (กด GPS)'); return; }
+    if(!currentLatLng){ showToast('ยังไม่มีตำแหน่ง (กด "ตำแหน่งฉัน")'); return; }
     mapState.userInteracted = true;
     mapState.autoFitted = true;
     try{
@@ -1607,7 +1614,6 @@
         '<div class="spinner"></div>' +
         'กำลังโหลดข้อมูล…' +
       '</div>';
-    $('badge').textContent = 'กำลังโหลด…';
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
@@ -2127,7 +2133,6 @@
     renderList();
     if(map) renderMap();
 
-    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
     return true;
   }
 
@@ -2144,9 +2149,7 @@
     if(forceSpinner || (!PLACES || PLACES.length === 0)){
       var usedCache = renderFromCacheIfAny_(sheetAtCall);
       if(!usedCache) showLoading();
-      else $('badge').textContent = 'กำลังอัปเดท…';
     }else{
-      $('badge').textContent = 'กำลังอัปเดท…';
     }
 
     try{
@@ -2155,7 +2158,6 @@
 
       if(!res || !res.ok){
         console.error('getPlaces failed:', res);
-        $('badge').textContent = 'ผิดพลาด';
         $('list').innerHTML =
           '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
           escapeHtml(res && res.message ? res.message : 'ไม่ทราบสาเหตุ') +
@@ -2178,7 +2180,6 @@
     }catch(err){
       if(sheetAtCall !== (CURRENT_SHEET || '')) return;
       console.error(err);
-      $('badge').textContent = 'ผิดพลาด';
       $('list').innerHTML =
         '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' + escapeHtml(err && err.message ? err.message : String(err)) + '</span></div>';
     }
@@ -2338,31 +2339,39 @@
     openReport(place);
   }, true);
 
-  function requestGPS(){
-    if(!navigator.geolocation){
-      $('gpsPill').textContent = 'GPS: ไม่รองรับ';
-      return;
-    }
-    $('gpsPill').textContent = 'กำลังหา GPS…';
-    navigator.geolocation.getCurrentPosition(function(pos){
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
+  function requestGPS(opts){
+    opts = opts || {};
+    var silent = !!opts.silent;
 
-      if(map) setCurrentLocation(lat, lng);
-      else currentLatLng = {lat:lat, lng:lng};
-
-      $('gpsPill').textContent = 'GPS: พร้อม';
-
-      if($('sortMode').value === 'nearest'){
-        renderList();
-        if(map) renderMap();
-      }else{
-        if(map) renderMap();
+    return new Promise(function(resolve){
+      if(!navigator.geolocation){
+        if(!silent) showToast('GPS: ไม่รองรับ');
+        resolve({ ok:false, message:'GPS: ไม่รองรับ' });
+        return;
       }
-    }, function(err){
-      console.warn(err);
-      $('gpsPill').textContent = 'GPS: ปฏิเสธ/ผิดพลาด';
-    }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
+
+      navigator.geolocation.getCurrentPosition(function(pos){
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+
+        if(map) setCurrentLocation(lat, lng);
+        else currentLatLng = {lat:lat, lng:lng};
+
+        if($('sortMode').value === 'nearest'){
+          renderList();
+          if(map) renderMap();
+        }else{
+          if(map) renderMap();
+        }
+
+        if(!silent) showToast('GPS พร้อม ✅');
+        resolve({ ok:true, lat:lat, lng:lng });
+      }, function(err){
+        console.warn(err);
+        if(!silent) showToast('GPS: ปฏิเสธ/ผิดพลาด');
+        resolve({ ok:false, message:'GPS: ปฏิเสธ/ผิดพลาด', err: err });
+      }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
+    });
   }
 
   async function onResetAll(){
@@ -2434,22 +2443,27 @@
   $('q').addEventListener('input', rerenderAll);
   $('sortMode').addEventListener('change', function(){
     if($('sortMode').value === 'nearest' && !currentLatLng){
-      showToast('ยังไม่มีตำแหน่ง (กด GPS)');
+      showToast('ยังไม่มีตำแหน่ง (กด "ตำแหน่งฉัน")');
     }
     rerenderAll();
   });
 
   $('btnRefresh').onclick = function(){
     loadPlaces({ force:true });
-    requestGPS();
+    requestGPS({ silent:true });
     showToast('รีเฟรชแล้ว');
   };
 
   $('btnResetAll').onclick = onResetAll;
 
-  $('gpsPill').onclick = requestGPS;
-  $('mePill').onclick = recenterToMe;
-  $('fitPill').onclick = function(){ fitFrameNow(true); };
+  $('mePill').onclick = async function(){
+    await requestGPS({ silent:true });
+    recenterToMe();
+  };
+  $('fitPill').onclick = async function(){
+    await requestGPS({ silent:true });
+    fitFrameNow(true);
+  };
 
   $('tabList').onclick = function(){ location.hash = '#list'; };
   $('tabMap').onclick = function(){ location.hash = '#map'; };
@@ -2502,7 +2516,7 @@
   bootSheets_().then(function(){
     loadPlaces({ force:true });
   });
-  requestGPS();
+  requestGPS({ silent:true });
   syncPageFromHash();
 </script>
 </body>
