@@ -56,7 +56,7 @@
       padding:clamp(.65rem, 2.6vw, .95rem) clamp(.8rem, 3.2vw, 1.05rem);
       box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .hdr{ display:flex; gap:clamp(.5rem, 2.2vw, .75rem); align-items:center; }
+    .hdr{ display:flex; gap:clamp(.5rem, 2.2vw, .75rem); align-items:center; flex-wrap:wrap; }
 
     .menu-btn{
       min-height:var(--tap);
@@ -109,6 +109,13 @@
       display:none;
     }
 
+    #btnResetAll{
+      flex:0 0 16%;
+      min-width:10%;
+      max-width:20%;
+      white-space:nowrap;
+    }
+
     .controls{
       margin-top:clamp(.55rem, 2.2vw, .85rem);
       display:flex;
@@ -123,7 +130,7 @@
       align-items:center;
     }
     .ctrl-row1{ flex-wrap:nowrap; }
-    .ctrl-row2{ flex-wrap:wrap; }
+    .ctrl-row2{ flex-wrap:nowrap; }
 
     .sheetpick{
       position:relative;
@@ -131,9 +138,11 @@
       min-width:0;
     }
     .ctrl-row1 .sheetpick{
-      flex:0 0 44%;
-      max-width:44%;
+      flex:0 0 16%;
+      min-width:10%;
+      max-width:20%;
     }
+
     .sheetbtn{
       display:inline-flex;
       align-items:center;
@@ -250,8 +259,9 @@
       width:100%;
     }
     .ctrl-row1 .search{
-      flex:1 1 56%;
-      max-width:56%;
+      flex:1 1 auto;
+      max-width:none;
+      min-width:0;
     }
     .search input{
       width:100%;
@@ -287,15 +297,15 @@
       border-color:rgba(255,255,255,.25);
     }
 
-    .ctrl-row2 #sortMode{
-      flex:0 0 34%;
-      max-width:34%;
+    #sortMode{ display:none; }
+
+    .ctrl-row2 .sheetpick.sortpick{
+      flex:0 0 16%;
+      min-width:10%;
+      max-width:20%;
     }
     .ctrl-row2 #btnRefresh{
-      flex:1 1 33%;
-    }
-    .ctrl-row2 #btnResetAll{
-      flex:1 1 33%;
+      flex:1 1 auto;
     }
 
     main{
@@ -984,6 +994,8 @@
       📍 <span id="projTitle">GBKK Tracker</span>
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
+
+    <button id="btnResetAll" class="btn-danger" type="button">ล้างทั้งหมด</button>
     <div id="badge" class="badge">กำลังโหลด…</div>
   </div>
 
@@ -1008,13 +1020,18 @@
     </div>
 
     <div class="ctrl-row ctrl-row2">
-      <select id="sortMode" aria-label="เรียงลำดับ">
-        <option value="default">ค่าเดิม</option>
-        <option value="nearest">ใกล้ฉัน</option>
-      </select>
+      <div class="sheetpick sortpick" id="sortPicker">
+        <button id="sortBtn" class="sheetbtn" type="button">↕️ <span id="sortLabel">—</span> ▾</button>
+        <select id="sortMode" aria-label="เรียงลำดับ">
+          <option value="default">ค่าเดิม</option>
+          <option value="nearest">ใกล้ฉัน</option>
+        </select>
+        <div id="sortDrop" class="sheetdrop" aria-hidden="true">
+          <div id="sortList" class="sheetlist"></div>
+        </div>
+      </div>
 
       <button id="btnRefresh" class="btn-solid" type="button">รีเฟรช</button>
-      <button id="btnResetAll" class="btn-danger" type="button">ล้างทั้งหมด</button>
     </div>
   </div>
 </header>
@@ -1458,6 +1475,78 @@
     if(!sheetDropIsOpen_()) return;
     var p = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
     if(!p) closeSheetDrop_();
+  }, true);
+
+  function sortLabelOf_(val){
+    val = String(val || 'default');
+    if(val === 'nearest') return 'ใกล้ฉัน';
+    return 'ค่าเดิม';
+  }
+
+  function syncSortLabel_(){
+    $('sortLabel').textContent = sortLabelOf_($('sortMode').value);
+    renderSortList_();
+  }
+
+  function openSortDrop_(){
+    $('sortDrop').classList.add('show');
+    $('sortDrop').setAttribute('aria-hidden','false');
+  }
+  function closeSortDrop_(){
+    $('sortDrop').classList.remove('show');
+    $('sortDrop').setAttribute('aria-hidden','true');
+  }
+  function sortDropIsOpen_(){
+    return $('sortDrop').classList.contains('show');
+  }
+
+  function renderSortList_(){
+    var cur = String($('sortMode').value || 'default');
+    var opts = [
+      { v:'default', t:'ค่าเดิม' },
+      { v:'nearest', t:'ใกล้ฉัน' }
+    ];
+
+    var html = '';
+    for(var i=0;i<opts.length;i++){
+      var o = opts[i];
+      var active = (String(o.v) === cur);
+      html +=
+        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sort="' + escapeHtml(o.v) + '">' +
+          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(o.t) + '</span>' +
+          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
+        '</button>';
+    }
+    $('sortList').innerHTML = html;
+  }
+
+  $('sortBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if(sortDropIsOpen_()) closeSortDrop_();
+    else openSortDrop_();
+  });
+
+  $('sortList').addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sort]') : null;
+    if(!btn) return;
+    var v = btn.getAttribute('data-sort');
+    if(!v) return;
+
+    closeSortDrop_();
+
+    var cur = String($('sortMode').value || 'default');
+    if(String(v) === cur) return;
+
+    $('sortMode').value = String(v);
+    try{ $('sortMode').dispatchEvent(new Event('change', { bubbles:true })); }catch(e){}
+    syncSortLabel_();
+  }, true);
+
+  document.addEventListener('click', function(ev){
+    if(!sortDropIsOpen_()) return;
+    var p = ev.target && ev.target.closest ? ev.target.closest('#sortPicker') : null;
+    if(!p) closeSortDrop_();
   }, true);
 
   function cacheKey_(sheetName){
@@ -2468,6 +2557,7 @@
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
       $('sortMode').value = 'default';
+      syncSortLabel_();
       await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
@@ -2509,6 +2599,7 @@
 
   $('q').addEventListener('input', rerenderAll);
   $('sortMode').addEventListener('change', function(){
+    syncSortLabel_();
     if($('sortMode').value === 'nearest' && !currentLatLng){
       showToast('ยังไม่มีตำแหน่ง (แตะ "ตำแหน่งฉัน")');
     }
@@ -2547,6 +2638,7 @@
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
       if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
+      if(sortDropIsOpen_()){ closeSortDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
@@ -2580,6 +2672,7 @@
     $('sheetList').innerHTML = '<div class="sheethint">โหลดรายชื่อชีทไม่สำเร็จ</div>';
   }
 
+  syncSortLabel_();
   updateFixedHeights();
   bootSheets_().then(function(){
     loadPlaces({ force:true });
