@@ -35,15 +35,6 @@
 
       --setZ: 100003;
       --setBarH: 56px;
-
-      --miniW: 16vw;
-      --miniWMin: 10vw;
-      --miniWMax: 20vw;
-
-      /* จำกัดความสูง Header ไม่เกิน 20% ของความสูงหน้าจอ (20vh = 20%)
-         ถ้าต้องการให้ Header สูง/ต่ำลง ให้ปรับค่า --hdrMaxH (เช่น 18vh หรือ 22vh)
-         และ/หรือปรับ padding/ช่องว่างในส่วน header ได้ตามต้องการ */
-      --hdrMaxH: 20vh;
     }
     *{box-sizing:border-box}
     html, body{ height:100%; }
@@ -62,12 +53,10 @@
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
-      padding: 1.1vh 3vw;
+      padding:clamp(.65rem, 2.6vw, .95rem) clamp(.8rem, 3.2vw, 1.05rem);
       box-shadow:0 10px 24px rgba(0,0,0,.14);
-      max-height: var(--hdrMaxH);
-      overflow:hidden;
     }
-    .hdr{ display:flex; gap:2%; align-items:center; }
+    .hdr{ display:flex; gap:clamp(.5rem, 2.2vw, .75rem); align-items:center; }
 
     .menu-btn{
       min-height:var(--tap);
@@ -83,46 +72,29 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      flex:0 0 auto;
     }
     .menu-btn:active{ transform:scale(.99); }
 
     .title{
       font-weight:1000;
-      font-size:16px;
-      display:flex; gap:2%; align-items:center;
-      line-height:1.1;
+      font-size:18px;
+      display:flex; gap:8px; align-items:center;
+      flex-wrap:wrap;
+      line-height:1.15;
       flex:1 1 auto;
       min-width:0;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
     }
-
-    .hdrtools{
-      display:flex;
-      align-items:center;
-      justify-content:flex-end;
-      gap:2%;
-      flex:0 0 auto;
-      min-width:0;
-    }
-
     .tstats{
       display:inline-flex;
       align-items:center;
       gap:6px;
-      padding: .6em .8em;
+      padding:6px 10px;
       border-radius:999px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       font-weight:1000;
       font-size:12px;
       white-space:nowrap;
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 48vw;
     }
 
     .badge{
@@ -137,59 +109,31 @@
       display:none;
     }
 
-    .miniW{
-      flex:0 0 var(--miniW);
-      min-width: var(--miniWMin);
-      max-width: var(--miniWMax);
-    }
-
-    .btn-danger{
-      background:rgba(226,58,58,.18);
-      color:#fff;
-      border-color:rgba(255,255,255,.25);
-    }
-    .btn-solid{
-      background:rgba(255,255,255,.92);
-      color:#0b2f2a;
-      border-color:rgba(255,255,255,.92);
-    }
-    .btn-reset{
-      min-height:var(--tap);
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.25);
-      padding:.65em .8em;
-      font-weight:1000;
-      font-size:13px;
-      cursor:pointer;
-      -webkit-tap-highlight-color: transparent;
-      width: var(--miniW);
-      min-width: var(--miniWMin);
-      max-width: var(--miniWMax);
-      white-space:nowrap;
-    }
-    .btn-reset:active{ transform:scale(.99); }
-
     .controls{
-      margin-top: 1vh;
+      margin-top:clamp(.55rem, 2.2vw, .85rem);
       display:flex;
       flex-direction:column;
-      gap: 1vh;
+      gap:clamp(.5rem, 2.2vw, .75rem);
       align-items:stretch;
     }
     .ctrl-row{
       width:100%;
       display:flex;
-      gap:2%;
+      gap:clamp(.5rem, 2.2vw, .75rem);
       align-items:center;
     }
     .ctrl-row1{ flex-wrap:nowrap; }
+    .ctrl-row2{ flex-wrap:wrap; }
 
-    .sheetpick, .sortpick{
+    .sheetpick{
       position:relative;
       flex:0 0 auto;
       min-width:0;
     }
-
+    .ctrl-row1 .sheetpick{
+      flex:0 0 44%;
+      max-width:44%;
+    }
     .sheetbtn{
       display:inline-flex;
       align-items:center;
@@ -201,7 +145,7 @@
       color:#fff;
       padding:.65em .8em;
       font-weight:900;
-      font-size:13px;
+      font-size:14px;
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       white-space:nowrap;
@@ -209,7 +153,7 @@
       min-width:0;
     }
     .sheetbtn:active{transform:scale(.99)}
-    #sheetLabel, #sortLabel{
+    #sheetLabel{
       min-width:0;
       overflow:hidden;
       text-overflow:ellipsis;
@@ -221,20 +165,18 @@
     .sheetdrop{
       position:absolute;
       left:0;
-      top: calc(100% + 1vh);
-      width: 72vw;
-      max-width: 92vw;
+      top: calc(100% + 10px);
+      width:min(92vw, 28rem);
       background:#fff;
       color:var(--text);
       border-radius:18px;
       border:1px solid rgba(0,0,0,.10);
       box-shadow:0 20px 60px rgba(0,0,0,.22);
-      padding: 1.2vh 2.2vw;
+      padding:10px;
       display:none;
       z-index:100010;
     }
     .sheetdrop.show{ display:block; }
-
     .sheetsearch{
       min-height:var(--tap);
       display:flex; align-items:center; gap:10px;
@@ -254,12 +196,11 @@
       min-width:0;
     }
     .sheetsearch input::placeholder{ color:rgba(59,103,96,.75); }
-
     .sheetlist{
-      margin-top: 1vh;
+      margin-top:10px;
       display:flex;
       flex-direction:column;
-      gap: 1vh;
+      gap:8px;
       max-height:46vh;
       overflow:auto;
       -webkit-overflow-scrolling: touch;
@@ -290,16 +231,11 @@
     }
     .sheetitem:active{ transform:scale(.99); }
     .sheethint{
-      margin-top: 1vh;
+      margin-top:8px;
       text-align:center;
       color:rgba(59,103,96,.85);
       font-weight:900;
       font-size:12px;
-    }
-
-    .sortdrop{
-      width: 40vw;
-      max-width: 80vw;
     }
 
     .search{
@@ -313,6 +249,10 @@
       min-width:0;
       width:100%;
     }
+    .ctrl-row1 .search{
+      flex:1 1 56%;
+      max-width:56%;
+    }
     .search input{
       width:100%;
       border:none; outline:none;
@@ -322,7 +262,6 @@
       min-width:0;
     }
     .search input::placeholder{color:rgba(255,255,255,.78)}
-
     select, button{
       min-height:var(--tap);
       border-radius:14px;
@@ -337,6 +276,27 @@
       min-width:0;
     }
     button:active{transform:scale(.99)}
+    .btn-solid{
+      background:rgba(255,255,255,.92);
+      color:#0b2f2a;
+      border-color:rgba(255,255,255,.92);
+    }
+    .btn-danger{
+      background:rgba(226,58,58,.18);
+      color:#fff;
+      border-color:rgba(255,255,255,.25);
+    }
+
+    .ctrl-row2 #sortMode{
+      flex:0 0 34%;
+      max-width:34%;
+    }
+    .ctrl-row2 #btnRefresh{
+      flex:1 1 33%;
+    }
+    .ctrl-row2 #btnResetAll{
+      flex:1 1 33%;
+    }
 
     main{
       max-width:920px;
@@ -1022,18 +982,14 @@
 
     <div class="title">
       📍 <span id="projTitle">GBKK Tracker</span>
-    </div>
-
-    <div class="hdrtools">
       <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
-      <button id="btnResetAll" class="btn-reset btn-danger" type="button">ล้าง</button>
-      <div id="badge" class="badge">กำลังโหลด…</div>
     </div>
+    <div id="badge" class="badge">กำลังโหลด…</div>
   </div>
 
   <div id="controls" class="controls">
     <div class="ctrl-row ctrl-row1">
-      <div class="sheetpick miniW" id="sheetPicker">
+      <div class="sheetpick" id="sheetPicker">
         <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
         <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
           <div class="sheetsearch">
@@ -1049,19 +1005,16 @@
         🔎
         <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
       </div>
+    </div>
 
-      <div class="sortpick miniW" id="sortPicker">
-        <button id="sortBtn" class="sheetbtn" type="button">⇅ <span id="sortLabel">ค่าเดิม</span> ▾</button>
-        <div id="sortDrop" class="sheetdrop sortdrop" aria-hidden="true">
-          <div id="sortList" class="sheetlist"></div>
-        </div>
-        <select id="sortMode" aria-label="เรียงลำดับ" style="display:none">
-          <option value="default">ค่าเดิม</option>
-          <option value="nearest">ใกล้ฉัน</option>
-        </select>
-      </div>
+    <div class="ctrl-row ctrl-row2">
+      <select id="sortMode" aria-label="เรียงลำดับ">
+        <option value="default">ค่าเดิม</option>
+        <option value="nearest">ใกล้ฉัน</option>
+      </select>
 
-      <button id="btnRefresh" class="btn-solid miniW" type="button">รีเฟรช</button>
+      <button id="btnRefresh" class="btn-solid" type="button">รีเฟรช</button>
+      <button id="btnResetAll" class="btn-danger" type="button">ล้างทั้งหมด</button>
     </div>
   </div>
 </header>
@@ -1423,7 +1376,6 @@
   }
 
   function openSheetDrop_(){
-    closeSortDrop_();
     $('sheetDrop').classList.add('show');
     $('sheetDrop').setAttribute('aria-hidden','false');
     setTimeout(function(){
@@ -1503,82 +1455,9 @@
   }, true);
 
   document.addEventListener('click', function(ev){
-    if(sheetDropIsOpen_()){
-      var p = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
-      if(!p) closeSheetDrop_();
-    }
-    if(sortDropIsOpen_()){
-      var s = ev.target && ev.target.closest ? ev.target.closest('#sortPicker') : null;
-      if(!s) closeSortDrop_();
-    }
-  }, true);
-
-  function sortLabelText_(v){
-    return (String(v) === 'nearest') ? 'ใกล้ฉัน' : 'ค่าเดิม';
-  }
-
-  function applySortLabel_(){
-    var sel = $('sortMode');
-    var v = sel ? String(sel.value || 'default') : 'default';
-    $('sortLabel').textContent = sortLabelText_(v);
-  }
-
-  function renderSortList_(){
-    var sel = $('sortMode');
-    var cur = sel ? String(sel.value || 'default') : 'default';
-    var items = [
-      { v:'default', t:'ค่าเดิม' },
-      { v:'nearest', t:'ใกล้ฉัน' }
-    ];
-    var html = '';
-    for(var i=0;i<items.length;i++){
-      var it = items[i];
-      var active = (String(it.v) === cur);
-      html +=
-        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sort="' + escapeHtml(it.v) + '">' +
-          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(it.t) + '</span>' +
-          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
-        '</button>';
-    }
-    $('sortList').innerHTML = html;
-  }
-
-  function openSortDrop_(){
-    closeSheetDrop_();
-    $('sortDrop').classList.add('show');
-    $('sortDrop').setAttribute('aria-hidden','false');
-  }
-  function closeSortDrop_(){
-    $('sortDrop').classList.remove('show');
-    $('sortDrop').setAttribute('aria-hidden','true');
-  }
-  function sortDropIsOpen_(){
-    return $('sortDrop').classList.contains('show');
-  }
-
-  function setSortMode_(v){
-    var sel = $('sortMode');
-    if(!sel) return;
-    sel.value = String(v || 'default');
-    applySortLabel_();
-    renderSortList_();
-    closeSortDrop_();
-    try{ sel.dispatchEvent(new Event('change', { bubbles:true })); }catch(e){}
-  }
-
-  $('sortBtn').addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    if(sortDropIsOpen_()) closeSortDrop_();
-    else openSortDrop_();
-  });
-
-  $('sortList').addEventListener('click', function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sort]') : null;
-    if(!btn) return;
-    var v = btn.getAttribute('data-sort');
-    if(!v) return;
-    setSortMode_(v);
+    if(!sheetDropIsOpen_()) return;
+    var p = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
+    if(!p) closeSheetDrop_();
   }, true);
 
   function cacheKey_(sheetName){
@@ -1594,11 +1473,7 @@
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-
-    var b = $('badge');
-    if(b){
-      b.textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
-    }
+    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
   }
 
   var map = null;
@@ -1712,7 +1587,8 @@
     var dLat = toRad(b.lat - a.lat);
     var dLng = toRad(b.lng - a.lng);
     var la1 = toRad(a.lat);
-    var la2 = toRad(b.lat);
+    var la2 = toRad(a.lat);
+    la2 = toRad(b.lat);
     var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
     return 2*R*Math.asin(Math.sqrt(s));
   }
@@ -1787,8 +1663,7 @@
         '<div class="spinner"></div>' +
         'กำลังโหลดข้อมูล…' +
       '</div>';
-    var b = $('badge');
-    if(b) b.textContent = 'กำลังโหลด…';
+    $('badge').textContent = 'กำลังโหลด…';
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
@@ -2308,8 +2183,7 @@
     renderList();
     if(map) renderMap();
 
-    var b = $('badge');
-    if(b) b.textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
+    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
     return true;
   }
 
@@ -2326,13 +2200,9 @@
     if(forceSpinner || (!PLACES || PLACES.length === 0)){
       var usedCache = renderFromCacheIfAny_(sheetAtCall);
       if(!usedCache) showLoading();
-      else{
-        var b0 = $('badge');
-        if(b0) b0.textContent = 'กำลังอัปเดท…';
-      }
+      else $('badge').textContent = 'กำลังอัปเดท…';
     }else{
-      var b1 = $('badge');
-      if(b1) b1.textContent = 'กำลังอัปเดท…';
+      $('badge').textContent = 'กำลังอัปเดท…';
     }
 
     try{
@@ -2341,8 +2211,7 @@
 
       if(!res || !res.ok){
         console.error('getPlaces failed:', res);
-        var b2 = $('badge');
-        if(b2) b2.textContent = 'ผิดพลาด';
+        $('badge').textContent = 'ผิดพลาด';
         $('list').innerHTML =
           '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
           escapeHtml(res && res.message ? res.message : 'ไม่ทราบสาเหตุ') +
@@ -2365,8 +2234,7 @@
     }catch(err){
       if(sheetAtCall !== (CURRENT_SHEET || '')) return;
       console.error(err);
-      var b3 = $('badge');
-      if(b3) b3.textContent = 'ผิดพลาด';
+      $('badge').textContent = 'ผิดพลาด';
       $('list').innerHTML =
         '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' + escapeHtml(err && err.message ? err.message : String(err)) + '</span></div>';
     }
@@ -2599,7 +2467,7 @@
 
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
-      setSortMode_('default');
+      $('sortMode').value = 'default';
       await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
@@ -2640,10 +2508,7 @@
   }, 90);
 
   $('q').addEventListener('input', rerenderAll);
-
   $('sortMode').addEventListener('change', function(){
-    applySortLabel_();
-    renderSortList_();
     if($('sortMode').value === 'nearest' && !currentLatLng){
       showToast('ยังไม่มีตำแหน่ง (แตะ "ตำแหน่งฉัน")');
     }
@@ -2682,7 +2547,6 @@
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
       if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
-      if(sortDropIsOpen_()){ closeSortDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
@@ -2691,8 +2555,6 @@
 
   async function bootSheets_(){
     applyProjectTitle_();
-    applySortLabel_();
-    renderSortList_();
     $('sheetList').innerHTML = '<div class="sheethint">กำลังโหลดชีท…</div>';
 
     try{
