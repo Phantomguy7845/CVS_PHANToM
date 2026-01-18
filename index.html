@@ -53,14 +53,52 @@
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
-      padding:12px 14px;
+      padding: calc(8px + env(safe-area-inset-top)) 12px 10px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
     }
-    .hdr{ 
-      display:flex; 
-      gap:10px; 
+    .hdr{ display:flex; gap:10px; align-items:center; min-width:0; }
+
+    .hdr-center{
+      flex:1 1 auto;
+      min-width:0;
+      display:flex;
       align-items:center;
-      flex-wrap:wrap;
+    }
+
+    .hdr-right{
+      margin-left:auto;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+    }
+
+    .hdr-stats{
+      display:flex;
+      min-width:0;
+    }
+
+    .hdr-pickers{
+      display:flex;
+      gap:10px;
+      min-width:0;
+      align-items:center;
+    }
+    .hdr-pickers > *{ min-width:0; }
+    .hdr-pickers .sheetpick{ flex:1 1 0; }
+    .hdr-pickers #sortMode{ flex:1 1 0; width:100%; }
+
+    .hdr-search{
+      display:flex;
+      min-width:0;
+    }
+    .hdr-search .search{
+      flex:1 1 auto;
+      width:100%;
+      min-width:0;
     }
 
     .menu-btn{
@@ -74,75 +112,82 @@
       font-size:18px;
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
-      flex-shrink:0;
     }
     .menu-btn:active{ transform:scale(.99); }
 
     .title{
       font-weight:1000;
       font-size:16px;
-      display:flex; 
-      flex-direction:column;
-      gap:6px;
-      flex:1;
-      min-width:0;
-      line-height:1.15;
-    }
-    
-    .title-main{
       display:flex;
+      gap:8px;
       align-items:center;
-      gap:6px;
+      line-height:1.1;
+      min-width:0;
+      white-space:nowrap;
     }
-    
+    .title #projTitle{
+      display:inline-block;
+      max-width:100%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      vertical-align:bottom;
+    }
+
     .tstats{
       display:inline-flex;
       align-items:center;
+      justify-content:center;
       gap:6px;
-      padding:5px 8px;
+      padding:6px 10px;
       border-radius:999px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
-      font-weight:900;
-      font-size:11px;
-      white-space:nowrap;
+      font-weight:1000;
+      font-size:12px;
+      width:100%;
+      flex-wrap:wrap;
+      white-space:normal;
+      text-align:center;
     }
 
     .badge{
-      flex-shrink:0;
-      padding:8px 12px;
+      padding:6px 10px;
       border-radius:999px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.16);
       font-weight:900;
       font-size:12px;
       white-space:nowrap;
-    }
-
-    .controls{
-      margin-top:12px;
-      display:flex;
-      gap:8px;
-      flex-direction:column;
-    }
-    
-    .controls-row{
-      display:flex;
-      gap:8px;
-      align-items:stretch;
-    }
-
-    .sheetpick, .sortpick{
-      position:relative;
-      flex:1;
-    }
-    
-    .pickbtn{
-      display:flex;
+      min-height:40px;
+      display:inline-flex;
       align-items:center;
-      justify-content:space-between;
+      max-width:min(44vw, 220px);
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .iconbtn{
+      min-height:40px;
+      min-width:40px;
+      padding:0;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:14px;
+      font-size:18px;
+      line-height:1;
+    }
+    .iconbtn:active{ transform:scale(.97); }
+    .iconbtn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none; }
+
+    .sheetpick{
+      position:relative;
+      flex:0 0 auto;
+    }
+    .sheetbtn{
+      display:inline-flex;
+      align-items:center;
       gap:8px;
-      width:100%;
       min-height:var(--tap);
       border-radius:14px;
       border:1px solid rgba(255,255,255,.25);
@@ -154,24 +199,24 @@
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       white-space:nowrap;
+      width:100%;
     }
-    
-    .pickbtn-label{
-      flex:1;
-      text-align:left;
+    .sheetbtn:active{transform:scale(.99)}
+    .sheetbtn .sheetLabel{
+      min-width:0;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
     }
-    
-    .pickbtn:active{transform:scale(.99)}
-    
-    .pickdrop{
+    .sheetbtn .sheetCaret{
+      margin-left:auto;
+      opacity:.9;
+    }
+    .sheetdrop{
       position:absolute;
       left:0;
-      top: calc(100% + 8px);
-      width:100%;
-      min-width:240px;
+      top: calc(100% + 10px);
+      width:min(380px, calc(100vw - 28px));
       background:#fff;
       color:var(--text);
       border-radius:18px;
@@ -180,12 +225,8 @@
       padding:10px;
       display:none;
       z-index:100010;
-      max-height:50vh;
-      overflow:auto;
-      -webkit-overflow-scrolling: touch;
     }
-    .pickdrop.show{ display:block; }
-    
+    .sheetdrop.show{ display:block; }
     .sheetsearch{
       min-height:44px;
       display:flex; align-items:center; gap:10px;
@@ -194,7 +235,6 @@
       background:rgba(7,25,21,.04);
       padding:10px 12px;
       color:var(--muted);
-      margin-bottom:10px;
     }
     .sheetsearch input{
       width:100%;
@@ -205,14 +245,17 @@
       font-weight:900;
     }
     .sheetsearch input::placeholder{ color:rgba(59,103,96,.75); }
-    
-    .picklist{
+    .sheetlist{
+      margin-top:10px;
       display:flex;
       flex-direction:column;
       gap:8px;
+      max-height:46vh;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom:2px;
     }
-    
-    .pickitem{
+    .sheetitem{
       width:100%;
       min-height:44px;
       border-radius:16px;
@@ -229,14 +272,13 @@
       gap:10px;
       text-align:left;
     }
-    .pickitem.active{
+    .sheetitem.active{
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       border-color:rgba(15,143,131,.25);
       color:#fff;
     }
-    .pickitem:active{ transform:scale(.99); }
-    
-    .sheethint, .pichint{
+    .sheetitem:active{ transform:scale(.99); }
+    .sheethint{
       margin-top:8px;
       text-align:center;
       color:rgba(59,103,96,.85);
@@ -245,7 +287,7 @@
     }
 
     .search{
-      flex:1;
+      flex:1 1 240px;
       min-height:var(--tap);
       display:flex; align-items:center; gap:10px;
       border-radius:16px;
@@ -258,16 +300,10 @@
       border:none; outline:none;
       background:transparent;
       color:#fff;
-      font-size:15px;
+      font-size:16px;
     }
     .search input::placeholder{color:rgba(255,255,255,.78)}
-    
-    .action-btns{
-      display:flex;
-      gap:8px;
-    }
-    
-    button{
+    select, button{
       min-height:var(--tap);
       border-radius:14px;
       border:1px solid rgba(255,255,255,.25);
@@ -343,11 +379,9 @@
     .warn{color:#b05a00}
     .actions{
       margin-top:10px;
-      display:flex; gap:8px; flex-wrap:wrap;
+      display:flex; gap:10px; flex-wrap:wrap;
     }
     .a-btn{
-      flex:1;
-      min-width:0;
       min-height:var(--tap);
       border-radius:14px;
       border:1px solid rgba(20,184,166,.28);
@@ -392,21 +426,20 @@
     }
     .map-h{
       padding:12px 14px;
-      display:flex; gap:8px; align-items:center;
+      display:flex; gap:10px; align-items:center;
       border-bottom:1px solid var(--line);
       background:linear-gradient(180deg,#fff,#fbfffe);
       flex-wrap:wrap;
     }
-    .map-h strong{font-size:14px; flex:1 1 100%;}
+    .map-h strong{font-size:14px}
     .pills{
+      margin-left:auto;
       display:flex;
-      gap:8px;
-      width:100%;
+      gap:10px;
+      align-items:center;
       flex-wrap:wrap;
     }
     .pill{
-      flex:1;
-      min-width:0;
       padding:8px 10px;
       border-radius:999px;
       border:1px solid rgba(20,184,166,.30);
@@ -417,7 +450,6 @@
       cursor:pointer;
       user-select:none;
       white-space:nowrap;
-      text-align:center;
     }
     .pill:active{ transform:scale(.99); }
     #map{height:72vh; min-height:360px; width:100%}
@@ -928,32 +960,6 @@
       border-color:rgba(20,184,166,.35);
       color:#064e46;
     }
-    
-    @media (max-width: 480px) {
-      .title{
-        font-size:15px;
-      }
-      
-      .tstats{
-        font-size:10px;
-        padding:4px 7px;
-      }
-      
-      .badge{
-        font-size:11px;
-        padding:6px 10px;
-      }
-      
-      .pickbtn{
-        font-size:13px;
-        padding:9px 11px;
-      }
-      
-      .a-btn{
-        font-size:13px;
-        padding:9px 10px;
-      }
-    }
   </style>
 </head>
 
@@ -1002,54 +1008,46 @@
   <div class="hdr">
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
-    <div class="title">
-      <div class="title-main">
+    <div class="hdr-center">
+      <div class="title">
         📍 <span id="projTitle">GBKK Tracker</span>
       </div>
-      <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
     </div>
-    
-    <div id="badge" class="badge">กำลังโหลด…</div>
+
+    <div class="hdr-right">
+      <button id="btnRefresh" class="iconbtn btn-solid" type="button" aria-label="รีเฟรช" title="รีเฟรช">🔄</button>
+      <button id="btnResetAll" class="iconbtn btn-danger" type="button" aria-label="ล้างทั้งหมด" title="ล้างทั้งหมด">🧹</button>
+      <div id="badge" class="badge">กำลังโหลด…</div>
+    </div>
   </div>
 
-  <div id="controls" class="controls">
-    <div class="controls-row">
-      <div class="sheetpick" id="sheetPicker">
-        <button id="sheetBtn" class="pickbtn" type="button">
-          <span>🗂️</span>
-          <span id="sheetLabel" class="pickbtn-label">—</span>
-          <span>▾</span>
-        </button>
-        <div id="sheetDrop" class="pickdrop" aria-hidden="true">
-          <div class="sheetsearch">
-            🔎
-            <input id="sheetSearch" type="search" placeholder="ค้นหาชีท…" autocomplete="off">
-          </div>
-          <div id="sheetList" class="picklist"></div>
-          <div class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่</div>
+  <div class="hdr-stats">
+    <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
+  </div>
+
+  <div id="controls" class="hdr-pickers">
+    <div class="sheetpick" id="sheetPicker">
+      <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel" class="sheetLabel">—</span> <span class="sheetCaret">▾</span></button>
+      <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
+        <div class="sheetsearch">
+          🔎
+          <input id="sheetSearch" type="search" placeholder="ค้นหาชีท…" autocomplete="off">
         </div>
-      </div>
-      
-      <div class="sortpick" id="sortPicker">
-        <button id="sortBtn" class="pickbtn" type="button">
-          <span>⚡</span>
-          <span id="sortLabel" class="pickbtn-label">ค่าเดิม</span>
-          <span>▾</span>
-        </button>
-        <div id="sortDrop" class="pickdrop" aria-hidden="true">
-          <div class="picklist" id="sortList"></div>
-        </div>
+        <div id="sheetList" class="sheetlist"></div>
+        <div id="sheetHint" class="sheethint">เลือกชีทเพื่อเปลี่ยนรายการ/แผนที่/สถิติ</div>
       </div>
     </div>
 
+    <select id="sortMode" aria-label="เรียงลำดับ">
+      <option value="default">ค่าเดิม</option>
+      <option value="nearest">ใกล้ฉัน</option>
+    </select>
+  </div>
+
+  <div class="hdr-search">
     <div class="search">
       🔎
       <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
-    </div>
-
-    <div class="action-btns">
-      <button id="btnRefresh" class="btn-solid" type="button" style="flex:1">รีเฟรช</button>
-      <button id="btnResetAll" class="btn-danger" type="button" style="flex:1">ล้างทั้งหมด</button>
     </div>
   </div>
 </header>
@@ -1076,9 +1074,9 @@
       <div class="map-h">
         <strong>แผนที่</strong>
         <div class="pills">
-          <div id="fitPill" class="pill">🎯 จัดเฟรม</div>
-          <div id="mePill" class="pill">📍 หาฉัน</div>
-          <div id="gpsPill" class="pill">🛰️ GPS</div>
+          <div id="fitPill" class="pill">จัดเฟรมให้พอดี</div>
+          <div id="mePill" class="pill">ไปหาตำแหน่งฉัน</div>
+          <div id="gpsPill" class="pill">กดเพื่อหา GPS</div>
         </div>
       </div>
       <div id="map"></div>
@@ -1088,8 +1086,8 @@
 
 <nav class="bottom-tabs" role="tablist" aria-label="สลับหน้า">
   <div class="row">
-    <button id="tabList" class="tabbtn active" type="button">📋 รายการ</button>
-    <button id="tabMap" class="tabbtn" type="button">🗺️ แผนที่</button>
+    <button id="tabList" class="tabbtn active" type="button">รายการ</button>
+    <button id="tabMap" class="tabbtn" type="button">แผนที่</button>
   </div>
 </nav>
 
@@ -1129,7 +1127,7 @@
       <div class="set-card">
         <div class="set-h">
           <strong>Navigation Priority</strong>
-          <small>เลือกว่าจะให้ "ลิงก์" หรือ "lat/lng" ถูกใช้เป็นอันดับแรก</small>
+          <small>เลือกว่าจะให้ “ลิงก์” หรือ “lat/lng” ถูกใช้เป็นอันดับแรก</small>
         </div>
 
         <div class="seg" role="radiogroup" aria-label="Navigation Priority">
@@ -1167,12 +1165,6 @@
   const SELECTED_SHEET_KEY = 'PT_GBKK_SELECTED_SHEET_V1';
   const CACHE_KEY_BASE = 'PT_GBKK_PLACES_CACHE_V1';
   const MAPSTATE_KEY = 'PT_GBKK4_MAPSTATE_V1';
-  const SORT_MODE_KEY = 'PT_GBKK_SORT_MODE_V1';
-
-  const SORT_OPTIONS = [
-    { value: 'default', label: 'ค่าเดิม' },
-    { value: 'nearest', label: 'ใกล้ฉัน' }
-  ];
 
   function $(id){ return document.getElementById(id); }
 
@@ -1399,22 +1391,6 @@
 
   var SHEETS = [];
   var CURRENT_SHEET = '';
-  var CURRENT_SORT = 'default';
-
-  function loadSortMode_(){
-    try{
-      var saved = localStorage.getItem(SORT_MODE_KEY);
-      if(saved && SORT_OPTIONS.some(function(o){ return o.value === saved; })){
-        return saved;
-      }
-    }catch(e){}
-    return 'default';
-  }
-
-  function saveSortMode_(mode){
-    CURRENT_SORT = mode;
-    try{ localStorage.setItem(SORT_MODE_KEY, mode); }catch(e){}
-  }
 
   function sheetKeyPart_(s){
     return String(s || '').replace(/[^\wก-๙]/g, '_');
@@ -1432,13 +1408,7 @@
     $('sheetLabel').textContent = CURRENT_SHEET ? String(CURRENT_SHEET) : '—';
   }
 
-  function applySortLabel_(){
-    var opt = SORT_OPTIONS.find(function(o){ return o.value === CURRENT_SORT; });
-    $('sortLabel').textContent = opt ? opt.label : 'ค่าเดิม';
-  }
-
   function openSheetDrop_(){
-    closeSortDrop_();
     $('sheetDrop').classList.add('show');
     $('sheetDrop').setAttribute('aria-hidden','false');
     setTimeout(function(){
@@ -1453,19 +1423,6 @@
     return $('sheetDrop').classList.contains('show');
   }
 
-  function openSortDrop_(){
-    closeSheetDrop_();
-    $('sortDrop').classList.add('show');
-    $('sortDrop').setAttribute('aria-hidden','false');
-  }
-  function closeSortDrop_(){
-    $('sortDrop').classList.remove('show');
-    $('sortDrop').setAttribute('aria-hidden','true');
-  }
-  function sortDropIsOpen_(){
-    return $('sortDrop').classList.contains('show');
-  }
-
   function renderSheetList_(){
     var q = String($('sheetSearch').value || '').trim().toLowerCase();
     var arr = SHEETS.slice();
@@ -1477,7 +1434,7 @@
     }
 
     if(!arr.length){
-      $('sheetList').innerHTML = '<div class="pichint">ไม่พบชีท</div>';
+      $('sheetList').innerHTML = '<div class="sheethint">ไม่พบชีท</div>';
       return;
     }
 
@@ -1486,26 +1443,12 @@
       var name = String(arr[i] || '');
       var active = (name === String(CURRENT_SHEET));
       html +=
-        '<button class="pickitem' + (active ? ' active' : '') + '" type="button" data-sheet="' + escapeHtml(name) + '">' +
+        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sheet="' + escapeHtml(name) + '">' +
           '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</span>' +
           (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
         '</button>';
     }
     $('sheetList').innerHTML = html;
-  }
-
-  function renderSortList_(){
-    var html = '';
-    for(var i=0;i<SORT_OPTIONS.length;i++){
-      var opt = SORT_OPTIONS[i];
-      var active = (opt.value === CURRENT_SORT);
-      html +=
-        '<button class="pickitem' + (active ? ' active' : '') + '" type="button" data-sort="' + escapeHtml(opt.value) + '">' +
-          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(opt.label) + '</span>' +
-          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
-        '</button>';
-    }
-    $('sortList').innerHTML = html;
   }
 
   function setSelectedSheet_(name, persist){
@@ -1526,13 +1469,6 @@
     else openSheetDrop_();
   });
 
-  $('sortBtn').addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    if(sortDropIsOpen_()) closeSortDrop_();
-    else openSortDrop_();
-  });
-
   $('sheetSearch').addEventListener('input', renderSheetList_);
 
   $('sheetList').addEventListener('click', function(ev){
@@ -1551,35 +1487,10 @@
     loadPlaces({ force:true });
   }, true);
 
-  $('sortList').addEventListener('click', function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sort]') : null;
-    if(!btn) return;
-    var mode = btn.getAttribute('data-sort');
-    if(!mode) return;
-    if(String(mode) === String(CURRENT_SORT)){
-      closeSortDrop_();
-      return;
-    }
-
-    closeSortDrop_();
-    saveSortMode_(mode);
-    applySortLabel_();
-    renderSortList_();
-    
-    if(mode === 'nearest' && !currentLatLng){
-      showToast('ยังไม่มีตำแหน่ง (กด GPS)');
-    }
-    rerenderAll();
-  }, true);
-
   document.addEventListener('click', function(ev){
-    if(!sheetDropIsOpen_() && !sortDropIsOpen_()) return;
-    
-    var inSheet = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
-    var inSort = ev.target && ev.target.closest ? ev.target.closest('#sortPicker') : null;
-    
-    if(!inSheet && sheetDropIsOpen_()) closeSheetDrop_();
-    if(!inSort && sortDropIsOpen_()) closeSortDrop_();
+    if(!sheetDropIsOpen_()) return;
+    var p = ev.target && ev.target.closest ? ev.target.closest('#sheetPicker') : null;
+    if(!p) closeSheetDrop_();
   }, true);
 
   function cacheKey_(sheetName){
@@ -1759,7 +1670,8 @@
       });
     }
 
-    if(CURRENT_SORT === 'nearest' && currentLatLng){
+    var mode = $('sortMode').value;
+    if(mode === 'nearest' && currentLatLng){
       arr = arr.map(function(p){
         var d = Number.POSITIVE_INFINITY;
         if(hasLatLng_(p)){
@@ -2190,9 +2102,9 @@
           '<div class="name">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
           '<div class="sub">' + locText + '</div>' +
           '<div class="actions">' +
-            '<button class="a-btn a-nav" data-act="nav" type="button">🧭 นำทาง</button>' +
-            '<button class="a-btn a-report" data-act="report" type="button">📝 Report</button>' +
-            '<button class="a-btn a-done" data-act="done" type="button">✅ ไปแล้ว</button>' +
+            '<button class="a-btn a-nav" data-act="nav" type="button">นำทาง</button>' +
+            '<button class="a-btn a-report" data-act="report" type="button">Report</button>' +
+            '<button class="a-btn a-done" data-act="done" type="button"><b>ไปแล้ว</b></button>' +
           '</div>' +
         '</div>';
     }
@@ -2227,14 +2139,14 @@
       var link = getOpenLink(p);
 
       var navHtml = link
-        ? ('<a class="map-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">🧭 นำทาง</a>')
-        : ('<button class="map-link disabled" type="button" disabled>🧭 นำทาง</button>');
+        ? ('<a class="map-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">นำทาง</a>')
+        : ('<button class="map-link disabled" type="button" disabled>นำทาง</button>');
 
       var reportHtml =
-        '<button class="map-link map-report" type="button" data-id="' + escapeHtml(p.id) + '">📝 Report</button>';
+        '<button class="map-link map-report" type="button" data-id="' + escapeHtml(p.id) + '">Report</button>';
 
       var doneHtml =
-        '<button class="map-link map-done" type="button" data-id="' + escapeHtml(p.id) + '">✅ ไปแล้ว</button>';
+        '<button class="map-link map-done" type="button" data-id="' + escapeHtml(p.id) + '">ไปแล้ว</button>';
 
       var popup =
         '<div style="font-weight:1000;color:#071915">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
@@ -2517,10 +2429,10 @@
 
   function requestGPS(){
     if(!navigator.geolocation){
-      $('gpsPill').textContent = '🛰️ ไม่รองรับ';
+      $('gpsPill').textContent = 'GPS: ไม่รองรับ';
       return;
     }
-    $('gpsPill').textContent = '🛰️ กำลังหา...';
+    $('gpsPill').textContent = 'กำลังหา GPS…';
     navigator.geolocation.getCurrentPosition(function(pos){
       var lat = pos.coords.latitude;
       var lng = pos.coords.longitude;
@@ -2528,9 +2440,9 @@
       if(map) setCurrentLocation(lat, lng);
       else currentLatLng = {lat:lat, lng:lng};
 
-      $('gpsPill').textContent = '🛰️ GPS';
+      $('gpsPill').textContent = 'GPS: พร้อม';
 
-      if(CURRENT_SORT === 'nearest'){
+      if($('sortMode').value === 'nearest'){
         renderList();
         if(map) renderMap();
       }else{
@@ -2538,7 +2450,7 @@
       }
     }, function(err){
       console.warn(err);
-      $('gpsPill').textContent = '🛰️ ผิดพลาด';
+      $('gpsPill').textContent = 'GPS: ปฏิเสธ/ผิดพลาด';
     }, { enableHighAccuracy:true, timeout:10000, maximumAge:15000 });
   }
 
@@ -2568,10 +2480,7 @@
 
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
-      CURRENT_SORT = 'default';
-      saveSortMode_('default');
-      applySortLabel_();
-      renderSortList_();
+      $('sortMode').value = 'default';
       await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
@@ -2612,6 +2521,12 @@
   }, 90);
 
   $('q').addEventListener('input', rerenderAll);
+  $('sortMode').addEventListener('change', function(){
+    if($('sortMode').value === 'nearest' && !currentLatLng){
+      showToast('ยังไม่มีตำแหน่ง (กด GPS)');
+    }
+    rerenderAll();
+  });
 
   $('btnRefresh').onclick = function(){
     loadPlaces({ force:true });
@@ -2639,7 +2554,6 @@
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
       if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
-      if(sortDropIsOpen_()){ closeSortDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
@@ -2648,7 +2562,7 @@
 
   async function bootSheets_(){
     applyProjectTitle_();
-    $('sheetList').innerHTML = '<div class="pichint">กำลังโหลดชีท…</div>';
+    $('sheetList').innerHTML = '<div class="sheethint">กำลังโหลดชีท…</div>';
 
     try{
       var res = await apiGetSheets();
@@ -2670,13 +2584,9 @@
 
     SHEETS = [];
     setSelectedSheet_(CURRENT_SHEET || '', false);
-    $('sheetList').innerHTML = '<div class="pichint">โหลดรายชื่อชีทไม่สำเร็จ</div>';
+    $('sheetList').innerHTML = '<div class="sheethint">โหลดรายชื่อชีทไม่สำเร็จ</div>';
   }
 
-  CURRENT_SORT = loadSortMode_();
-  applySortLabel_();
-  renderSortList_();
-  
   updateFixedHeights();
   bootSheets_().then(function(){
     loadPlaces({ force:true });
