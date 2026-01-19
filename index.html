@@ -53,52 +53,19 @@
       position:sticky; top:0; z-index:99997;
       background:linear-gradient(90deg,#0f8f83,#0b7c73);
       color:#fff;
-      padding: calc(8px + env(safe-area-inset-top)) 12px 10px;
+      padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
       box-shadow:0 10px 24px rgba(0,0,0,.14);
-      display:flex;
-      flex-direction:column;
-      gap:8px;
     }
-    .hdr{ display:flex; gap:10px; align-items:center; min-width:0; }
+    .hdr{ display:flex; gap:10px; align-items:center; }
+    .hdr + .hdr{ margin-top:8px; }
 
-    .hdr-center{
-      flex:1 1 auto;
-      min-width:0;
-      display:flex;
-      align-items:center;
-    }
-
-    .hdr-right{
+    .topbar .titlewrap{ flex:1; min-width:0; }
+    .topbar .rightbox{
       margin-left:auto;
       display:flex;
       align-items:center;
       gap:8px;
       flex:0 0 auto;
-    }
-
-    .hdr-stats{
-      display:flex;
-      min-width:0;
-    }
-
-    .hdr-pickers{
-      display:flex;
-      gap:10px;
-      min-width:0;
-      align-items:center;
-    }
-    .hdr-pickers > *{ min-width:0; }
-    .hdr-pickers .sheetpick{ flex:1 1 0; }
-    .hdr-pickers #sortMode{ flex:1 1 0; width:100%; }
-
-    .hdr-search{
-      display:flex;
-      min-width:0;
-    }
-    .hdr-search .search{
-      flex:1 1 auto;
-      width:100%;
-      min-width:0;
     }
 
     .menu-btn{
@@ -117,37 +84,35 @@
 
     .title{
       font-weight:1000;
-      font-size:16px;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      line-height:1.1;
+      font-size:17px;
+      display:flex; gap:8px; align-items:center;
+      line-height:1.15;
       min-width:0;
       white-space:nowrap;
-    }
-    .title #projTitle{
-      display:inline-block;
-      max-width:100%;
       overflow:hidden;
       text-overflow:ellipsis;
-      vertical-align:bottom;
+    }
+    #projTitle{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      display:inline-block;
     }
 
     .tstats{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:6px;
+      display:block;
+      width:100%;
+      text-align:center;
       padding:6px 10px;
       border-radius:999px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       font-weight:1000;
       font-size:12px;
-      width:100%;
-      flex-wrap:wrap;
+      line-height:1.2;
       white-space:normal;
-      text-align:center;
+      overflow-wrap:anywhere;
     }
 
     .badge{
@@ -156,34 +121,66 @@
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.16);
       font-weight:900;
-      font-size:12px;
+      font-size:13px;
       white-space:nowrap;
-      min-height:40px;
-      display:inline-flex;
+      display:flex;
       align-items:center;
-      max-width:min(44vw, 220px);
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .iconbtn{
+      gap:8px;
       min-height:40px;
-      min-width:40px;
+    }
+    .icon-btn{
+      min-height:34px;
+      min-width:34px;
+      width:34px;
+      height:34px;
       padding:0;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.14);
+      color:#fff;
+      font-weight:1000;
+      font-size:16px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      border-radius:14px;
-      font-size:18px;
-      line-height:1;
     }
-    .iconbtn:active{ transform:scale(.97); }
-    .iconbtn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none; }
+    .icon-btn:active{ transform:scale(.99); }
+    .icon-btn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none; }
+
+    .btn-map{
+      min-height:40px;
+      border-radius:16px;
+      border:1px solid rgba(15,143,131,.25);
+      background:linear-gradient(90deg,#0f8f83,#0b7c73);
+      color:#fff;
+      padding:10px 12px;
+      font-weight:1000;
+      font-size:14px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space:nowrap;
+    }
+    .btn-map:active{ transform:scale(.99); }
+
+    .controls{
+      margin-top:10px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
 
     .sheetpick{
       position:relative;
       flex:0 0 auto;
     }
+    .sortpick{
+      position:relative;
+      flex:0 0 auto;
+    }
+
     .sheetbtn{
       display:inline-flex;
       align-items:center;
@@ -199,19 +196,28 @@
       cursor:pointer;
       -webkit-tap-highlight-color: transparent;
       white-space:nowrap;
-      width:100%;
     }
     .sheetbtn:active{transform:scale(.99)}
-    .sheetbtn .sheetLabel{
+
+    .pickrow .sheetpick,
+    .pickrow .sortpick{
+      flex:1 1 0;
+      min-width:0;
+    }
+    .pickrow .sheetbtn{
+      width:100%;
+      justify-content:space-between;
+      min-width:0;
+    }
+    #sheetBtn span,
+    #sortBtn span{
       min-width:0;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
+      display:inline-block;
     }
-    .sheetbtn .sheetCaret{
-      margin-left:auto;
-      opacity:.9;
-    }
+
     .sheetdrop{
       position:absolute;
       left:0;
@@ -226,7 +232,9 @@
       display:none;
       z-index:100010;
     }
+    .sortpick .sheetdrop{ left:auto; right:0; }
     .sheetdrop.show{ display:block; }
+
     .sheetsearch{
       min-height:44px;
       display:flex; align-items:center; gap:10px;
@@ -245,6 +253,7 @@
       font-weight:900;
     }
     .sheetsearch input::placeholder{ color:rgba(59,103,96,.75); }
+
     .sheetlist{
       margin-top:10px;
       display:flex;
@@ -255,6 +264,7 @@
       -webkit-overflow-scrolling: touch;
       padding-bottom:2px;
     }
+
     .sheetitem{
       width:100%;
       min-height:44px;
@@ -287,13 +297,15 @@
     }
 
     .search{
-      flex:1 1 240px;
+      flex:1 1 auto;
+      width:100%;
       min-height:var(--tap);
       display:flex; align-items:center; gap:10px;
       border-radius:16px;
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.14);
       padding:10px 12px;
+      min-width:0;
     }
     .search input{
       width:100%;
@@ -301,8 +313,10 @@
       background:transparent;
       color:#fff;
       font-size:16px;
+      min-width:0;
     }
     .search input::placeholder{color:rgba(255,255,255,.78)}
+
     select, button{
       min-height:var(--tap);
       border-radius:14px;
@@ -1005,29 +1019,29 @@
 </div>
 
 <header>
-  <div class="hdr">
+  <div class="hdr topbar">
     <button id="btnMenu" class="menu-btn" type="button" aria-label="เปิดเมนู">☰</button>
 
-    <div class="hdr-center">
-      <div class="title">
-        📍 <span id="projTitle">GBKK Tracker</span>
-      </div>
+    <div class="titlewrap">
+      <div class="title">📍 <span id="projTitle">GBKK Tracker</span></div>
     </div>
 
-    <div class="hdr-right">
-      <button id="btnRefresh" class="iconbtn btn-solid" type="button" aria-label="รีเฟรช" title="รีเฟรช">🔄</button>
-      <button id="btnResetAll" class="iconbtn btn-danger" type="button" aria-label="ล้างทั้งหมด" title="ล้างทั้งหมด">🧹</button>
-      <div id="badge" class="badge">กำลังโหลด…</div>
+    <div class="rightbox">
+      <div id="badge" class="badge">
+        <span id="badgeText">กำลังโหลด…</span>
+        <button id="btnRefresh" class="icon-btn" type="button" aria-label="รีเฟรช">⟳</button>
+      </div>
+      <button id="btnResetAll" class="btn-map" type="button">ล้างทั้งหมด</button>
     </div>
   </div>
 
-  <div class="hdr-stats">
+  <div class="hdr statsrow">
     <span id="titleStats" class="tstats">ทั้งหมด — | เหลือ — | ไปแล้ว —</span>
   </div>
 
-  <div id="controls" class="hdr-pickers">
+  <div class="hdr pickrow">
     <div class="sheetpick" id="sheetPicker">
-      <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel" class="sheetLabel">—</span> <span class="sheetCaret">▾</span></button>
+      <button id="sheetBtn" class="sheetbtn" type="button">🗂️ <span id="sheetLabel">—</span> ▾</button>
       <div id="sheetDrop" class="sheetdrop" aria-hidden="true">
         <div class="sheetsearch">
           🔎
@@ -1038,13 +1052,20 @@
       </div>
     </div>
 
-    <select id="sortMode" aria-label="เรียงลำดับ">
+    <div class="sortpick" id="sortPicker">
+      <button id="sortBtn" class="sheetbtn" type="button">↕️ <span id="sortLabel">ค่าเดิม</span> ▾</button>
+      <div id="sortDrop" class="sheetdrop" aria-hidden="true">
+        <div id="sortList" class="sheetlist"></div>
+      </div>
+    </div>
+
+    <select id="sortMode" aria-label="เรียงลำดับ" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0">
       <option value="default">ค่าเดิม</option>
       <option value="nearest">ใกล้ฉัน</option>
     </select>
   </div>
 
-  <div class="hdr-search">
+  <div class="hdr searchrow">
     <div class="search">
       🔎
       <input id="q" type="search" placeholder="ค้นหา ID หรือชื่อ…" autocomplete="off">
@@ -1409,6 +1430,7 @@
   }
 
   function openSheetDrop_(){
+    closeSortDrop_();
     $('sheetDrop').classList.add('show');
     $('sheetDrop').setAttribute('aria-hidden','false');
     setTimeout(function(){
@@ -1493,6 +1515,88 @@
     if(!p) closeSheetDrop_();
   }, true);
 
+  function openSortDrop_(){
+    if(sheetDropIsOpen_()) closeSheetDrop_();
+    $('sortDrop').classList.add('show');
+    $('sortDrop').setAttribute('aria-hidden','false');
+  }
+  function closeSortDrop_(){
+    if(!$('sortDrop')) return;
+    $('sortDrop').classList.remove('show');
+    $('sortDrop').setAttribute('aria-hidden','true');
+  }
+  function sortDropIsOpen_(){
+    return $('sortDrop') && $('sortDrop').classList.contains('show');
+  }
+
+  function sortLabelFor_(v){
+    v = String(v || '');
+    if(v === 'nearest') return 'ใกล้ฉัน';
+    return 'ค่าเดิม';
+  }
+
+  function renderSortList_(){
+    var cur = String($('sortMode').value || 'default');
+    var items = [
+      { value:'default', label:'ค่าเดิม' },
+      { value:'nearest', label:'ใกล้ฉัน' }
+    ];
+    var html = '';
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      var active = (String(it.value) === cur);
+      html +=
+        '<button class="sheetitem' + (active ? ' active' : '') + '" type="button" data-sort="' + escapeHtml(it.value) + '">' +
+          '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(it.label) + '</span>' +
+          (active ? '<span>✓</span>' : '<span style="opacity:.65"> </span>') +
+        '</button>';
+    }
+    $('sortList').innerHTML = html;
+    $('sortLabel').textContent = sortLabelFor_(cur);
+  }
+
+  function setSortMode_(v, fire){
+    v = (String(v) === 'nearest') ? 'nearest' : 'default';
+    var sel = $('sortMode');
+    if(!sel) return;
+
+    if(sel.value !== v){
+      sel.value = v;
+      $('sortLabel').textContent = sortLabelFor_(v);
+      renderSortList_();
+      if(fire){
+        sel.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+      updateFixedHeights();
+      return;
+    }
+
+    $('sortLabel').textContent = sortLabelFor_(v);
+    renderSortList_();
+    updateFixedHeights();
+  }
+
+  $('sortBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if(sortDropIsOpen_()) closeSortDrop_();
+    else openSortDrop_();
+  });
+
+  $('sortList').addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-sort]') : null;
+    if(!btn) return;
+    var v = btn.getAttribute('data-sort');
+    closeSortDrop_();
+    setSortMode_(v, true);
+  }, true);
+
+  document.addEventListener('click', function(ev){
+    if(!sortDropIsOpen_()) return;
+    var p = ev.target && ev.target.closest ? ev.target.closest('#sortPicker') : null;
+    if(!p) closeSortDrop_();
+  }, true);
+
   function cacheKey_(sheetName){
     var s = (sheetName !== undefined && sheetName !== null) ? String(sheetName) : '';
     s = s || CURRENT_SHEET || 'default';
@@ -1506,7 +1610,7 @@
   function renderTopStats(){
     $('titleStats').textContent =
       'ทั้งหมด ' + META.total + ' | เหลือ ' + META.remaining + ' | ไปแล้ว ' + META.visited;
-    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
+    $('badgeText').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'กำลังโหลด…');
   }
 
   var map = null;
@@ -1696,7 +1800,7 @@
         '<div class="spinner"></div>' +
         'กำลังโหลดข้อมูล…' +
       '</div>';
-    $('badge').textContent = 'กำลังโหลด…';
+    $('badgeText').textContent = 'กำลังโหลด…';
     $('titleStats').textContent = 'ทั้งหมด — | เหลือ — | ไปแล้ว —';
   }
 
@@ -2216,7 +2320,7 @@
     renderList();
     if(map) renderMap();
 
-    $('badge').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
+    $('badgeText').textContent = (META.total ? ('เหลือ ' + META.remaining + '/' + META.total) : 'พร้อม');
     return true;
   }
 
@@ -2233,9 +2337,9 @@
     if(forceSpinner || (!PLACES || PLACES.length === 0)){
       var usedCache = renderFromCacheIfAny_(sheetAtCall);
       if(!usedCache) showLoading();
-      else $('badge').textContent = 'กำลังอัปเดท…';
+      else $('badgeText').textContent = 'กำลังอัปเดท…';
     }else{
-      $('badge').textContent = 'กำลังอัปเดท…';
+      $('badgeText').textContent = 'กำลังอัปเดท…';
     }
 
     try{
@@ -2244,7 +2348,7 @@
 
       if(!res || !res.ok){
         console.error('getPlaces failed:', res);
-        $('badge').textContent = 'ผิดพลาด';
+        $('badgeText').textContent = 'ผิดพลาด';
         $('list').innerHTML =
           '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' +
           escapeHtml(res && res.message ? res.message : 'ไม่ทราบสาเหตุ') +
@@ -2267,7 +2371,7 @@
     }catch(err){
       if(sheetAtCall !== (CURRENT_SHEET || '')) return;
       console.error(err);
-      $('badge').textContent = 'ผิดพลาด';
+      $('badgeText').textContent = 'ผิดพลาด';
       $('list').innerHTML =
         '<div class="center">โหลดไม่สำเร็จ<br><span class="warn">' + escapeHtml(err && err.message ? err.message : String(err)) + '</span></div>';
     }
@@ -2480,7 +2584,7 @@
 
       showToast('ล้างแล้ว ✅');
       $('q').value = '';
-      $('sortMode').value = 'default';
+      setSortMode_('default', false);
       await loadPlaces({ force:true });
     }catch(err){
       console.error(err);
@@ -2522,6 +2626,8 @@
 
   $('q').addEventListener('input', rerenderAll);
   $('sortMode').addEventListener('change', function(){
+    $('sortLabel').textContent = sortLabelFor_($('sortMode').value);
+    renderSortList_();
     if($('sortMode').value === 'nearest' && !currentLatLng){
       showToast('ยังไม่มีตำแหน่ง (กด GPS)');
     }
@@ -2554,6 +2660,7 @@
   window.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
       if(sheetDropIsOpen_()){ closeSheetDrop_(); return; }
+      if(sortDropIsOpen_()){ closeSortDrop_(); return; }
       if(document.body.classList.contains('set-open')){ closeSettings(); return; }
       if(document.body.classList.contains('rep-open')){ closeReport(); return; }
       if(sidebarIsOpen()){ closeSidebar(); return; }
@@ -2588,6 +2695,7 @@
   }
 
   updateFixedHeights();
+  renderSortList_();
   bootSheets_().then(function(){
     loadPlaces({ force:true });
   });
