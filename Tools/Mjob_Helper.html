@@ -868,6 +868,8 @@
     <div class="topInner">
       <div class="topLeft">
         <div class="topTitleRow">
+          <span class="badge ok" id="lineScheduleBadge" style="display:none">🔔 -</span>
+
           <div class="topTitle">GhostShift</div>
           <span class="badge wait" id="saveStateBadge">พร้อมใช้งาน</span>
           <span class="pill" id="headerGoalPill">DL: <b id="dlCountTop">0</b>/40</span>
@@ -1123,6 +1125,15 @@
         </div>
 
         <div style="height:10px"></div>
+
+        <!-- LINE Schedule Status Display -->
+        <div id="lineCurrentScheduleInfo" class="field" style="display:none;background:#e7fbf4;border-color:#bfeee0">
+          <label>📅 Schedule ปัจจุบัน</label>
+          <div id="lineScheduleStatusText" style="font-weight:700;color:#0b5f4a">-</div>
+        </div>
+
+        <div style="height:10px"></div>
+
 
         <div class="field">
           <label>LINE Code (ตั้งเอง)</label>
@@ -1394,12 +1405,18 @@
       $("settingsBackdrop").classList.remove("show");
     }
 
+    // Flag to prevent multiple quick link popups (Bug #4 fix)
+    let _quickLinkPopupOpen = false;
+
     function openQuickLink(prefill = "") {
+      if (_quickLinkPopupOpen) return;
+      _quickLinkPopupOpen = true;
       $("lineQuickLinkBackdrop").classList.add("show");
       $("quickLinkCodeInput").value = String(prefill || state.line.code || "").trim();
       setTimeout(() => $("quickLinkCodeInput").focus(), 50);
     }
     function closeQuickLink() {
+      _quickLinkPopupOpen = false;
       $("lineQuickLinkBackdrop").classList.remove("show");
     }
 
@@ -1443,6 +1460,10 @@
       return msg.includes("not linked") || msg.includes("code not linked") || msg.includes("forbidden");
     }
 
+    // Retry state for start-day notification (Issue #7 fix)
+    let _startDayRetryCount = 0;
+    const MAX_START_DAY_RETRIES = 2;
+
     async function lineNotifyStartDayIfNeeded() {
       if (!state.line.enabled) return;
       if (!ensureLineReadyOrPrompt()) return;
@@ -1464,6 +1485,7 @@
           state.line.lastStartDate = ymd;
           saveLineCfg();
           log("LINE start-day sent:", msg);
+          _startDayRetryCount = 0;  // Reset on success
         } else {
           log("LINE start-day failed:", json);
           if (isCodeNotLinked(res, json)) {
@@ -1471,11 +1493,23 @@
             openQuickLink(code);
           } else {
             showToast("ส่ง LINE ไม่สำเร็จ", (json && (json.error || json.detail)) ? String(json.error || json.detail).slice(0, 160) : "ตรวจสอบ Worker/เน็ต", 5200);
+            // Retry after 30 seconds if not reached max
+            if (_startDayRetryCount < MAX_START_DAY_RETRIES) {
+              _startDayRetryCount++;
+              setTimeout(() => lineNotifyStartDayIfNeeded(), 30000);
+              log("LINE start-day will retry in 30s, attempt:", _startDayRetryCount);
+            }
           }
         }
       } catch (e) {
         log("LINE notify error:", e && (e.name || e.message) ? (e.name || e.message) : e);
         showToast("ส่ง LINE ไม่สำเร็จ", "เช็ค Worker/อินเทอร์เน็ต", 5200);
+        // Retry on network error
+        if (_startDayRetryCount < MAX_START_DAY_RETRIES) {
+          _startDayRetryCount++;
+          setTimeout(() => lineNotifyStartDayIfNeeded(), 30000);
+          log("LINE start-day will retry in 30s (network error), attempt:", _startDayRetryCount);
+        }
       }
     }
 
@@ -1504,7 +1538,14 @@
       if (!ensureLineReadyOrPrompt()) return;
 
       const s = state.schedule;
-      if (!s || s.error || !s.nextAt || !s.nextTag) return;
+      // Bug #3 fix: Cancel existing schedule if schedule is now invalid
+      if (!s || s.error || !s.nextAt || !s.nextTag) {
+        if (state.line.lastScheduleKey) {
+          void lineCancelSchedule("schedule now invalid: " + String(s?.error || "no nextAt/nextTag"));
+        }
+        renderLineStatusBadge(false, null);
+        return;
+      }
 
       // สำคัญ: schedule ไป Worker “หลังมีการดาวน์โหลดแล้ว” เท่านั้น
       if (!s.source || !s.source.lastDownloadedAt) return;
@@ -1529,6 +1570,8 @@
           state.line.lastScheduledCode = code; // NEW
           saveLineCfg();
           log("LINE scheduled:", { scheduleKey, dueAtMs, message, reason });
+          // UI Issue #1: Update badge in header
+          renderLineStatusBadge(true, fmtTimeOnly(dueAtMs));
         } else {
           log("LINE schedule failed:", json);
           state.line.lastScheduleKey = "";
@@ -1570,6 +1613,39 @@
     function syncLineUIFromState() {
       $("lineEnableToggle").checked = !!state.line.enabled;
       $("lineCodeInput").value = state.line.code || "";
+      updateLineScheduleInfoInSettings();
+    }
+
+    // UI Issue #1: Render LINE schedule badge in header
+    function renderLineStatusBadge(active, timeText) {
+      const badge = $("lineScheduleBadge");
+      if (!badge) return;
+      if (active && timeText) {
+        badge.style.display = "";
+        badge.textContent = `🔔 ${timeText}`;
+        badge.className = "badge ok";
+      } else {
+        badge.style.display = "none";
+      }
+    }
+
+    // UI Issue #3: Update schedule info in Settings modal
+    function updateLineScheduleInfoInSettings() {
+      const infoDiv = $("lineCurrentScheduleInfo");
+      const textDiv = $("lineScheduleStatusText");
+      if (!infoDiv || !textDiv) return;
+
+      if (!state.line.enabled || !state.line.lastScheduleKey) {
+        infoDiv.style.display = "none";
+        return;
+      }
+
+      infoDiv.style.display = "";
+      const parts = state.line.lastScheduleKey.split("@");
+      const tag = parts[0] || "-";
+      const dueMs = parseInt(parts[1], 10);
+      const timeStr = dueMs ? fmtTimeOnly(dueMs) : "-";
+      textDiv.textContent = `🔔 เตือน ${tag} เมื่อ ${timeStr}`;
     }
     function syncLineStateFromUI() {
       state.line.enabled = $("lineEnableToggle").checked;
@@ -1653,7 +1729,15 @@
         let json = null;
         try { json = JSON.parse(txt); } catch (_) { }
         if (json) {
-          showToast("STATUS", `ok=${json.ok} • alarmAt=${json.alarmAt ? fmtDT(json.alarmAt) : "-"}`, 6500);
+          // UI Issue #2: Show more detailed status
+          const alarmTime = json.alarmAt ? fmtDT(json.alarmAt) : "-";
+          const schedKey = json.scheduleKey || "-";
+          const msgPreview = json.message ? String(json.message).slice(0, 30) : "-";
+          showToast(
+            "LINE Schedule Status",
+            `⏰ ${alarmTime} • 📝 ${msgPreview}`,
+            8000
+          );
           log("LINE status:", json);
         } else {
           showToast("STATUS", txt.slice(0, 160), 6500);
