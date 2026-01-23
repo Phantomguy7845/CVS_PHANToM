@@ -362,12 +362,69 @@
 
     .btnMini {
       width: auto;
-      min-height: 32px;
-      padding: 6px 10px;
+      min-height: 28px;
+      padding: 4px 16px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 900;
       box-shadow: none;
+      flex-shrink: 0;
+    }
+
+    .btnGroup {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .imageViewerBackdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .imageViewerBackdrop.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .imageViewerContent {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .imageViewerImg {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      user-select: none;
+    }
+
+    .imageViewerCloseBtn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+      font-size: 24px;
+      backdrop-filter: blur(4px);
     }
 
     .actions {
@@ -3061,7 +3118,9 @@
 
       const img = document.createElement("img");
       img.className = "thumb";
+      img.style.cursor = "pointer";
       img.src = getThumbUrl(photo);
+      img.onclick = () => openImageViewer(img.src);
       img.alt = photo.tag;
 
       const info = document.createElement("div");
@@ -3114,11 +3173,13 @@
 
       timeUseRow.appendChild(reco);
 
-      // Pending: Edit + small Download buttons on same line
+      // Pending: Edit + small Download buttons on same line (Grouped)
       if (!isDownloaded) {
+        const btnGroup = document.createElement("div");
+        btnGroup.className = "btnGroup";
+
         const editBtn = document.createElement("button");
         editBtn.className = "btn soft btnMini";
-        editBtn.style.width = "auto";
         editBtn.textContent = "✏️";
         editBtn.title = "แทนที่รูปใบนี้ (Pending เท่านั้น)";
         editBtn.onclick = async () => {
@@ -3127,12 +3188,11 @@
           state.replace.targetTag = photo.tag;
           await openCamera(true);
         };
-        timeUseRow.appendChild(editBtn);
+        btnGroup.appendChild(editBtn);
 
         // Small download button for pending (with confirmation)
         const dlBtnPending = document.createElement("button");
         dlBtnPending.className = "btn primary btnMini";
-        dlBtnPending.style.width = "auto";
         dlBtnPending.textContent = "⬇";
         dlBtnPending.title = "Download รูปนี้";
         dlBtnPending.onclick = async () => {
@@ -3142,7 +3202,9 @@
           try { await downloadPhoto(photo); }
           finally { dlBtnPending.disabled = false; }
         };
-        timeUseRow.appendChild(dlBtnPending);
+        btnGroup.appendChild(dlBtnPending);
+
+        timeUseRow.appendChild(btnGroup);
       }
 
       // Downloaded: full actions grid with Download + Delete
@@ -3423,6 +3485,39 @@
 
     window.addEventListener("beforeunload", () => revokeAllThumbs());
     boot();
+  </script>
+  <!-- Image Viewer Modal -->
+  <div id="imageViewerBackdrop" class="imageViewerBackdrop">
+    <div class="imageViewerContent">
+      <img id="imageViewerImg" class="imageViewerImg" src="" alt="Full view" />
+      <div id="imageViewerClose" class="imageViewerCloseBtn">✕</div>
+    </div>
+  </div>
+
+  <script>
+    // Image Viewer Logic
+    function openImageViewer(src) {
+      if (!src) return;
+      const backdrop = document.getElementById("imageViewerBackdrop");
+      const img = document.getElementById("imageViewerImg");
+      img.src = src;
+      backdrop.classList.add("show");
+    }
+
+    function closeImageViewer() {
+      const backdrop = document.getElementById("imageViewerBackdrop");
+      backdrop.classList.remove("show");
+      setTimeout(() => {
+        document.getElementById("imageViewerImg").src = "";
+      }, 200);
+    }
+
+    document.getElementById("imageViewerBackdrop").addEventListener("click", (e) => {
+      // Close if clicked on backdrop or close button, but not image itself
+      if (e.target.id !== "imageViewerImg") {
+        closeImageViewer();
+      }
+    });
   </script>
 </body>
 
