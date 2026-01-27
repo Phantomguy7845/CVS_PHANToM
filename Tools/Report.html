@@ -322,7 +322,7 @@
             <option value="LAWSON">LAWSON</option>
             <option value="BIG C">BIG C</option>
             <option value="VILLA MARKET">VILLA MARKET</option>
-            <option value="LOTUS'S">LOTUS'S</option>
+            <option value="LOTUS'S GO FRESH">LOTUS'S GO FRESH</option>
             <option value="JIFFY">JIFFY</option>
             <option value="TOPS">TOPS</option>
           </select>
@@ -489,7 +489,7 @@
     const a = (account || "").trim().toUpperCase();
     if (["CJ MORE","LAWSON","BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
     if (["JIFFY","TOPS"].includes(a)) return LINE_GROUPS.groupB;
-    if (["LOTUS'S"].includes(a)) return LINE_GROUPS.groupC;
+    if (["LOTUS'S GO FRESH"].includes(a)) return LINE_GROUPS.groupC;
     return LINE_GROUPS.groupA;
   }
 
