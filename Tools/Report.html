@@ -320,7 +320,7 @@
             <option value="" selected>— เลือกแอคเคาท์ —</option>
             <option value="CJ MORE">CJ MORE</option>
             <option value="LAWSON">LAWSON</option>
-            <option value="BIG C">BIG C</option>
+            <option value="MINI BIG C">MINI BIG C</option>
             <option value="VILLA MARKET">VILLA MARKET</option>
             <option value="LOTUS'S GO FRESH">LOTUS'S GO FRESH</option>
             <option value="JIFFY">JIFFY</option>
@@ -487,7 +487,7 @@
 
   function getLineUrlByAccount(account){
     const a = (account || "").trim().toUpperCase();
-    if (["CJ MORE","LAWSON","BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
+    if (["CJ MORE","LAWSON","MINI BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
     if (["JIFFY","TOPS"].includes(a)) return LINE_GROUPS.groupB;
     if (["LOTUS'S GO FRESH"].includes(a)) return LINE_GROUPS.groupC;
     return LINE_GROUPS.groupA;
