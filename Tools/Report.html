@@ -324,7 +324,7 @@
             <option value="VILLA MARKET">VILLA MARKET</option>
             <option value="LOTUS'S GO FRESH">LOTUS'S GO FRESH</option>
             <option value="JIFFY">JIFFY</option>
-            <option value="TOPS">TOPS</option>
+            <option value="TOPS DAILY">TOPS DAILY</option>
           </select>
 
           <div class="mini">กด COPY แล้วจะเปิดลิงก์ LINE ของกลุ่มตามแอคเคาท์ให้ทันที</div>
@@ -488,7 +488,7 @@
   function getLineUrlByAccount(account){
     const a = (account || "").trim().toUpperCase();
     if (["CJ MORE","LAWSON","MINI BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
-    if (["JIFFY","TOPS"].includes(a)) return LINE_GROUPS.groupB;
+    if (["JIFFY","TOPS DAILY"].includes(a)) return LINE_GROUPS.groupB;
     if (["LOTUS'S GO FRESH"].includes(a)) return LINE_GROUPS.groupC;
     return LINE_GROUPS.groupA;
   }
