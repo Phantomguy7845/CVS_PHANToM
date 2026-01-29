@@ -1205,6 +1205,19 @@
     });
   }
 
+  function getTodayYMD(){
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function formatLastVisited(dateStr){
+    if(!dateStr) return '-';
+    return String(dateStr);
+  }
+
   function showToast(msg){
     var t = $('toast');
     t.textContent = msg;
@@ -2201,10 +2214,13 @@
       var hasLL = hasLatLng_(p);
       var locText = hasLL ? (Number(p.lat).toFixed(6) + ', ' + Number(p.lng).toFixed(6)) : '<span class="warn">⚠ ไม่มีพิกัด</span>';
 
+      var lastText = formatLastVisited(p.lastVisitedDate);
+
       html +=
         '<div class="item" data-id="' + escapeHtml(p.id) + '">' +
           '<div class="name">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
           '<div class="sub">' + locText + '</div>' +
+          '<div class="sub">🗓️ ไปล่าสุด: ' + escapeHtml(lastText) + '</div>' +
           '<div class="actions">' +
             '<button class="a-btn a-nav" data-act="nav" type="button">นำทาง</button>' +
             '<button class="a-btn a-report" data-act="report" type="button">Report</button>' +
@@ -2252,8 +2268,11 @@
       var doneHtml =
         '<button class="map-link map-done" type="button" data-id="' + escapeHtml(p.id) + '">ไปแล้ว</button>';
 
+      var lastTextMap = formatLastVisited(p.lastVisitedDate);
+
       var popup =
         '<div style="font-weight:1000;color:#071915">[' + escapeHtml(p.id) + '] ' + escapeHtml(p.name) + '</div>' +
+        '<div style="font-size:12px;color:#3b6760;margin-top:4px;">🗓️ ไปล่าสุด: ' + escapeHtml(lastTextMap) + '</div>' +
         '<div class="map-actions">' + navHtml + reportHtml + doneHtml + '</div>';
 
       var mk = L.marker([p.lat, p.lng]).addTo(placesLayer).bindPopup(popup);
@@ -2446,14 +2465,7 @@
       showToast('บันทึกแล้ว ✅');
 
       if(sh === String(CURRENT_SHEET || '')){
-        var cached = cacheRead_(sh);
-        if(cached && cached.payload && cached.payload.ok){
-          cached.payload.total = META.total;
-          cached.payload.visited = META.visited;
-          cached.payload.remaining = META.remaining;
-          cached.payload.places = PLACES;
-          cacheWrite_(cached.payload, sh);
-        }
+        loadPlaces({ force: false });
       }
     }catch(err){
       console.error(err);
