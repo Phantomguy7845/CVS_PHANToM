@@ -1059,9 +1059,12 @@
       </div>
     </div>
 
+    <!-- hidden select used as state -->
     <select id="sortMode" aria-label="เรียงลำดับ" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0">
       <option value="default">ค่าเดิม</option>
       <option value="nearest">ใกล้ฉัน</option>
+      <option value="last_new">ล่าสุด-เก่ากว่า</option>
+      <option value="old_new">เก่ากว่า-ล่าสุด</option>
     </select>
   </div>
 
@@ -1216,6 +1219,47 @@
   function formatLastVisited(dateStr){
     if(!dateStr) return '-';
     return String(dateStr);
+  }
+
+  // ---- NOTE: used for sorting lastVisitedDate ----
+  // Returns epoch-ms. Empty/invalid => -Infinity
+  function lastVisitedKey_(v){
+    if(v === null || v === undefined || v === '') return Number.NEGATIVE_INFINITY;
+
+    // If Apps Script returns a Date-like value
+    if(Object.prototype.toString.call(v) === '[object Date]'){
+      var t0 = v.getTime();
+      return isFinite(t0) ? t0 : Number.NEGATIVE_INFINITY;
+    }
+
+    var s = String(v).trim();
+    if(!s) return Number.NEGATIVE_INFINITY;
+
+    // ISO: YYYY-MM-DD
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(mIso){
+      var y = parseInt(mIso[1],10);
+      var mo = parseInt(mIso[2],10);
+      var d = parseInt(mIso[3],10);
+      var dt = new Date(y, mo-1, d);
+      var t = dt.getTime();
+      return isFinite(t) ? t : Number.NEGATIVE_INFINITY;
+    }
+
+    // Thai-ish common: DD/MM/YYYY (or D/M/YYYY)
+    var mDMY = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(mDMY){
+      var dd = parseInt(mDMY[1],10);
+      var mm = parseInt(mDMY[2],10);
+      var yy = parseInt(mDMY[3],10);
+      var dt2 = new Date(yy, mm-1, dd);
+      var t2 = dt2.getTime();
+      return isFinite(t2) ? t2 : Number.NEGATIVE_INFINITY;
+    }
+
+    // Fallback Date.parse
+    var t3 = Date.parse(s);
+    return isFinite(t3) ? t3 : Number.NEGATIVE_INFINITY;
   }
 
   function showToast(msg){
@@ -1545,6 +1589,8 @@
   function sortLabelFor_(v){
     v = String(v || '');
     if(v === 'nearest') return 'ใกล้ฉัน';
+    if(v === 'last_new') return 'ล่าสุด-เก่ากว่า';
+    if(v === 'old_new') return 'เก่ากว่า-ล่าสุด';
     return 'ค่าเดิม';
   }
 
@@ -1552,7 +1598,9 @@
     var cur = String($('sortMode').value || 'default');
     var items = [
       { value:'default', label:'ค่าเดิม' },
-      { value:'nearest', label:'ใกล้ฉัน' }
+      { value:'nearest', label:'ใกล้ฉัน' },
+      { value:'last_new', label:'ล่าสุด-เก่ากว่า' },
+      { value:'old_new', label:'เก่ากว่า-ล่าสุด' }
     ];
     var html = '';
     for(var i=0;i<items.length;i++){
@@ -1569,7 +1617,11 @@
   }
 
   function setSortMode_(v, fire){
-    v = (String(v) === 'nearest') ? 'nearest' : 'default';
+    v = String(v || '');
+    if(v !== 'nearest' && v !== 'last_new' && v !== 'old_new' && v !== 'default'){
+      v = 'default';
+    }
+
     var sel = $('sortMode');
     if(!sel) return;
 
@@ -1787,7 +1839,8 @@
       });
     }
 
-    var mode = $('sortMode').value;
+    var mode = String($('sortMode').value || 'default');
+
     if(mode === 'nearest' && currentLatLng){
       arr = arr.map(function(p){
         var d = Number.POSITIVE_INFINITY;
@@ -1797,6 +1850,24 @@
         p._d = d;
         return p;
       }).sort(function(a,b){ return (a._d || 0) - (b._d || 0); });
+      return arr;
+    }
+
+    if(mode === 'last_new' || mode === 'old_new'){
+      arr.sort(function(a, b){
+        var ka = lastVisitedKey_(a ? a.lastVisitedDate : '');
+        var kb = lastVisitedKey_(b ? b.lastVisitedDate : '');
+
+        // last_new: newest first => kb - ka
+        // old_new: oldest first => ka - kb
+        var diff = (mode === 'last_new') ? (kb - ka) : (ka - kb);
+        if(diff !== 0 && isFinite(diff)) return diff;
+
+        // tie-break: stable-ish by id
+        var ida = a && a.id ? String(a.id) : '';
+        var idb = b && b.id ? String(b.id) : '';
+        return ida.localeCompare(idb, 'th');
+      });
     }
 
     return arr;
