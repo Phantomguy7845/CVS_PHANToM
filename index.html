@@ -1412,6 +1412,14 @@
     return await jsonp(url);
   }
 
+  async function apiSaveNoted(id, noted, sheetName){
+    var params = { id:id, noted:noted };
+    if(sheetName) params.sheet = sheetName;
+    var url = apiUrl('saveNoted', params);
+    if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
+    return await jsonp(url);
+  }
+
   var SETTINGS = loadSettings_();
 
   function loadSettings_(){
@@ -1893,13 +1901,117 @@
   var REPORT_TRIMMED = false;
   var REPORT_EMBED_PATCHED = false;
   var REPORT_COPY_HOOKED = false;
+  var REPORT_PREFILL_ACKED = false;
+  var REPORT_NOTED_SAVE_WARNED = false;
 
   function normText(s){
     return String(s || '').replace(/\s+/g,' ').trim().toLowerCase();
   }
 
+  function reportNotedDefaults_(){
+    return { pog:'ตรง', sku:'ไม่ครบ', oos:'', issue:'', note:'' };
+  }
+
+  function normalizePogValue_(v){
+    return String(v === null || v === undefined ? '' : v).trim() === 'ไม่ตรง' ? 'ไม่ตรง' : 'ตรง';
+  }
+
+  function normalizeSkuValue_(v){
+    return String(v === null || v === undefined ? '' : v).trim() === 'ครบ' ? 'ครบ' : 'ไม่ครบ';
+  }
+
+  function readPlaceNoted_(place){
+    var out = reportNotedDefaults_();
+    if(!place) return out;
+
+    var raw = place.noted;
+    if(raw === null || raw === undefined || raw === '') return out;
+
+    var obj = raw;
+    if(typeof raw === 'string'){
+      var s = String(raw).trim();
+      if(!s) return out;
+      try{
+        obj = JSON.parse(s);
+      }catch(e){
+        out.note = s;
+        return out;
+      }
+    }
+
+    if(!obj || typeof obj !== 'object'){
+      out.note = String(raw || '');
+      return out;
+    }
+
+    if(obj.noted && typeof obj.noted === 'object'){
+      obj = obj.noted;
+    }
+
+    if(obj.pog !== undefined) out.pog = normalizePogValue_(obj.pog);
+    if(obj.sku !== undefined) out.sku = normalizeSkuValue_(obj.sku);
+    if(obj.oos !== undefined && obj.oos !== null) out.oos = String(obj.oos);
+    if(obj.issue !== undefined && obj.issue !== null) out.issue = String(obj.issue);
+    if(obj.note !== undefined && obj.note !== null) out.note = String(obj.note);
+
+    return out;
+  }
+
+  function buildReportPrefillPayload_(place){
+    place = place || {};
+    var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
+    var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
+    var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
+    var noted = readPlaceNoted_(place);
+
+    var notedPayload = {
+      v: 1,
+      pog: normalizePogValue_(noted.pog),
+      sku: normalizeSkuValue_(noted.sku),
+      oos: String(noted.oos || ''),
+      issue: String(noted.issue || ''),
+      note: String(noted.note || '')
+    };
+
+    return {
+      placeId: (place.id !== undefined && place.id !== null) ? String(place.id) : '',
+      account: acc,
+      branchCode: num,
+      branchName: nam,
+      pog: notedPayload.pog,
+      sku: notedPayload.sku,
+      oos: notedPayload.oos,
+      issue: notedPayload.issue,
+      note: notedPayload.note,
+      noted: notedPayload
+    };
+  }
+
+  function postReportPrefillMessage_(){
+    var win = getReportWin();
+    if(!win) return false;
+
+    var msg = { type:'PT_PREFILL', payload: buildReportPrefillPayload_(REPORT_CTX) };
+    var targetOrigin = '*';
+    try{
+      if(location.origin && location.origin !== 'null') targetOrigin = location.origin;
+    }catch(e){}
+
+    try{
+      win.postMessage(msg, targetOrigin);
+      return true;
+    }catch(e){
+      try{
+        win.postMessage(msg, '*');
+        return true;
+      }catch(err){}
+      return false;
+    }
+  }
+
   function openReport(place){
     REPORT_CTX = place || null;
+    REPORT_PREFILL_ACKED = false;
 
     if(place){
       var subtitle = '[' + (place.id || '-') + '] ' + (place.name || '');
@@ -1930,6 +2042,7 @@
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
       clearRestrictedFieldsOnce();
+      postReportPrefillMessage_();
       startPrefillLoop();
     }
 
@@ -1938,6 +2051,7 @@
       REPORT_TRIMMED = false;
       REPORT_EMBED_PATCHED = false;
       REPORT_COPY_HOOKED = false;
+      REPORT_PREFILL_ACKED = false;
 
       frame.onload = function(){ afterFrameReady(); };
 
@@ -1971,6 +2085,27 @@
   function getReportWin(){
     try{ return $('repFrame').contentWindow; }catch(e){ return null; }
   }
+
+  window.addEventListener('message', function(ev){
+    var msg = ev && ev.data;
+    if(!msg || typeof msg !== 'object') return;
+
+    try{
+      if(location.origin && location.origin !== 'null' && ev.origin && ev.origin !== location.origin){
+        return;
+      }
+    }catch(e){}
+
+    if(msg.type === 'PT_PREFILL_ACK'){
+      REPORT_PREFILL_ACKED = true;
+      return;
+    }
+
+    if(msg.type === 'PT_REPORT_COPIED'){
+      handleReportCopiedMessage_(msg.payload || {});
+      return;
+    }
+  });
 
   function tryTrimReportUI(){
     if(REPORT_TRIMMED) return;
@@ -2125,10 +2260,16 @@
     var acc = (place.account !== undefined && place.account !== null) ? String(place.account) : '';
     var num = (place.number !== undefined && place.number !== null) ? String(place.number) : '';
     var nam = (place.account_name !== undefined && place.account_name !== null) ? String(place.account_name) : '';
+    var noted = readPlaceNoted_(place);
 
     var accEl  = findField(doc, ['account'], ['แอคเคาท์','account']);
     var numEl  = findField(doc, ['branchCode'], ['เลขสาขา','สาขา','branch','store no','number']);
     var nameEl = findField(doc, ['branchName'], ['ชื่อสาขา','ชื่อร้าน','store name','account name','ชื่อ']);
+    var pogEl  = findField(doc, ['pog'], ['pog']);
+    var skuEl  = findField(doc, ['sku'], ['sku']);
+    var oosEl  = findField(doc, ['oos'], ['oos','สินค้าoos','สินค้า oos']);
+    var issueEl= findField(doc, ['issue'], ['ปัญหาหน้างาน','issue']);
+    var noteEl = findField(doc, ['note'], ['หมายเหตุ','note']);
 
     function setVal(el, val){
       if(!el) return false;
@@ -2152,8 +2293,13 @@
     var okA = setVal(accEl, acc);
     var okN = setVal(numEl, num);
     var okS = setVal(nameEl, nam);
+    var okP = setVal(pogEl, normalizePogValue_(noted.pog));
+    var okK = setVal(skuEl, normalizeSkuValue_(noted.sku));
+    var okO = setVal(oosEl, noted.oos || '');
+    var okI = setVal(issueEl, noted.issue || '');
+    var okT = setVal(noteEl, noted.note || '');
 
-    return !!(okA || okN || okS);
+    return !!(okA || okN || okS || okP || okK || okO || okI || okT);
   }
 
   function startPrefillLoop(){
@@ -2163,6 +2309,9 @@
 
     var t = setInterval(function(){
       tries++;
+      if(!REPORT_PREFILL_ACKED && tries <= 12){
+        postReportPrefillMessage_();
+      }
       tryTrimReportUI();
       patchReportEmbedStorageOnce();
       attachCopyHistoryHookOnce();
@@ -2390,6 +2539,121 @@
 
   function cacheRemove_(sheetName){
     try{ localStorage.removeItem(cacheKey_(sheetName)); }catch(e){}
+  }
+
+  function buildNotedRecordFromReportPayload_(payload){
+    payload = payload || {};
+    var src = (payload.noted && typeof payload.noted === 'object') ? payload.noted : payload;
+    var out = reportNotedDefaults_();
+
+    if(src && src.pog !== undefined) out.pog = normalizePogValue_(src.pog);
+    if(src && src.sku !== undefined) out.sku = normalizeSkuValue_(src.sku);
+    if(src && src.oos !== undefined && src.oos !== null) out.oos = String(src.oos);
+    if(src && src.issue !== undefined && src.issue !== null) out.issue = String(src.issue);
+    if(src && src.note !== undefined && src.note !== null) out.note = String(src.note);
+
+    var rec = {
+      v: 1,
+      pog: out.pog,
+      sku: out.sku,
+      oos: out.oos,
+      issue: out.issue,
+      note: out.note
+    };
+
+    if(payload.reportDateISO){
+      rec.reportDateISO = String(payload.reportDateISO);
+    }
+
+    var ts = Number(payload.copiedAt || 0);
+    try{
+      rec.updatedAt = (isFinite(ts) && ts > 0) ? new Date(ts).toISOString() : new Date().toISOString();
+    }catch(e){
+      rec.updatedAt = '';
+    }
+
+    return rec;
+  }
+
+  function patchPlaceNotedInArray_(arr, placeId, notedStr){
+    if(!Array.isArray(arr)) return false;
+    var id = String(placeId || '');
+    if(!id) return false;
+
+    for(var i=0;i<arr.length;i++){
+      var p = arr[i];
+      if(!p) continue;
+      if(String(p.id) !== id) continue;
+      p.noted = notedStr;
+      return true;
+    }
+    return false;
+  }
+
+  function updateLocalNotedState_(placeId, notedStr, sheetName){
+    var changed = patchPlaceNotedInArray_(PLACES, placeId, notedStr);
+
+    try{
+      var cached = cacheRead_(sheetName);
+      if(cached && cached.payload && patchPlaceNotedInArray_(cached.payload.places, placeId, notedStr)){
+        cacheWrite_(cached.payload, sheetName);
+        changed = true;
+      }
+    }catch(e){}
+
+    if(REPORT_CTX && String(REPORT_CTX.id || '') === String(placeId || '')){
+      REPORT_CTX.noted = notedStr;
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  async function saveNotedToApiSilent_(placeId, notedStr, sheetName){
+    try{
+      var res = await apiSaveNoted(placeId, notedStr, sheetName);
+      if(!res || !res.ok){
+        if(!REPORT_NOTED_SAVE_WARNED){
+          REPORT_NOTED_SAVE_WARNED = true;
+          console.warn('saveNoted failed (frontend prepared, backend may not support yet):', res);
+        }
+        return false;
+      }
+      return true;
+    }catch(err){
+      if(!REPORT_NOTED_SAVE_WARNED){
+        REPORT_NOTED_SAVE_WARNED = true;
+        console.warn('saveNoted error (frontend prepared, backend may not support yet):', err);
+      }
+      return false;
+    }
+  }
+
+  function handleReportCopiedMessage_(payload){
+    payload = payload || {};
+
+    var placeId = '';
+    if(payload.placeId !== undefined && payload.placeId !== null){
+      placeId = String(payload.placeId).trim();
+    }
+    if(!placeId && REPORT_CTX && REPORT_CTX.id !== undefined && REPORT_CTX.id !== null){
+      placeId = String(REPORT_CTX.id);
+    }
+    if(!placeId) return;
+
+    var sheetName = CURRENT_SHEET || '';
+    var rec = buildNotedRecordFromReportPayload_(payload);
+    var notedStr = '';
+    try{
+      notedStr = JSON.stringify(rec);
+    }catch(e){
+      return;
+    }
+
+    updateLocalNotedState_(placeId, notedStr, sheetName);
+
+    // Fire-and-forget: keep copy flow smooth even before backend is updated.
+    saveNotedToApiSilent_(placeId, notedStr, sheetName);
   }
 
   function renderFromCacheIfAny_(sheetName){

@@ -541,6 +541,7 @@
   let showAllHistory = false;
 
   let modalOnYes = null;
+  let embedPrefillContext = { placeId: "" };
 
   /* =========================
      Helpers
@@ -615,6 +616,47 @@
     try{
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (e){}
+  }
+
+  function postToParent(type, payload){
+    if (!EMBED) return;
+    try{
+      if (!window.parent || window.parent === window) return;
+      const targetOrigin = (location.origin && location.origin !== "null") ? location.origin : "*";
+      window.parent.postMessage({ type, payload }, targetOrigin);
+    } catch (e){}
+  }
+
+  function normalizePogValue(v){
+    return String(v ?? "").trim() === "ไม่ตรง" ? "ไม่ตรง" : "ตรง";
+  }
+
+  function normalizeSkuValue(v){
+    return String(v ?? "").trim() === "ครบ" ? "ครบ" : "ไม่ครบ";
+  }
+
+  function buildNotedPayloadForParent(){
+    return {
+      v: 1,
+      pog: normalizePogValue(pog.value),
+      sku: normalizeSkuValue(sku.value),
+      oos: safeText(oos.value).trimEnd(),
+      issue: safeText(issue.value).trimEnd(),
+      note: safeText(note.value).trimEnd()
+    };
+  }
+
+  function notifyParentReportCopied(){
+    if (!EMBED) return;
+    postToParent("PT_REPORT_COPIED", {
+      placeId: String((embedPrefillContext && embedPrefillContext.placeId) || "").trim(),
+      copiedAt: Date.now(),
+      reportDateISO: reportDate.value || todayISO(),
+      account: safeText(account.value).trim(),
+      branchCode: safeText(branchCode.value).trim(),
+      branchName: safeText(branchName.value).trim(),
+      noted: buildNotedPayloadForParent()
+    });
   }
 
   /* =========================
@@ -1010,6 +1052,8 @@
 
     saveFormState();
 
+    notifyParentReportCopied();
+
     if (openLine && autoOpenLine.checked){
       const url = getLineUrlByAccount(account.value);
       openUrl(url);
@@ -1137,20 +1181,50 @@
   });
 
   /* =========================
-     ✅ Prefill via postMessage (100% ไม่เดา selector)
+      ✅ Prefill via postMessage (100% ไม่เดา selector)
      Parent -> iframe:
-       { type:"PT_PREFILL", payload:{ account, branchCode, branchName } }
+       { type:"PT_PREFILL", payload:{ placeId, account, branchCode, branchName, noted|pog/sku/oos/issue/note } }
   ========================== */
   function applyPrefill(payload){
     payload = payload || {};
-    const a = String(payload.account ?? "").trim();
-    const bc = String(payload.branchCode ?? "").trim();
-    const bn = String(payload.branchName ?? "").trim();
+    const own = (k) => Object.prototype.hasOwnProperty.call(payload, k);
+    const notedObj = (payload.noted && typeof payload.noted === "object") ? payload.noted : null;
 
-    // ใส่ค่าแบบตรงๆ (id ชัวร์)
-    if (a) account.value = a;
-    if (bc) branchCode.value = bc;
-    if (bn) branchName.value = bn;
+    if (own("placeId")){
+      embedPrefillContext.placeId = String(payload.placeId ?? "").trim();
+    }
+
+    if (own("account")){
+      account.value = String(payload.account ?? "").trim();
+    }
+    if (own("branchCode")){
+      branchCode.value = String(payload.branchCode ?? "").trim();
+    }
+    if (own("branchName")){
+      branchName.value = String(payload.branchName ?? "").trim();
+    }
+
+    const hasPog = notedObj ? Object.prototype.hasOwnProperty.call(notedObj, "pog") : own("pog");
+    const hasSku = notedObj ? Object.prototype.hasOwnProperty.call(notedObj, "sku") : own("sku");
+    const hasOos = notedObj ? Object.prototype.hasOwnProperty.call(notedObj, "oos") : own("oos");
+    const hasIssue = notedObj ? Object.prototype.hasOwnProperty.call(notedObj, "issue") : own("issue");
+    const hasNote = notedObj ? Object.prototype.hasOwnProperty.call(notedObj, "note") : own("note");
+
+    if (hasPog){
+      pog.value = normalizePogValue(notedObj ? notedObj.pog : payload.pog);
+    }
+    if (hasSku){
+      sku.value = normalizeSkuValue(notedObj ? notedObj.sku : payload.sku);
+    }
+    if (hasOos){
+      oos.value = String(notedObj ? (notedObj.oos ?? "") : (payload.oos ?? ""));
+    }
+    if (hasIssue){
+      issue.value = String(notedObj ? (notedObj.issue ?? "") : (payload.issue ?? ""));
+    }
+    if (hasNote){
+      note.value = String(notedObj ? (notedObj.note ?? "") : (payload.note ?? ""));
+    }
 
     // อัปเดต preview และสถานะ
     updatePreview();
@@ -1171,7 +1245,8 @@
 
     applyPrefill(msg.payload || {});
     try{
-      window.parent && window.parent.postMessage({ type:"PT_PREFILL_ACK" }, (location.origin || "*"));
+      const targetOrigin = (location.origin && location.origin !== "null") ? location.origin : "*";
+      window.parent && window.parent.postMessage({ type:"PT_PREFILL_ACK" }, targetOrigin);
     }catch(err){}
   });
 
