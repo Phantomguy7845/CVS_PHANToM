@@ -1184,6 +1184,7 @@
     FORM: 'PT_REPORT_FORM_V1',
     HISTORY: 'PT_REPORT_HISTORY_V1'
   };
+  const REPORT_HISTORY_MAX = 240;
 
   const SETTINGS_KEY = 'PT_GBKK4_SETTINGS_V1';
   const SELECTED_SHEET_KEY = 'PT_GBKK_SELECTED_SHEET_V1';
@@ -1339,30 +1340,58 @@
     return new Promise(function(resolve, reject){
       var cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*1e9);
       var timedOut = false;
+      var settled = false;
+      var releaseTimer = null;
+      var script = null;
 
       var timer = setTimeout(function(){
+        if(settled) return;
         timedOut = true;
-        cleanup();
+        settled = true;
+        cleanup({ keepCallback:true, keepMs:60000 });
         reject(new Error('JSONP timeout'));
       }, timeoutMs);
 
-      function cleanup(){
-        clearTimeout(timer);
+      function dropCallback_(){
+        clearTimeout(releaseTimer);
         try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+      }
+
+      function scheduleDropCallback_(ms){
+        clearTimeout(releaseTimer);
+        releaseTimer = setTimeout(dropCallback_, ms || 0);
+      }
+
+      function cleanup(opts){
+        opts = opts || {};
+        clearTimeout(timer);
+        clearTimeout(releaseTimer);
         if(script && script.parentNode) script.parentNode.removeChild(script);
+
+        if(opts.keepCallback){
+          window[cbName] = function(){ scheduleDropCallback_(1000); };
+          scheduleDropCallback_(opts.keepMs || 60000);
+          return;
+        }
+
+        dropCallback_();
       }
 
       window[cbName] = function(data){
         if(timedOut) return;
+        if(settled) return;
+        settled = true;
         cleanup();
         resolve(data);
       };
 
       var sep = url.indexOf('?') >= 0 ? '&' : '?';
-      var script = document.createElement('script');
+      script = document.createElement('script');
       script.src = url + sep + 'callback=' + encodeURIComponent(cbName);
       script.onerror = function(){
         if(timedOut) return;
+        if(settled) return;
+        settled = true;
         cleanup();
         reject(new Error('JSONP load error'));
       };
@@ -1417,7 +1446,7 @@
     if(sheetName) params.sheet = sheetName;
     var url = apiUrl('saveNoted', params);
     if(!url) return { ok:false, message:'ยังไม่ได้ตั้งค่า CONFIG.API_URL' };
-    return await jsonp(url);
+    return await jsonp(url, 30000);
   }
 
   var SETTINGS = loadSettings_();
@@ -2331,25 +2360,35 @@
     if(!doc || !win) return;
 
     try{
-      var btn = doc.getElementById('btnCopy');
-      if(!btn){
+      var btns = [];
+      ['btnCopy', 'btnCopyOnly'].forEach(function(id){
+        var el = doc.getElementById(id);
+        if(el) btns.push(el);
+      });
+
+      if(!btns.length){
         var allBtns = doc.querySelectorAll('button');
         for(var i=0;i<allBtns.length;i++){
           var t = normText(allBtns[i].textContent || '');
-          if(t.indexOf('copy') !== -1 && t.indexOf('line') !== -1){
-            btn = allBtns[i];
-            break;
+          if(t.indexOf('copy') !== -1){
+            btns.push(allBtns[i]);
           }
         }
       }
-      if(!btn || btn.__pt_hooked) return;
 
-      btn.__pt_hooked = true;
-      btn.addEventListener('click', function(){
-        setTimeout(function(){ ensureHistoryExistsFallback(); }, 350);
-      }, true);
+      var hooked = false;
+      btns.forEach(function(btn){
+        if(!btn || btn.__pt_hooked) return;
+        btn.__pt_hooked = true;
+        btn.addEventListener('click', function(){
+          setTimeout(function(){ ensureHistoryExistsFallback(); }, 350);
+        }, true);
+        hooked = true;
+      });
 
-      REPORT_COPY_HOOKED = true;
+      if(hooked){
+        REPORT_COPY_HOOKED = true;
+      }
     }catch(e){}
   }
 
@@ -2402,8 +2441,46 @@
     };
 
     arr.unshift(entry);
-    if(arr.length > 80) arr = arr.slice(0, 80);
+    if(arr.length > REPORT_HISTORY_MAX) arr = arr.slice(0, REPORT_HISTORY_MAX);
     writeHistoryArray(win, arr);
+  }
+
+  function ensureHistoryExistsFromPayload_(payload){
+    if(!payload || typeof payload !== 'object') return false;
+
+    var reportText = String(payload.reportText || '').trim();
+    if(!reportText) return false;
+
+    var now = Number(payload.copiedAt || 0);
+    if(!(isFinite(now) && now > 0)) now = Date.now();
+
+    var entry = {
+      id: String(now) + '_' + Math.random().toString(16).slice(2),
+      createdAt: now,
+      reportDateISO: payload.reportDateISO ? String(payload.reportDateISO) : '',
+      reportText: reportText,
+      account: payload.account ? String(payload.account).trim() : '',
+      branchCode: payload.branchCode ? String(payload.branchCode).trim() : '',
+      branchName: payload.branchName ? String(payload.branchName).trim() : ''
+    };
+
+    var arr = readHistoryArray(window);
+    for(var i=0;i<Math.min(arr.length, 12);i++){
+      var it = arr[i];
+      if(!it) continue;
+      var sameText = String(it.reportText || '') === entry.reportText;
+      var sameAcc = String(it.account || '') === entry.account;
+      var sameCode = String(it.branchCode || '') === entry.branchCode;
+      var sameName = String(it.branchName || '') === entry.branchName;
+      var t = Number(it.createdAt || 0);
+      if(sameText && sameAcc && sameCode && sameName && (Math.abs(now - t) <= 5000 || t === 0)){
+        return false;
+      }
+    }
+
+    arr.unshift(entry);
+    if(arr.length > REPORT_HISTORY_MAX) arr = arr.slice(0, REPORT_HISTORY_MAX);
+    return writeHistoryArray(window, arr);
   }
 
   function renderList(){
@@ -2615,7 +2692,7 @@
       if(!res || !res.ok){
         if(!REPORT_NOTED_SAVE_WARNED){
           REPORT_NOTED_SAVE_WARNED = true;
-          console.warn('saveNoted failed (frontend prepared, backend may not support yet):', res);
+          console.warn('saveNoted failed:', res);
         }
         return false;
       }
@@ -2623,7 +2700,7 @@
     }catch(err){
       if(!REPORT_NOTED_SAVE_WARNED){
         REPORT_NOTED_SAVE_WARNED = true;
-        console.warn('saveNoted error (frontend prepared, backend may not support yet):', err);
+        console.warn('saveNoted error (backend timeout or unreachable):', err);
       }
       return false;
     }
@@ -2631,6 +2708,7 @@
 
   function handleReportCopiedMessage_(payload){
     payload = payload || {};
+    ensureHistoryExistsFromPayload_(payload);
 
     var placeId = '';
     if(payload.placeId !== undefined && payload.placeId !== null){
