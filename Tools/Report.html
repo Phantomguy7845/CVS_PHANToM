@@ -1005,7 +1005,7 @@
   }
 
   function saveHistory(showError = false){
-    history = mergeHistoryLists(history, readStoredHistory());
+    history = compactHistoryList(history);
     const ok = saveJSON(STORE_HISTORY, history);
     if (!ok && showError){
       setStatus("err", "คัดลอกแล้ว แต่บันทึกประวัติลงเครื่องไม่สำเร็จ");
