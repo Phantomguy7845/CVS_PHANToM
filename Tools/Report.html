@@ -324,6 +324,7 @@
             <option value="VILLA MARKET">VILLA MARKET</option>
             <option value="LOTUS'S GO FRESH">LOTUS'S GO FRESH</option>
             <option value="JIFFY">JIFFY</option>
+            <option value="7-ELEVEN">7-ELEVEN</option>
             <option value="TOPS DAILY">TOPS DAILY</option>
           </select>
 
@@ -486,6 +487,7 @@
     groupA: "https://line.me/R/ti/g/_udUgHC5kF",
     groupB: "https://line.me/R/ti/g/bVz2_mXbq8",
     groupC: "https://line.me/R/ti/g/XrNLFTykZG",
+    groupD: "https://line.me/R/ti/g/gBVQUuSRrb",
     summary: "https://line.me/R/ti/g/UEDp_YJDwn"
   };
 
@@ -494,6 +496,7 @@
     if (["CJ MORE","LAWSON","MINI BIG C","VILLA MARKET"].includes(a)) return LINE_GROUPS.groupA;
     if (["JIFFY","TOPS DAILY"].includes(a)) return LINE_GROUPS.groupB;
     if (["LOTUS'S GO FRESH"].includes(a)) return LINE_GROUPS.groupC;
+    if (["7-ELEVEN"].includes(a)) return LINE_GROUPS.groupD;
     return LINE_GROUPS.groupA;
   }
 
